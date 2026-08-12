@@ -1,0 +1,69 @@
+import { Brand } from "@/components/Brand";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
+import { ArrowLeft, ArrowRight, Check, Loader2, MapPin, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { startLogin } from "@/const";
+
+const steps = ["Your context", "What draws you in", "Your strengths", "How you show up", "Your direction"];
+const interests = ["Technology", "Science", "Business", "Medicine", "Engineering", "Arts", "Law", "Environment"];
+const skills = ["Programming", "Leadership", "Communication", "Research", "Writing", "Math", "Design", "Problem solving"];
+const activities = ["Clubs", "Sports", "Research", "Volunteer work", "Part-time work", "Music & arts", "Independent projects", "Community leadership"];
+const preferences = ["Creating things", "Helping people", "Discovering knowledge", "Leading teams", "Solving technical problems"];
+
+function ChoiceGrid({ values, selected, onToggle }: { values: string[]; selected: string[]; onToggle: (value: string) => void }) {
+  return <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{values.map(value => {
+    const active = selected.includes(value);
+    return <button key={value} type="button" onClick={() => onToggle(value)} className={cn("group relative rounded-2xl border px-4 py-3.5 text-left text-sm font-medium transition-all duration-200", active ? "border-primary bg-primary text-primary-foreground shadow-[0_8px_24px_rgba(39,74,169,0.20)]" : "border-border bg-card text-foreground hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-sm")}>
+      <span>{value}</span>{active && <Check className="absolute right-3 top-3 size-4" />}
+    </button>;
+  })}</div>;
+}
+
+export default function Onboarding() {
+  const { isAuthenticated, loading } = useAuth();
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState(0);
+  const [grade, setGrade] = useState("");
+  const [location, setStudentLocation] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
+  const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+  const utils = trpc.useUtils();
+  const complete = trpc.pathpilot.profile.completeOnboarding.useMutation({
+    onSuccess: async () => { await utils.pathpilot.dashboard.get.invalidate(); setLocation("/app"); },
+  });
+  const currentSelection = [selectedInterests, selectedSkills, selectedActivities, selectedPreferences][step - 1];
+  const canAdvance = useMemo(() => step === 0 ? Boolean(grade && location.trim()) : currentSelection?.length > 0, [currentSelection, grade, location, step]);
+  const toggle = (value: string, values: string[], setValues: (values: string[]) => void) => setValues(values.includes(value) ? values.filter(item => item !== value) : [...values, value]);
+  const advance = () => {
+    if (!canAdvance) return;
+    if (step < 4) setStep(step + 1);
+    else complete.mutate({ grade, location, interests: selectedInterests, skills: selectedSkills, activities: selectedActivities, careerPreferences: selectedPreferences });
+  };
+
+  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>;
+  if (!isAuthenticated) return <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#eef2ff,transparent_40%)] px-5"><div className="surface-panel w-full max-w-md p-8 text-center"><Brand /><h1 className="mt-10 text-3xl font-semibold tracking-[-0.05em]">Start with your account</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in first so PathPilot can keep your roadmap and guidance private.</p><Button className="mt-8 w-full" size="lg" onClick={() => startLogin()}>Sign in to PathPilot</Button></div></main>;
+
+  return <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-20%,#dfe7ff,transparent_37%),#fcfcfd] px-4 py-5 sm:px-6 sm:py-8">
+    <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-5xl flex-col">
+      <header className="flex items-center justify-between"><Brand /><span className="text-xs font-medium text-muted-foreground">Onboarding · {step + 1} / 5</span></header>
+      <div className="my-10 grid flex-1 items-center lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
+        <div className="mb-10 lg:mb-0"><div className="eyebrow">Build your starting point</div><h1 className="mt-4 max-w-md text-4xl font-semibold tracking-[-0.06em] text-balance sm:text-5xl">A direction that feels <span className="text-primary">like yours.</span></h1><p className="mt-5 max-w-sm text-base leading-7 text-muted-foreground">A few thoughtful inputs help your career workspace stay relevant as your goals evolve.</p><div className="mt-10 space-y-4">{steps.map((label, index) => <div key={label} className={cn("flex items-center gap-3 text-sm transition-colors", index === step ? "text-foreground" : index < step ? "text-primary" : "text-muted-foreground/60")}><span className={cn("grid size-6 place-items-center rounded-full text-[11px] font-semibold", index < step ? "bg-primary text-primary-foreground" : index === step ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>{index < step ? <Check className="size-3.5" /> : index + 1}</span>{label}</div>)}</div></div>
+        <section className="surface-panel overflow-hidden p-1"><div className="rounded-[22px] bg-card p-6 sm:p-9"><div className="mb-8 h-1.5 overflow-hidden rounded-full bg-muted"><motion.div className="h-full rounded-full bg-primary" animate={{ width: `${(step + 1) * 20}%` }} transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }} /></div><AnimatePresence mode="wait"><motion.div key={step} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }}>
+          {step === 0 && <div><div className="icon-tile"><MapPin className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">Where are you right now?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">This gives us context for the opportunities and pace that make sense for you.</p><div className="mt-7 grid gap-4 sm:grid-cols-2"><label className="field-label">Your grade<select value={grade} onChange={event => setGrade(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option value="">Select grade</option>{[8, 9, 10, 11, 12].map(value => <option key={value} value={`Grade ${value}`}>Grade {value}</option>)}</select></label><label className="field-label">Your city or region<Input className="mt-2 h-11 rounded-xl" value={location} onChange={event => setStudentLocation(event.target.value)} placeholder="e.g., Austin, Texas" /></label></div></div>}
+          {step === 1 && <div><div className="icon-tile"><Sparkles className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">What pulls you in?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Choose the subjects and fields that make you curious. More than one is welcome.</p><div className="mt-7"><ChoiceGrid values={interests} selected={selectedInterests} onToggle={value => toggle(value, selectedInterests, setSelectedInterests)} /></div></div>}
+          {step === 2 && <div><div className="icon-tile"><Sparkles className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">Where do you feel capable?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Include things you have started learning—not just things you have mastered.</p><div className="mt-7"><ChoiceGrid values={skills} selected={selectedSkills} onToggle={value => toggle(value, selectedSkills, setSelectedSkills)} /></div></div>}
+          {step === 3 && <div><div className="icon-tile"><Sparkles className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">How do you show up?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Your activities reveal the environments where you learn and contribute best.</p><div className="mt-7"><ChoiceGrid values={activities} selected={selectedActivities} onToggle={value => toggle(value, selectedActivities, setSelectedActivities)} /></div></div>}
+          {step === 4 && <div><div className="icon-tile"><Sparkles className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">What kind of work matters?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">This is a starting signal, not a permanent label. Your career workspace will grow with you.</p><div className="mt-7"><ChoiceGrid values={preferences} selected={selectedPreferences} onToggle={value => toggle(value, selectedPreferences, setSelectedPreferences)} /></div></div>}
+        </motion.div></AnimatePresence><div className="mt-9 flex items-center justify-between border-t pt-6"><Button variant="ghost" className="gap-2" disabled={step === 0 || complete.isPending} onClick={() => setStep(step - 1)}><ArrowLeft className="size-4" />Back</Button><Button className="gap-2" disabled={!canAdvance || complete.isPending} onClick={advance}>{complete.isPending ? <Loader2 className="size-4 animate-spin" /> : step === 4 ? "Build my workspace" : <>Continue <ArrowRight className="size-4" /></>}</Button></div>{complete.error && <p className="mt-4 text-sm text-destructive">{complete.error.message}</p>}</div></section>
+      </div>
+    </div>
+  </main>;
+}

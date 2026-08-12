@@ -1,0 +1,367 @@
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import {
+  addMentorMessage,
+  completeSimulation,
+  createGoal,
+  createRoadmap,
+  createSimulation,
+  getActiveRoadmap,
+  getCareerMatches,
+  getConversationMessages,
+  getDashboardData,
+  getOrCreateMentorConversation,
+  getSimulation,
+  getStudentProfile,
+  listGoals,
+  replaceCareerMatches,
+  RoadmapMilestoneInput,
+  saveStudentProfile,
+  updateGoal,
+  updateMilestoneProgress,
+} from "../db";
+import { invokeLLM, listLLMModels } from "../_core/llm";
+import { protectedProcedure, router } from "../_core/trpc";
+import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
+
+const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
+const prioritySchema = z.enum(["low", "medium", "high"]);
+const resourceSchema = z.object({ label: z.string().trim().min(1).max(120), url: z.string().url().max(500) });
+const milestoneSchema = z.object({
+  year: z.number().int().min(1).max(8),
+  title: z.string().trim().min(1).max(180),
+  description: z.string().trim().max(1000).optional(),
+  category: z.enum(["skill", "project", "experience"]),
+  deadline: z.date().optional(),
+  priority: prioritySchema,
+  estimatedHours: z.number().int().min(1).max(1000),
+  resources: z.array(resourceSchema).max(8),
+  progress: z.number().int().min(0).max(100).optional(),
+  status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(),
+  sortOrder: z.number().int().min(0).max(100),
+});
+
+const recommendationSchema = z.object({
+  name: z.string().trim().min(2).max(180),
+  description: z.string().trim().min(20).max(900),
+  salaryRange: z.string().trim().min(3).max(120),
+  educationRequirements: z.string().trim().min(10).max(500),
+  requiredSkills: z.array(z.string().trim().min(1).max(80)).min(3).max(8),
+  dailyResponsibilities: z.array(z.string().trim().min(1).max(180)).min(2).max(6),
+  relatedCareers: z.array(z.string().trim().min(1).max(180)).min(2).max(6),
+  matchScore: z.number().int().min(1).max(100),
+  reasoning: z.string().trim().min(30).max(1000),
+  strengths: z.array(z.string().trim().min(1).max(150)).min(1).max(6),
+  missingSkills: z.array(z.string().trim().min(1).max(150)).min(1).max(6),
+  realityCheck: z.string().trim().min(30).max(1000),
+  nextSteps: z.array(z.string().trim().min(1).max(220)).min(2).max(5),
+});
+
+const discoverySchema = z.object({ matches: z.array(recommendationSchema).length(5) });
+const simulationScenarioSchema = z.object({
+  id: z.string().regex(/^s[1-3]$/),
+  title: z.string().trim().min(3).max(160),
+  prompt: z.string().trim().min(30).max(900),
+  choices: z.array(z.object({
+    id: z.string().regex(/^c[1-3]$/),
+    label: z.string().trim().min(3).max(280),
+    technicalImpact: z.number().int().min(0).max(100),
+    leadershipImpact: z.number().int().min(0).max(100),
+    compatibilityImpact: z.number().int().min(0).max(100),
+  })).length(3),
+});
+const simulationGenerationSchema = z.object({
+  title: z.string().trim().min(3).max(180),
+  scenarios: z.array(simulationScenarioSchema).length(3),
+});
+const generatedMilestoneSchema = z.object({
+  year: z.number().int().min(1).max(3),
+  title: z.string().trim().min(2).max(180),
+  description: z.string().trim().min(15).max(1000),
+  category: z.enum(["skill", "project", "experience"]),
+  deadline: z.string().datetime().nullable(),
+  priority: prioritySchema,
+  estimatedHours: z.number().int().min(1).max(1000),
+  resources: z.array(resourceSchema).max(4),
+});
+const roadmapGenerationSchema = z.object({ milestones: z.array(generatedMilestoneSchema).length(9) });
+const mentorResponseSchema = z.object({
+  reply: z.string().trim().min(1).max(4000),
+  suggestedGoal: z.object({
+    title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200), category: z.string().trim().min(2).max(64),
+    priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), deadline: z.string().datetime().nullable(),
+  }).nullable(),
+  priorityAdjustment: z.object({ goalId: z.number().int().positive(), priority: prioritySchema }).nullable(),
+});
+
+const discoveryJsonSchema = {
+  type: "object",
+  properties: {
+    matches: {
+      type: "array", minItems: 5, maxItems: 5,
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" }, description: { type: "string" }, salaryRange: { type: "string" }, educationRequirements: { type: "string" },
+          requiredSkills: { type: "array", items: { type: "string" } }, dailyResponsibilities: { type: "array", items: { type: "string" } }, relatedCareers: { type: "array", items: { type: "string" } },
+          matchScore: { type: "integer" }, reasoning: { type: "string" }, strengths: { type: "array", items: { type: "string" } }, missingSkills: { type: "array", items: { type: "string" } },
+          realityCheck: { type: "string" }, nextSteps: { type: "array", items: { type: "string" } },
+        },
+        required: ["name", "description", "salaryRange", "educationRequirements", "requiredSkills", "dailyResponsibilities", "relatedCareers", "matchScore", "reasoning", "strengths", "missingSkills", "realityCheck", "nextSteps"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["matches"],
+  additionalProperties: false,
+} as const;
+
+const simulationJsonSchema = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    scenarios: {
+      type: "array", minItems: 3, maxItems: 3,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" }, title: { type: "string" }, prompt: { type: "string" },
+          choices: {
+            type: "array", minItems: 3, maxItems: 3,
+            items: { type: "object", properties: { id: { type: "string" }, label: { type: "string" }, technicalImpact: { type: "integer" }, leadershipImpact: { type: "integer" }, compatibilityImpact: { type: "integer" } }, required: ["id", "label", "technicalImpact", "leadershipImpact", "compatibilityImpact"], additionalProperties: false },
+          },
+        },
+        required: ["id", "title", "prompt", "choices"], additionalProperties: false,
+      },
+    },
+  },
+  required: ["title", "scenarios"], additionalProperties: false,
+} as const;
+
+const roadmapJsonSchema = {
+  type: "object",
+  properties: {
+    milestones: {
+      type: "array", minItems: 9, maxItems: 9,
+      items: {
+        type: "object",
+        properties: {
+          year: { type: "integer" }, title: { type: "string" }, description: { type: "string" }, category: { type: "string", enum: ["skill", "project", "experience"] },
+          deadline: { type: ["string", "null"] }, priority: { type: "string", enum: ["low", "medium", "high"] }, estimatedHours: { type: "integer" },
+          resources: { type: "array", items: { type: "object", properties: { label: { type: "string" }, url: { type: "string" } }, required: ["label", "url"], additionalProperties: false } },
+        },
+        required: ["year", "title", "description", "category", "deadline", "priority", "estimatedHours", "resources"], additionalProperties: false,
+      },
+    },
+  },
+  required: ["milestones"], additionalProperties: false,
+} as const;
+
+const mentorJsonSchema = {
+  type: "object",
+  properties: {
+    reply: { type: "string" },
+    suggestedGoal: {
+      type: ["object", "null"],
+      properties: { title: { type: "string" }, description: { type: "string" }, category: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high"] }, estimatedHours: { type: "integer" }, deadline: { type: ["string", "null"] } },
+      required: ["title", "description", "category", "priority", "estimatedHours", "deadline"], additionalProperties: false,
+    },
+    priorityAdjustment: {
+      type: ["object", "null"],
+      properties: { goalId: { type: "integer" }, priority: { type: "string", enum: ["low", "medium", "high"] } },
+      required: ["goalId", "priority"], additionalProperties: false,
+    },
+  },
+  required: ["reply", "suggestedGoal", "priorityAdjustment"], additionalProperties: false,
+} as const;
+
+function contentFrom(response: Awaited<ReturnType<typeof invokeLLM>>) {
+  const content = response.choices[0]?.message.content;
+  if (typeof content !== "string") throw new TRPCError({ code: "BAD_GATEWAY", message: "The AI service returned an unsupported response." });
+  return content;
+}
+
+async function preferredModel() {
+  const models = await listLLMModels();
+  return models.data.find(model => model.id === "gpt-5-mini")?.id ?? models.data[0]?.id;
+}
+
+function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStudentProfile>>>) {
+  return [
+    `Grade: ${profile.grade}`,
+    `Location: ${profile.location}`,
+    `Interests: ${profile.interests.join(", ")}`,
+    `Skills: ${profile.skills.join(", ")}`,
+    `Activities: ${profile.activities.join(", ")}`,
+    `Preferred work: ${profile.careerPreferences.join(", ")}`,
+  ].join("\n");
+}
+
+export const pathpilotRouter = router({
+  profile: router({
+    get: protectedProcedure.query(({ ctx }) => getStudentProfile(ctx.user.id)),
+    completeOnboarding: protectedProcedure.input(z.object({
+      grade: z.string().trim().min(1).max(16),
+      location: z.string().trim().min(2).max(160),
+      interests: selectionSchema,
+      skills: selectionSchema,
+      activities: selectionSchema,
+      careerPreferences: selectionSchema,
+    })).mutation(({ ctx, input }) => saveStudentProfile(ctx.user.id, input)),
+  }),
+
+  dashboard: router({
+    get: protectedProcedure.query(({ ctx }) => getDashboardData(ctx.user.id)),
+  }),
+
+  discovery: router({
+    list: protectedProcedure.query(({ ctx }) => getCareerMatches(ctx.user.id)),
+    analyze: protectedProcedure.mutation(async ({ ctx }) => {
+      const profile = await getStudentProfile(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before requesting career guidance." });
+      try {
+        const response = await invokeLLM({
+          model: await preferredModel(),
+          messages: [
+            { role: "system", content: "You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Return only the requested JSON." },
+            { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
+          ],
+          response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
+        });
+        const parsed = discoverySchema.safeParse(JSON.parse(contentFrom(response)));
+        if (!parsed.success || !hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) {
+          throw new Error("The model response did not contain five unique validated career matches.");
+        }
+        return replaceCareerMatches(ctx.user.id, parsed.data.matches);
+      } catch (error) {
+        console.error("[PathPilot] career discovery failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "Career guidance is temporarily unavailable. Please try again shortly." });
+      }
+    }),
+  }),
+
+  goals: router({
+    list: protectedProcedure.query(({ ctx }) => listGoals(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200).optional(), category: z.string().trim().min(2).max(64),
+      deadline: z.date().optional(), priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), resources: z.array(resourceSchema).max(8).optional(),
+    })).mutation(({ ctx, input }) => createGoal(ctx.user.id, input)),
+    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional() }))
+      .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority })),
+  }),
+
+  roadmap: router({
+    get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
+    generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
+      const profile = await getStudentProfile(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
+      try {
+        const response = await invokeLLM({
+          model: await preferredModel(),
+          messages: [
+            { role: "system", content: "You are PathPilot's roadmap planner for high-school students. Create an actionable but realistic three-year career roadmap. Return exactly nine milestones: three per year, with one skill, one project, and one experience milestone in each year. Adapt scope and deadlines to the student's profile. Dates must be UTC ISO-8601 strings or null when a deadline would be speculative. Include only well-known, directly relevant resources with valid https URLs; use an empty resources list if unsure. Do not promise outcomes. Return only the requested JSON." },
+            { role: "user", content: `Target career: ${input.targetCareer}\nStudent profile:\n${profileContext(profile)}` },
+          ],
+          response_format: { type: "json_schema", json_schema: { name: "career_roadmap", strict: true, schema: roadmapJsonSchema } },
+        });
+        const parsed = roadmapGenerationSchema.safeParse(JSON.parse(contentFrom(response)));
+        if (!parsed.success || new Set(parsed.data.milestones.map(milestone => `${milestone.year}-${milestone.category}`)).size !== 9) {
+          throw new Error("The generated roadmap did not include the required yearly milestone structure.");
+        }
+        const milestones: RoadmapMilestoneInput[] = parsed.data.milestones.map((milestone, index) => ({
+          ...milestone,
+          deadline: milestone.deadline ? new Date(milestone.deadline) : undefined,
+          sortOrder: index,
+        }));
+        return createRoadmap(ctx.user.id, input.targetCareer, milestones);
+      } catch (error) {
+        console.error("[PathPilot] roadmap generation failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "Your personalized roadmap is temporarily unavailable. Please try again shortly." });
+      }
+    }),
+    create: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), milestones: z.array(milestoneSchema).min(1).max(30) }))
+      .mutation(({ ctx, input }) => createRoadmap(ctx.user.id, input.targetCareer, input.milestones as RoadmapMilestoneInput[])),
+    updateMilestoneProgress: protectedProcedure.input(z.object({ id: z.number().int().positive(), progress: z.number().int().min(0).max(100) }))
+      .mutation(({ ctx, input }) => updateMilestoneProgress(ctx.user.id, input.id, input.progress)),
+  }),
+
+  simulations: router({
+    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(({ ctx, input }) => getSimulation(ctx.user.id, input.id)),
+    start: protectedProcedure.input(z.object({ career: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
+      const profile = await getStudentProfile(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before starting a simulation." });
+      try {
+        const response = await invokeLLM({
+          model: await preferredModel(),
+          messages: [
+            { role: "system", content: "You create concise, age-appropriate career simulations for high-school students. Build exactly three connected decision scenarios for the target career. Each scenario must have exactly three viable options. Choice impact scores must range from 0 to 100 and assess thoughtful problem solving, collaboration, and career-aligned judgment. Do not make any option humiliating or unsafe. Return only the requested JSON." },
+            { role: "user", content: `Target career: ${input.career}\nStudent profile:\n${profileContext(profile)}` },
+          ],
+          response_format: { type: "json_schema", json_schema: { name: "career_simulation", strict: true, schema: simulationJsonSchema } },
+        });
+        const parsed = simulationGenerationSchema.safeParse(JSON.parse(contentFrom(response)));
+        if (!parsed.success) throw new Error("The model simulation did not satisfy validation.");
+        return createSimulation(ctx.user.id, { career: input.career, title: parsed.data.title, scenarios: parsed.data.scenarios });
+      } catch (error) {
+        console.error("[PathPilot] simulation generation failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "The career simulation is temporarily unavailable. Please try again shortly." });
+      }
+    }),
+    complete: protectedProcedure.input(z.object({ id: z.number().int().positive(), choices: z.array(z.object({ scenarioId: z.string().regex(/^s[1-3]$/), choiceId: z.string().regex(/^c[1-3]$/) })).length(3) }))
+      .mutation(async ({ ctx, input }) => {
+        const simulation = await getSimulation(ctx.user.id, input.id);
+        if (!simulation) throw new TRPCError({ code: "NOT_FOUND", message: "Simulation not found." });
+        const scenarios = z.array(simulationScenarioSchema).length(3).safeParse(simulation.scenarios);
+        if (!scenarios.success) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Simulation data cannot be evaluated." });
+        const scores = input.choices.map(selection => {
+          const scenario = scenarios.data.find(item => item.id === selection.scenarioId);
+          const choice = scenario?.choices.find(item => item.id === selection.choiceId);
+          if (!choice) throw new TRPCError({ code: "BAD_REQUEST", message: "A submitted simulation choice is invalid." });
+          return choice;
+        });
+        const { technicalScore, leadershipScore, careerCompatibilityScore, score } = calculateSimulationScores(scores);
+        return completeSimulation(ctx.user.id, input.id, { userChoices: input.choices, technicalScore, leadershipScore, careerCompatibilityScore, score, feedback: buildSimulationFeedback(simulation.career, technicalScore, leadershipScore, careerCompatibilityScore) });
+      }),
+  }),
+
+  mentor: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const conversation = await getOrCreateMentorConversation(ctx.user.id);
+      const messages = await getConversationMessages(ctx.user.id, conversation.id);
+      return { conversation, messages };
+    }),
+    send: protectedProcedure.input(z.object({ content: z.string().trim().min(1).max(3000) })).mutation(async ({ ctx, input }) => {
+      const [conversation, dashboard] = await Promise.all([getOrCreateMentorConversation(ctx.user.id), getDashboardData(ctx.user.id)]);
+      const messages = await getConversationMessages(ctx.user.id, conversation.id);
+      await addMentorMessage(ctx.user.id, conversation.id, "user", input.content);
+      const history = messages.slice(-12).map(message => `${message.role === "user" ? "Student" : "Mentor"}: ${message.content}`).join("\n");
+      const roadmapSummary = dashboard.roadmap ? `${dashboard.roadmap.targetCareer} (${dashboard.roadmap.completionPercentage}% complete); milestones: ${dashboard.roadmap.milestones.map(milestone => `${milestone.title} ${milestone.progress}%`).join(", ")}` : "No roadmap created yet.";
+      const goalsSummary = dashboard.goals.slice(0, 8).map(goal => `#${goal.id} ${goal.title} [${goal.status}, ${goal.priority}, ${goal.progress}%]`).join("; ") || "No goals yet.";
+      try {
+        const response = await invokeLLM({
+          model: await preferredModel(),
+          messages: [
+            { role: "system", content: "You are PathPilot, a supportive career mentor for high-school students. Provide pragmatic, age-appropriate guidance, not promises. Help create goals, re-prioritize work, and compare learning decisions when requested. Do not diagnose, shame, or state that a student must choose a particular career. Treat the following profile, roadmap, goals, and conversation as private context. Return a JSON response with a concise Markdown reply. Populate suggestedGoal only when the student explicitly asks you to create a goal; otherwise return null. Populate priorityAdjustment only when the student explicitly asks you to change a listed goal's priority; otherwise return null.\n\nStudent profile:\n" + (dashboard.profile ? profileContext(dashboard.profile) : "Not yet completed.") + `\n\nRoadmap:\n${roadmapSummary}\n\nGoals:\n${goalsSummary}\n\nPrior messages:\n${history}` },
+            { role: "user", content: input.content },
+          ],
+          response_format: { type: "json_schema", json_schema: { name: "mentor_response", strict: true, schema: mentorJsonSchema } },
+        });
+        const parsed = mentorResponseSchema.safeParse(JSON.parse(contentFrom(response)));
+        if (!parsed.success) throw new Error("The mentor response failed validation.");
+        const createdGoal = parsed.data.suggestedGoal ? await createGoal(ctx.user.id, {
+          ...parsed.data.suggestedGoal,
+          deadline: parsed.data.suggestedGoal.deadline ? new Date(parsed.data.suggestedGoal.deadline) : undefined,
+          resources: [],
+        }) : null;
+        const updatedGoal = parsed.data.priorityAdjustment ? await updateGoal(ctx.user.id, parsed.data.priorityAdjustment.goalId, { priority: parsed.data.priorityAdjustment.priority }) : null;
+        const actionNote = createdGoal ? `\n\n> **Goal created:** ${createdGoal.title}` : updatedGoal ? `\n\n> **Priority updated:** ${updatedGoal.title} is now ${updatedGoal.priority}.` : "";
+        const reply = parsed.data.reply + actionNote;
+        await addMentorMessage(ctx.user.id, conversation.id, "assistant", reply);
+        return { conversationId: conversation.id, reply, createdGoal, updatedGoal };
+      } catch (error) {
+        console.error("[PathPilot] mentor response failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "Your career mentor is temporarily unavailable. Please try again shortly." });
+      }
+    }),
+  }),
+});
