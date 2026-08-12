@@ -149,7 +149,7 @@ export function AIChatBox({
     }
   }, []);
 
-  // Scroll to bottom helper function with smooth animation
+  // Scroll to the latest message immediately after a send.
   const scrollToBottom = () => {
     const viewport = scrollAreaRef.current?.querySelector(
       '[data-radix-scroll-area-viewport]'
@@ -159,7 +159,7 @@ export function AIChatBox({
       requestAnimationFrame(() => {
         viewport.scrollTo({
           top: viewport.scrollHeight,
-          behavior: 'smooth'
+          behavior: 'auto'
         });
       });
     }

@@ -16,4 +16,5 @@
 - [x] Add loading, empty, success, and error states; ensure keyboard accessibility and mobile responsiveness.
 - [x] Add and run focused Vitest coverage for core server behavior and data validation.
 - [x] Verify the rendered interface at desktop and mobile breakpoints, address defects, and document remaining limitations.
-- [ ] Save a final checkpoint after reviewing the completed checklist.
+- [x] Save a final checkpoint after reviewing the completed checklist.
+- [x] Remove all UI animations except a subtle fade on the public feature cards.
