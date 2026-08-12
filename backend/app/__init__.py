@@ -1,0 +1,1 @@
+"""PathPilot FastAPI application package."""

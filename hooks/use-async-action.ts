@@ -1,0 +1,3 @@
+"use client";
+import { useCallback, useState } from "react";
+export function useAsyncAction<TInput, TResult>(action: (input: TInput) => Promise<TResult>) { const [isPending, setIsPending] = useState(false); const [error, setError] = useState<Error | null>(null); const execute = useCallback(async (input: TInput) => { setIsPending(true); setError(null); try { return await action(input); } catch (cause) { const nextError = cause instanceof Error ? cause : new Error("Request failed."); setError(nextError); throw nextError; } finally { setIsPending(false); } }, [action]); return { execute, isPending, error }; }

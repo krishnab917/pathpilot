@@ -1,0 +1,3 @@
+import { AppShell } from "@/components/app-shell";
+import { Card } from "@/components/ui/card";
+export function SimulationScreen() { return <AppShell title="Career simulations" description="Simulation scenarios and scoring are independent domain code. The UI only renders scenario data and submits selections."><Card><p className="text-sm font-semibold">Scenario library boundary</p><p className="mt-2 text-sm leading-6 text-[#687082]">The simulation engine accepts scenarios as data, enabling scenario expansion without changes to the dashboard, authentication, or route composition.</p></Card></AppShell>; }

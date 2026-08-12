@@ -1,0 +1,11 @@
+export type Priority = "low" | "medium" | "high";
+export type MilestoneCategory = "skill" | "project" | "experience";
+export type ProgressStatus = "not_started" | "in_progress" | "completed" | "paused";
+export type ResourceLink = { label: string; url: string };
+export type StudentProfile = { id: string; grade: string; location: string; interests: string[]; skills: string[]; activities: string[]; careerPreferences: string[]; onboardingCompletedAt: string | null };
+export type CareerMatch = { id: string; rank: number; matchScore: number; careerName: string; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
+export type RoadmapMilestone = { id: string; year: number; title: string; description: string | null; category: MilestoneCategory; deadline: string | null; priority: Priority; estimatedHours: number; resources: ResourceLink[]; progress: number; status: ProgressStatus };
+export type Roadmap = { id: string; targetCareer: string; completionPercentage: number; milestones: RoadmapMilestone[] };
+export type SimulationChoice = { id: string; label: string; technicalImpact: number; leadershipImpact: number; compatibilityImpact: number };
+export type SimulationScenario = { id: string; title: string; prompt: string; choices: SimulationChoice[] };
+export type SimulationResult = { technicalScore: number; leadershipScore: number; careerCompatibilityScore: number; score: number; feedback: string };
