@@ -72,3 +72,4 @@
 - [ ] Verify the authenticated workspace career-guidance action after the retry fix with a real student session.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.
+- [x] Bound live career-guidance model selection and structured completion waits, then align the provider schema and concise prompt with the server validator.

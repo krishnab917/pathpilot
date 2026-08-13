@@ -21,7 +21,7 @@ Strict TypeScript checking passes. The Vitest suite has **14 passing files and 3
 
 The connected authenticated session was used to verify the completed-simulation handoff, simulation debrief, country selection, pending-recommendation refresh, add/skip/edit controls, active-roadmap conversion, mentor handoff, and both light and high-contrast dark themes. A separate 375-pixel-wide authenticated frame confirmed that the mobile header collapses to the hamburger navigation and that the V1.1 roadmap debrief, country control, and recommendation rows remain available at the mobile breakpoint.
 
-The live career-discovery action did reach the server but the provider returned an invalid five-career structured result after its retry budget. The procedure now bounds model-catalog selection to eight seconds and each structured model completion to 25 seconds, preventing a stalled upstream request from leaving the UI indefinitely in the “Analyzing” state. A future real-session check should confirm a successful five-match response when the upstream provider is available.
+The live career-discovery action did reach the server but the provider did not complete the five-career structured response within the initial test window. The procedure now bounds model-catalog selection to eight seconds and each structured model completion to 45 seconds, preventing a stalled upstream request from leaving the UI indefinitely in the “Analyzing” state while allowing practical time for a five-match response. A future real-session check should confirm a successful five-match response when the upstream provider is available.
 
 ## National-Context Boundary
 

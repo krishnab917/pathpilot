@@ -118,10 +118,10 @@ const discoveryJsonSchema = {
       items: {
         type: "object",
         properties: {
-          name: { type: "string" }, description: { type: "string" }, salaryRange: { type: "string" }, educationRequirements: { type: "string" },
-          requiredSkills: { type: "array", items: { type: "string" } }, dailyResponsibilities: { type: "array", items: { type: "string" } }, relatedCareers: { type: "array", items: { type: "string" } },
-          matchScore: { type: "integer" }, reasoning: { type: "string" }, strengths: { type: "array", items: { type: "string" } }, missingSkills: { type: "array", items: { type: "string" } },
-          realityCheck: { type: "string" }, nextSteps: { type: "array", items: { type: "string" } },
+          name: { type: "string", minLength: 2, maxLength: 180 }, description: { type: "string", minLength: 20, maxLength: 900 }, salaryRange: { type: "string", minLength: 3, maxLength: 120 }, educationRequirements: { type: "string", minLength: 10, maxLength: 500 },
+          requiredSkills: { type: "array", minItems: 3, maxItems: 8, items: { type: "string", minLength: 1, maxLength: 80 } }, dailyResponsibilities: { type: "array", minItems: 2, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 180 } }, relatedCareers: { type: "array", minItems: 2, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 180 } },
+          matchScore: { type: "integer", minimum: 1, maximum: 100 }, reasoning: { type: "string", minLength: 30, maxLength: 1000 }, strengths: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 150 } }, missingSkills: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 1, maxLength: 150 } },
+          realityCheck: { type: "string", minLength: 30, maxLength: 1000 }, nextSteps: { type: "array", minItems: 2, maxItems: 5, items: { type: "string", minLength: 1, maxLength: 220 } },
         },
         required: ["name", "description", "salaryRange", "educationRequirements", "requiredSkills", "dailyResponsibilities", "relatedCareers", "matchScore", "reasoning", "strengths", "missingSkills", "realityCheck", "nextSteps"],
         additionalProperties: false,
@@ -255,16 +255,20 @@ export const pathpilotRouter = router({
             const response = await withCareerGuidanceTimeout(invokeLLM({
               model,
               messages: [
-                { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct and every required field is complete." : ""}` },
+                { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Keep every text field to one concise sentence or phrase. Return exactly the required minimum list sizes: 3 required skills, 2 daily responsibilities, 2 related careers, 1 current strength, 1 skill to build, and 2 next steps. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct and every required field is complete." : ""}` },
                 { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
               ],
               response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
-            }), 25_000);
+            }), 45_000);
             return contentFrom(response);
           },
           content => {
             const parsed = discoverySchema.safeParse(JSON.parse(String(content)));
-            if (!parsed.success || !hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new Error("The model response did not contain five unique validated career matches.");
+            if (!parsed.success) {
+              const fields = parsed.error.issues.map(issue => issue.path.join(".") || "response").join(", ");
+              throw new Error(`The model response did not satisfy the career-discovery contract at: ${fields}.`);
+            }
+            if (!hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new Error("The model response did not contain five unique career names.");
             return parsed.data.matches;
           },
         );
