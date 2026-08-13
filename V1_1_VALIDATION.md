@@ -6,16 +6,22 @@ The V1.1 migration is applied to the connected Supabase project. It adds a singu
 
 | Capability | Verification | Result |
 |---|---|---|
-| Simulation handoff | Completed simulation action now routes to `/app/roadmap?simulation=<owned-id>` rather than clearing the result. | Implemented in the simulation component. |
+| Simulation handoff | A completed Software Engineer simulation was opened in an authenticated session, and its roadmap CTA navigated to `/app/roadmap?simulation=<owned-id>` with the completed debrief intact. | Passes. |
 | Contextual recommendations | Server derives recommendations from the stored simulation, profile, goals, projects, active roadmap, and selected country. | Deterministic recommendation tests pass. |
-| Student control | Recommendations support add, skip, edit, priority/deadline changes, and an AI-mentor handoff. | Protected procedures and explicit controls are implemented. |
-| Safe country change | A country change updates profile context only. The UI offers to keep the roadmap or refresh pending recommendations; it does not rewrite the active roadmap. | Implemented and type-checked. |
+| Student control | The authenticated walkthrough accepted one recommendation into a real goal and roadmap milestone, skipped another, saved a custom title/priority/deadline on a third, and opened the mentor handoff without auto-sending a message. | Passes. |
+| Safe country change | The authenticated walkthrough saved `US`, displayed the explicit keep-versus-refresh choice, and refreshed only pending recommendations. A discovered queue-history defect was repaired so dismissed/skipped rows no longer appear in the active queue. | Passes after repair. |
 | National context | Initial `US`, `IN`, and `GB` configuration changes recommendation wording without emitting live opportunities, eligibility claims, or asserted deadlines. | Deterministic national-context tests pass. |
 | Data isolation | The real Supabase two-user test includes profile country context and a recommendation row; the second user cannot query either. | Passes. |
 
 ## Test and Build Evidence
 
-Strict TypeScript checking passes. The Vitest suite has **12 passing files and 30 passing tests**, including adaptive simulation, career-guidance retry, onboarding null-query, national-context, service-role boundary, and live Supabase RLS tests. The production build completes successfully. The build reports pre-existing large-code chunk warnings from the Markdown/diagram dependency bundle; the mentor renderer remains lazy-loaded and functionality is unaffected.
+Strict TypeScript checking passes. The Vitest suite has **14 passing files and 34 passing tests**, including adaptive simulation, the simulation-to-roadmap URL contract, recommendation-queue visibility, career-guidance retry and timeout behavior, onboarding null-query, national-context, service-role boundary, and live Supabase RLS tests. The production build completes successfully. The build reports pre-existing large-code chunk warnings from the Markdown/diagram dependency bundle; the mentor renderer remains lazy-loaded and functionality is unaffected.
+
+## Authenticated Acceptance Walkthrough
+
+The connected authenticated session was used to verify the completed-simulation handoff, simulation debrief, country selection, pending-recommendation refresh, add/skip/edit controls, active-roadmap conversion, mentor handoff, and both light and high-contrast dark themes. A separate 375-pixel-wide authenticated frame confirmed that the mobile header collapses to the hamburger navigation and that the V1.1 roadmap debrief, country control, and recommendation rows remain available at the mobile breakpoint.
+
+The live career-discovery action did reach the server but the provider returned an invalid five-career structured result after its retry budget. The procedure now bounds model-catalog selection to eight seconds and each structured model completion to 25 seconds, preventing a stalled upstream request from leaving the UI indefinitely in the “Analyzing” state. A future real-session check should confirm a successful five-match response when the upstream provider is available.
 
 ## National-Context Boundary
 
@@ -25,7 +31,7 @@ The United Kingdom configuration uses general course-entry planning language bec
 
 ## Remaining Acceptance Items
 
-The sandbox screenshot session is unauthenticated, so it can verify access gates but not a student’s completed simulation handoff, recommendation interaction, country-change choice, or light/dark authenticated workspace layouts. A confirmed student-session walkthrough remains required. Supabase’s security advisor also reports that leaked-password protection is disabled; this is an account configuration issue outside application code and should be enabled in Supabase Auth settings. [3]
+Supabase’s security advisor reports that leaked-password protection is disabled; this is an account configuration issue outside application code and should be enabled in Supabase Auth settings. [3] The public Supabase email-confirmation redirect remains deferred until a stable public URL is available. The live career-discovery success path also remains an upstream-dependent acceptance check because the tested provider response did not satisfy the required five distinct matches.
 
 ## References
 

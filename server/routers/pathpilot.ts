@@ -34,7 +34,7 @@ import {
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, router } from "../_core/trpc";
-import { retryValidatedGuidance } from "../career-guidance";
+import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, generateRoadmapRecommendations, getRoadmapRecommendationContext, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
@@ -249,16 +249,17 @@ export const pathpilotRouter = router({
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before requesting career guidance." });
       try {
+        const model = await withCareerGuidanceTimeout(preferredModel(), 8_000);
         const matches = await retryValidatedGuidance(
           async attempt => {
-            const response = await invokeLLM({
-              model: await preferredModel(),
+            const response = await withCareerGuidanceTimeout(invokeLLM({
+              model,
               messages: [
                 { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct and every required field is complete." : ""}` },
                 { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
               ],
               response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
-            });
+            }), 25_000);
             return contentFrom(response);
           },
           content => {

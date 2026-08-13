@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { retryValidatedGuidance } from "../server/career-guidance";
+import { CareerGuidanceTimeoutError, retryValidatedGuidance, withCareerGuidanceTimeout } from "../server/career-guidance";
 
 describe("career guidance retry", () => {
   it("retries a transient invalid response before returning validated guidance", async () => {
@@ -17,5 +17,10 @@ describe("career guidance retry", () => {
 
   it("does not return unvalidated guidance after retries are exhausted", async () => {
     await expect(retryValidatedGuidance(async () => "invalid", () => { throw new Error("invalid model response"); })).rejects.toThrow("invalid model response");
+  });
+
+  it("rejects a stalled guidance operation within its bounded timeout", async () => {
+    const pending = new Promise<never>(() => undefined);
+    await expect(withCareerGuidanceTimeout(pending, 5)).rejects.toBeInstanceOf(CareerGuidanceTimeoutError);
   });
 });
