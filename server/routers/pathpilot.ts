@@ -33,6 +33,7 @@ import {
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, router } from "../_core/trpc";
+import { retryValidatedGuidance } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
@@ -239,19 +240,25 @@ export const pathpilotRouter = router({
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before requesting career guidance." });
       try {
-        const response = await invokeLLM({
-          model: await preferredModel(),
-          messages: [
-            { role: "system", content: "You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Return only the requested JSON." },
-            { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
-          ],
-          response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
-        });
-        const parsed = discoverySchema.safeParse(JSON.parse(contentFrom(response)));
-        if (!parsed.success || !hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) {
-          throw new Error("The model response did not contain five unique validated career matches.");
-        }
-        return replaceCareerMatches(ctx.user.id, parsed.data.matches);
+        const matches = await retryValidatedGuidance(
+          async attempt => {
+            const response = await invokeLLM({
+              model: await preferredModel(),
+              messages: [
+                { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Salary ranges must be described as location-dependent estimates, not guarantees. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct and every required field is complete." : ""}` },
+                { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
+              ],
+              response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
+            });
+            return contentFrom(response);
+          },
+          content => {
+            const parsed = discoverySchema.safeParse(JSON.parse(String(content)));
+            if (!parsed.success || !hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new Error("The model response did not contain five unique validated career matches.");
+            return parsed.data.matches;
+          },
+        );
+        return replaceCareerMatches(ctx.user.id, matches);
       } catch (error) {
         console.error("[PathPilot] career discovery failed", error);
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Career guidance is temporarily unavailable. Please try again shortly." });

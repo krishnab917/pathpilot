@@ -50,8 +50,8 @@
 - [x] Establish high-contrast neutral dark-mode surfaces and use monospace treatment for data-oriented numbers where appropriate.
 - [x] Complete the compact utility-first styling across discovery, roadmap, goals, mentor, portfolio, and simulation sections.
 - [x] Apply consistent monospace and tabular-number treatment to key quantitative values across every workspace module.
-- [ ] Finish explicit utility-first styling in Discovery, Roadmap, Goals, and Mentor beyond the workspace-wide overrides.
-- [ ] Add explicit `data-value` treatment to remaining roadmap, goal, and mentor-proposal quantities.
+- [x] Finish explicit utility-first styling in Discovery, Roadmap, Goals, and Mentor beyond the workspace-wide overrides.
+- [x] Add explicit `data-value` treatment to remaining roadmap, goal, and mentor-proposal quantities.
 - [ ] Document authenticated light- and dark-mode visual verification after the remaining route-level styling is complete.
 - [ ] Verify the redesigned authenticated workspace in both light and dark mode across all routes with a real student session.
 - [x] Replace the empty Home-page area below the “From curiosity to credible progress” introduction with a compact utility-first workflow panel.
@@ -59,5 +59,8 @@
 - [x] Remove the “An intelligent career workspace for students” badge from the Home hero and verify the landing hierarchy.
 - [x] Fix onboarding profile and draft queries so missing records return explicit null values instead of undefined.
 - [x] Add regression coverage for profile and onboarding-draft no-record query responses.
+- [x] Fix the authenticated career-guidance mutation failure on the workspace route and add regression coverage for its service-error path.
+- [x] Add router-level career-discovery mutation coverage for successful retry persistence and exhausted-retry BAD_GATEWAY behavior.
+- [ ] Verify the authenticated workspace career-guidance action after the retry fix with a real student session.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.
