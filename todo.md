@@ -44,5 +44,5 @@
 - [x] Connect the adaptive simulation journey and meaningful final analysis to the existing workspace UI without redesigning unrelated flows.
 - [x] Verify remaining production modules, security, RLS persistence, error and loading behavior, mobile responsiveness, and mock-data cleanup.
 - [ ] Run and document route-by-route validation for authenticated mobile flows: overview, discovery, roadmap, goals, mentor, portfolio, active simulation, and completed simulation results.
-- [ ] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
+- [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.

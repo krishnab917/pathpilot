@@ -41,6 +41,25 @@ describe("adaptive simulation engine", () => {
     expect(() => advance("not-in-this-node")).toThrow("not available");
   });
 
+  it("restores a serialized interrupted session at the same next public scenario", () => {
+    const first = advance("ask-peer");
+    const second = advance("split-work", first.state, first.evidence, first.history);
+    const restoredState = JSON.parse(JSON.stringify(second.state));
+    const restoredEvidence = JSON.parse(JSON.stringify(second.evidence));
+    const restoredHistory = JSON.parse(JSON.stringify(second.history));
+    const graph = getSimulationGraph("Software Engineer");
+    expect(getPublicScenario(graph, restoredState).id).toBe("deadline-call");
+    const continued = chooseSimulationDecision(graph, restoredState, "protect-core", restoredEvidence, restoredHistory);
+    expect(continued.history).toHaveLength(3);
+    expect(continued.state.currentNodeId).toBe("stakeholder-review");
+  });
+
+  it("does not allow an already completed graph state to accept another decision", () => {
+    const graph = getSimulationGraph("Software Engineer");
+    const completeState = { ...initialSimulationState(graph), currentNodeId: "debrief" };
+    expect(() => chooseSimulationDecision(graph, completeState, "anything", [], [])).toThrow("not waiting for a decision");
+  });
+
   it("derives confidence from repeated contextual evidence and preserves contradictions", () => {
     const evidence: BehavioralEvidence[] = [
       { trait: "analytical_thinking", direction: 1, weight: 2, context: "uncertainty", difficulty: 2, nodeId: "one", decisionId: "one" },
