@@ -60,6 +60,14 @@
 - [x] Fix onboarding profile and draft queries so missing records return explicit null values instead of undefined.
 - [x] Add regression coverage for profile and onboarding-draft no-record query responses.
 - [x] Fix the authenticated career-guidance mutation failure on the workspace route and add regression coverage for its service-error path.
+- [x] Audit the V1.1 specification and current simulation-result, roadmap, profile, and country-context implementation boundaries.
+- [x] Route completed simulation “Next Steps” to the existing roadmap experience while preserving the completed simulation context.
+- [x] Add an intentional simulation-to-roadmap handoff with career fit and behavioral insight summary.
+- [x] Design and implement persisted, country-aware roadmap recommendations with student add, skip, edit, deadline, priority, and AI-assist controls.
+- [x] Add one-country profile selection and safe country-change behavior that does not silently replace an existing roadmap.
+- [x] Establish a maintainable national education-context configuration layer without fabricating opportunities.
+- [x] Add automated coverage for the simulation-to-roadmap transition, recommendation persistence, country behavior, and RLS isolation.
+- [ ] Validate V1.1 flows, national-context integrity, and mobile usability before saving a checkpoint.
 - [x] Add router-level career-discovery mutation coverage for successful retry persistence and exhausted-retry BAD_GATEWAY behavior.
 - [ ] Verify the authenticated workspace career-guidance action after the retry fix with a real student session.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.

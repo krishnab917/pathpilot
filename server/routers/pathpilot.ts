@@ -30,11 +30,14 @@ import {
   updateGoal,
   updateProject,
   updateMilestoneProgress,
+  updateStudentCountryContext,
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { retryValidatedGuidance } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
+import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
+import { acceptRoadmapRecommendation, generateRoadmapRecommendations, getRoadmapRecommendationContext, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
 const prioritySchema = z.enum(["low", "medium", "high"]);
@@ -203,6 +206,8 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
   return [
     `Grade: ${profile.grade}`,
     `Location: ${profile.location}`,
+    `Country: ${profile.countryCode ?? "Not selected"}`,
+    `Education context: ${profile.educationSystem ?? "Not selected"}`,
     `Interests: ${profile.interests.join(", ")}`,
     `Skills: ${profile.skills.join(", ")}`,
     `Activities: ${profile.activities.join(", ")}`,
@@ -219,15 +224,19 @@ export const pathpilotRouter = router({
   profile: router({
     get: protectedProcedure.query(({ ctx }) => getStudentProfile(ctx.user.id)),
     getDraft: protectedProcedure.query(({ ctx }) => getOnboardingDraft(ctx.user.id)),
-    saveDraft: protectedProcedure.input(z.object({ currentStep: z.number().int().min(0).max(4), profile: z.object({ grade: z.string().max(16), location: z.string().max(160), interests: z.array(z.string().max(80)).max(12), skills: z.array(z.string().max(80)).max(12), activities: z.array(z.string().max(80)).max(12), careerPreferences: z.array(z.string().max(80)).max(12) }) })).mutation(({ ctx, input }) => saveOnboardingDraft(ctx.user.id, input.currentStep, input.profile)),
+    saveDraft: protectedProcedure.input(z.object({ currentStep: z.number().int().min(0).max(4), profile: z.object({ grade: z.string().max(16), location: z.string().max(160), countryCode: z.string().regex(/^[A-Z]{2}$/).nullable().optional(), educationSystem: z.string().max(180).nullable().optional(), interests: z.array(z.string().max(80)).max(12), skills: z.array(z.string().max(80)).max(12), activities: z.array(z.string().max(80)).max(12), careerPreferences: z.array(z.string().max(80)).max(12) }) })).mutation(({ ctx, input }) => saveOnboardingDraft(ctx.user.id, input.currentStep, input.profile)),
     completeOnboarding: protectedProcedure.input(z.object({
       grade: z.string().trim().min(1).max(16),
       location: z.string().trim().min(2).max(160),
+      countryCode: z.string().regex(/^[A-Z]{2}$/),
+      educationSystem: z.string().trim().min(2).max(180),
       interests: selectionSchema,
       skills: selectionSchema,
       activities: selectionSchema,
       careerPreferences: selectionSchema,
     })).mutation(({ ctx, input }) => saveStudentProfile(ctx.user.id, input)),
+    countryOptions: protectedProcedure.query(() => countryOptions),
+    updateCountry: protectedProcedure.input(z.object({ countryCode: z.string().regex(/^[A-Z]{2}$/), educationSystem: z.string().trim().min(2).max(180) })).mutation(({ ctx, input }) => updateStudentCountryContext(ctx.user.id, input.countryCode, input.educationSystem)),
   }),
 
   dashboard: router({
@@ -279,14 +288,14 @@ export const pathpilotRouter = router({
   roadmap: router({
     get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
     generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
-      const [profile, latestSimulation] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id)]);
+      const [profile, latestSimulation, goals, projects, activeRoadmap] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), listGoals(ctx.user.id), listProjects(ctx.user.id), getActiveRoadmap(ctx.user.id)]);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
       try {
         const response = await invokeLLM({
           model: await preferredModel(),
           messages: [
-            { role: "system", content: "You are PathPilot's roadmap planner for high-school students. Create an actionable but realistic three-year career roadmap. Return exactly nine milestones: three per year, with one skill, one project, and one experience milestone in each year. Adapt scope and deadlines to the student's profile. Dates must be UTC ISO-8601 strings or null when a deadline would be speculative. Include only well-known, directly relevant resources with valid https URLs; use an empty resources list if unsure. Do not promise outcomes. Return only the requested JSON." },
-            { role: "user", content: `Target career: ${input.targetCareer}\nStudent profile:\n${profileContext(profile)}\n\nLatest observed simulation insight:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}` },
+            { role: "system", content: "You are PathPilot's roadmap planner for high-school students. Create an actionable but realistic three-year career roadmap. Return exactly nine milestones: three per year, with one skill, one project, and one experience milestone in each year. Adapt scope and deadlines to the student's profile, completed simulation observations, country context, existing goals, projects, and current roadmap. Do not duplicate an active or completed goal, project, or milestone. Country context is general planning information only: never invent local opportunities, admissions requirements, eligibility, or a deadline. Dates must be UTC ISO-8601 strings or null when a deadline would be speculative. Include only well-known, directly relevant resources with valid https URLs; use an empty resources list if unsure. Do not promise outcomes. Return only the requested JSON." },
+            { role: "user", content: `Target career: ${input.targetCareer}\nStudent profile:\n${profileContext(profile)}\n\nNational education context:\n${getNationalEducationContext(profile.countryCode).planningSignals.join(" ")}\n${getNationalEducationContext(profile.countryCode).sourceNote}\n\nLatest observed simulation insight:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}\n\nExisting goals:\n${goals.map(goal => `${goal.title} [${goal.status}]`).join("; ") || "None"}\n\nExisting projects:\n${projects.map(project => `${project.name} [${project.status}]`).join("; ") || "None"}\n\nExisting roadmap:\n${activeRoadmap?.milestones.map(milestone => milestone.title).join("; ") || "None"}` },
           ],
           response_format: { type: "json_schema", json_schema: { name: "career_roadmap", strict: true, schema: roadmapJsonSchema } },
         });
@@ -309,6 +318,14 @@ export const pathpilotRouter = router({
       .mutation(({ ctx, input }) => createRoadmap(ctx.user.id, input.targetCareer, input.milestones as RoadmapMilestoneInput[])),
     updateMilestoneProgress: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100) }))
       .mutation(({ ctx, input }) => updateMilestoneProgress(ctx.user.id, input.id, input.progress)),
+    recommendationContext: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional() })).query(({ ctx, input }) => getRoadmapRecommendationContext(ctx.user.id, input.simulationId)),
+    recommendations: router({
+      list: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional() })).query(({ ctx, input }) => listRoadmapRecommendations(ctx.user.id, input.simulationId)),
+      generate: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional(), force: z.boolean().default(false) })).mutation(({ ctx, input }) => generateRoadmapRecommendations(ctx.user.id, input.simulationId, input.force)),
+      update: protectedProcedure.input(z.object({ id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(1200).optional(), priority: prioritySchema.optional(), suggestedDeadline: z.date().nullable().optional() })).mutation(({ ctx, input }) => updateRoadmapRecommendation(ctx.user.id, input.id, input)),
+      accept: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => acceptRoadmapRecommendation(ctx.user.id, input.id)),
+      skip: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => skipRoadmapRecommendation(ctx.user.id, input.id)),
+    }),
   }),
 
   simulations: router({

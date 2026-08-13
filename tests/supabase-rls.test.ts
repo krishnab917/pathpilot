@@ -31,7 +31,7 @@ describe("Supabase row-level security", () => {
     userA = first.data.user.id; userB = second.data.user.id;
     aClient = await signIn(accountA); bClient = await signIn(accountB);
 
-    const profile = await aClient.from("student_profiles").insert({ user_id: userA, grade: "Grade 11", location: "Test city", interests: ["Technology"], skills: ["Writing"], activities: ["Clubs"], career_preferences: ["Creating things"] });
+    const profile = await aClient.from("student_profiles").insert({ user_id: userA, grade: "Grade 11", location: "Test city", country_code: "US", education_system: "US high school and institution-specific admissions context", interests: ["Technology"], skills: ["Writing"], activities: ["Clubs"], career_preferences: ["Creating things"] });
     if (profile.error) throw profile.error;
     const onboardingDraft = await aClient.from("onboarding_drafts").insert({ user_id: userA, current_step: 3, payload: { grade: "Grade 11", location: "Test city" } });
     if (onboardingDraft.error) throw onboardingDraft.error;
@@ -44,7 +44,7 @@ describe("Supabase row-level security", () => {
     if (goal.error) throw goal.error;
     const roadmap = await aClient.from("roadmaps").insert({ user_id: userA, target_career: "Private test career" }).select().single();
     if (roadmap.error) throw roadmap.error;
-    const simulation = await aClient.from("simulations").insert({ user_id: userA, career: "Private test career", title: "Private test simulation", scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: "software-systems-v1", current_node_id: "debrief", node_history: ["model-alert", "data-audit"], decision_history: [{ nodeId: "model-alert", decisionId: "investigate-data" }], simulation_state: { currentNodeId: "debrief" }, behavioral_evidence: [{ trait: "analytical_thinking", direction: 1 }], behavioral_profile: { strongestTraits: ["analytical_thinking"] }, compatibility_results: [{ careerName: "Private test career", score: 91 }], result_summary: "Private observed simulation result.", status: "completed", completed_at: new Date().toISOString() });
+    const simulation = await aClient.from("simulations").insert({ user_id: userA, career: "Private test career", title: "Private test simulation", scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: "software-systems-v1", current_node_id: "debrief", node_history: ["model-alert", "data-audit"], decision_history: [{ nodeId: "model-alert", decisionId: "investigate-data" }], simulation_state: { currentNodeId: "debrief" }, behavioral_evidence: [{ trait: "analytical_thinking", direction: 1 }], behavioral_profile: { strongestTraits: ["analytical_thinking"] }, compatibility_results: [{ careerName: "Private test career", score: 91 }], result_summary: "Private observed simulation result.", status: "completed", completed_at: new Date().toISOString() }).select("id").single();
     if (simulation.error) throw simulation.error;
     const conversation = await aClient.from("ai_conversations").insert({ user_id: userA, title: "Private test conversation", context: {} }).select().single();
     if (conversation.error) throw conversation.error;
@@ -52,6 +52,8 @@ describe("Supabase row-level security", () => {
     if (message.error) throw message.error;
     const project = await aClient.from("projects").insert({ user_id: userA, name: "Private test project", description: "Private test description", skills: [], status: "idea", progress: 0 });
     if (project.error) throw project.error;
+    const recommendation = await aClient.from("roadmap_recommendations").insert({ user_id: userA, source_simulation_id: simulation.data.id, roadmap_id: roadmap.data.id, target_career: "Private test career", country_snapshot: "US", education_system_snapshot: "US high school and institution-specific admissions context", phase: "Foundation", title: "Private test recommendation", description: "Private recommendation description", rationale: "Private recommendation rationale", category: "skill", priority: "medium", estimated_hours: 4, sort_order: 0 });
+    if (recommendation.error) throw recommendation.error;
   }, 30_000);
 
   it("prevents User B from reading User A's profile, plans, work, and conversations", async () => {
@@ -63,6 +65,7 @@ describe("Supabase row-level security", () => {
       bClient.from("ai_conversations").select("id").eq("user_id", userA),
       bClient.from("ai_messages").select("id").eq("user_id", userA),
       bClient.from("projects").select("id").eq("user_id", userA),
+      bClient.from("roadmap_recommendations").select("id").eq("user_id", userA),
     ]);
     for (const result of checks) { expect(result.error).toBeNull(); expect(result.data).toEqual([]); }
   });
@@ -70,7 +73,7 @@ describe("Supabase row-level security", () => {
   it("restores persisted student workspace records in a fresh authenticated session", async () => {
     const resumedClient = await signIn(accountA);
     const records = await Promise.all([
-      resumedClient.from("student_profiles").select("grade, location").eq("user_id", userA).single(),
+      resumedClient.from("student_profiles").select("grade, location, country_code, education_system").eq("user_id", userA).single(),
       resumedClient.from("onboarding_drafts").select("current_step, payload").eq("user_id", userA).single(),
       resumedClient.from("career_matches").select("rank, match_score, careers(name)").eq("user_id", userA).single(),
       resumedClient.from("goals").select("title").eq("user_id", userA).single(),
@@ -79,9 +82,10 @@ describe("Supabase row-level security", () => {
       resumedClient.from("ai_conversations").select("title").eq("user_id", userA).single(),
       resumedClient.from("ai_messages").select("content").eq("user_id", userA).single(),
       resumedClient.from("projects").select("name, description").eq("user_id", userA).single(),
+      resumedClient.from("roadmap_recommendations").select("title, country_snapshot, status, source_simulation_id").eq("user_id", userA).single(),
     ]);
     for (const result of records) expect(result.error).toBeNull();
-    expect(records[0].data).toMatchObject({ grade: "Grade 11", location: "Test city" });
+    expect(records[0].data).toMatchObject({ grade: "Grade 11", location: "Test city", country_code: "US", education_system: "US high school and institution-specific admissions context" });
     expect(records[1].data).toMatchObject({ current_step: 3, payload: { grade: "Grade 11", location: "Test city" } });
     expect(records[2].data).toMatchObject({ rank: 1, match_score: 91, careers: { name: "Private test career" } });
     expect(records[3].data).toMatchObject({ title: "Private test goal" });
@@ -90,6 +94,7 @@ describe("Supabase row-level security", () => {
     expect(records[6].data).toMatchObject({ title: "Private test conversation" });
     expect(records[7].data).toMatchObject({ content: "Private context" });
     expect(records[8].data).toMatchObject({ name: "Private test project", description: "Private test description" });
+    expect(records[9].data).toMatchObject({ title: "Private test recommendation", country_snapshot: "US", status: "pending" });
   });
 
   afterAll(async () => {
