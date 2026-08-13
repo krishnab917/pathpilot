@@ -48,9 +48,13 @@
 - [x] Remove only the large Home-page workspace preview card while preserving the existing tones.
 - [x] Refactor the authenticated PathPilot workspace to a compact utility-first dashboard with practical data layouts, crisp 1px slate borders, restrained status tags, and no floating rounded/neon styling.
 - [x] Establish high-contrast neutral dark-mode surfaces and use monospace treatment for data-oriented numbers where appropriate.
-- [ ] Complete the compact utility-first styling across discovery, roadmap, goals, mentor, portfolio, and simulation sections.
-- [ ] Apply consistent monospace and tabular-number treatment to key quantitative values across every workspace module.
+- [x] Complete the compact utility-first styling across discovery, roadmap, goals, mentor, portfolio, and simulation sections.
+- [x] Apply consistent monospace and tabular-number treatment to key quantitative values across every workspace module.
+- [ ] Finish explicit utility-first styling in Discovery, Roadmap, Goals, and Mentor beyond the workspace-wide overrides.
+- [ ] Add explicit `data-value` treatment to remaining roadmap, goal, and mentor-proposal quantities.
+- [ ] Document authenticated light- and dark-mode visual verification after the remaining route-level styling is complete.
 - [ ] Verify the redesigned authenticated workspace in both light and dark mode across all routes with a real student session.
 - [x] Replace the empty Home-page area below the “From curiosity to credible progress” introduction with a compact utility-first workflow panel.
+- [x] Verify the repeated stale Home-card visual selector and confirm the intended card remains removed in the current render.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.

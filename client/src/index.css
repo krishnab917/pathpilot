@@ -63,7 +63,7 @@
 }
 
 @layer utilities {
-  .workspace-shell { @apply bg-slate-50 dark:bg-background; }
+  .workspace-shell { @apply bg-slate-50 dark:bg-background; font-variant-numeric: tabular-nums; }
   .workspace-shell .surface-panel { @apply rounded-md border-slate-200 shadow-none dark:border-slate-700; }
   .workspace-shell [class*="rounded-"] { border-radius: 0.125rem !important; }
   .workspace-shell [class*="shadow-"] { box-shadow: none !important; }
