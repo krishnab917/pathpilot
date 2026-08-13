@@ -2,6 +2,7 @@ import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
+import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -30,11 +31,11 @@ export default function Auth() {
         if (authError) throw authError;
         navigate("/app");
       } else if (mode === "sign-up") {
-        const { error: authError } = await supabase.auth.signUp({ email, password, options: { data: { full_name: displayName.trim() } } });
+        const { error: authError } = await supabase.auth.signUp({ email, password, options: { data: { full_name: displayName.trim() }, emailRedirectTo: getAuthRedirectUrl() } });
         if (authError) throw authError;
         setNotice("Check your email to confirm your account, then return to sign in.");
       } else {
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth` });
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() });
         if (authError) throw authError;
         setNotice("If an account exists for that email, a reset link is on its way.");
       }

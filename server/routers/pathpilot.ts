@@ -7,6 +7,11 @@ import {
   createProject,
   createRoadmap,
   createSimulation,
+  createAdaptiveSimulation,
+  chooseAdaptiveSimulationDecision,
+  getAdaptivePublicScenario,
+  getAdaptiveSimulation,
+  getLatestCompletedAdaptiveSimulation,
   getActiveRoadmap,
   getCareerMatches,
   getConversationMessages,
@@ -14,6 +19,7 @@ import {
   getOnboardingDraft,
   getOrCreateMentorConversation,
   getSimulation,
+  getResumableAdaptiveSimulation,
   getStudentProfile,
   listGoals,
   listProjects,
@@ -90,12 +96,13 @@ const generatedMilestoneSchema = z.object({
   resources: z.array(resourceSchema).max(4),
 });
 const roadmapGenerationSchema = z.object({ milestones: z.array(generatedMilestoneSchema).length(9) });
+const suggestedGoalSchema = z.object({
+  title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200), category: z.string().trim().min(2).max(64),
+  priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), deadline: z.string().datetime().nullable(),
+});
 const mentorResponseSchema = z.object({
   reply: z.string().trim().min(1).max(4000),
-  suggestedGoal: z.object({
-    title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200), category: z.string().trim().min(2).max(64),
-    priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), deadline: z.string().datetime().nullable(),
-  }).nullable(),
+  suggestedGoal: suggestedGoalSchema.nullable(),
   priorityAdjustment: z.object({ goalId: z.string().uuid(), priority: prioritySchema }).nullable(),
 });
 
@@ -202,6 +209,11 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
   ].join("\n");
 }
 
+function adaptiveSimulationResponse(simulation: any) {
+  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score };
+  return { simulation: publicSimulation, scenario: simulation.status === "completed" ? null : getAdaptivePublicScenario(simulation) };
+}
+
 export const pathpilotRouter = router({
   profile: router({
     get: protectedProcedure.query(({ ctx }) => getStudentProfile(ctx.user.id)),
@@ -260,14 +272,14 @@ export const pathpilotRouter = router({
   roadmap: router({
     get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
     generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
-      const profile = await getStudentProfile(ctx.user.id);
+      const [profile, latestSimulation] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id)]);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
       try {
         const response = await invokeLLM({
           model: await preferredModel(),
           messages: [
             { role: "system", content: "You are PathPilot's roadmap planner for high-school students. Create an actionable but realistic three-year career roadmap. Return exactly nine milestones: three per year, with one skill, one project, and one experience milestone in each year. Adapt scope and deadlines to the student's profile. Dates must be UTC ISO-8601 strings or null when a deadline would be speculative. Include only well-known, directly relevant resources with valid https URLs; use an empty resources list if unsure. Do not promise outcomes. Return only the requested JSON." },
-            { role: "user", content: `Target career: ${input.targetCareer}\nStudent profile:\n${profileContext(profile)}` },
+            { role: "user", content: `Target career: ${input.targetCareer}\nStudent profile:\n${profileContext(profile)}\n\nLatest observed simulation insight:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}` },
           ],
           response_format: { type: "json_schema", json_schema: { name: "career_roadmap", strict: true, schema: roadmapJsonSchema } },
         });
@@ -293,6 +305,32 @@ export const pathpilotRouter = router({
   }),
 
   simulations: router({
+    adaptive: router({
+      resume: protectedProcedure.query(async ({ ctx }) => {
+        const simulation = await getResumableAdaptiveSimulation(ctx.user.id) ?? await getLatestCompletedAdaptiveSimulation(ctx.user.id);
+        return simulation ? adaptiveSimulationResponse(simulation) : null;
+      }),
+      get: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+        const simulation = await getAdaptiveSimulation(ctx.user.id, input.id);
+        if (!simulation) throw new TRPCError({ code: "NOT_FOUND", message: "Simulation not found." });
+        return adaptiveSimulationResponse(simulation);
+      }),
+      start: protectedProcedure.input(z.object({ career: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
+        const profile = await getStudentProfile(ctx.user.id);
+        if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before starting a simulation." });
+        const resumable = await getResumableAdaptiveSimulation(ctx.user.id);
+        return adaptiveSimulationResponse(resumable ?? await createAdaptiveSimulation(ctx.user.id, input.career));
+      }),
+      choose: protectedProcedure.input(z.object({ id: z.string().uuid(), decisionId: z.string().trim().min(2).max(80) })).mutation(async ({ ctx, input }) => {
+        try {
+          return adaptiveSimulationResponse(await chooseAdaptiveSimulationDecision(ctx.user.id, input.id, input.decisionId));
+        } catch (error) {
+          if (error instanceof Error && error.message === "Simulation not found.") throw new TRPCError({ code: "NOT_FOUND", message: error.message });
+          if (error instanceof Error && (error.message.includes("not available") || error.message.includes("already complete"))) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          throw error;
+        }
+      }),
+    }),
     get: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(({ ctx, input }) => getSimulation(ctx.user.id, input.id)),
     start: protectedProcedure.input(z.object({ career: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
       const profile = await getStudentProfile(ctx.user.id);
@@ -338,7 +376,7 @@ export const pathpilotRouter = router({
       return { conversation, messages };
     }),
     send: protectedProcedure.input(z.object({ content: z.string().trim().min(1).max(3000) })).mutation(async ({ ctx, input }) => {
-      const [conversation, dashboard] = await Promise.all([getOrCreateMentorConversation(ctx.user.id), getDashboardData(ctx.user.id)]);
+      const [conversation, dashboard, latestSimulation] = await Promise.all([getOrCreateMentorConversation(ctx.user.id), getDashboardData(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id)]);
       const messages = await getConversationMessages(ctx.user.id, conversation.id);
       await addMentorMessage(ctx.user.id, conversation.id, "user", input.content);
       const history = messages.slice(-12).map(message => `${message.role === "user" ? "Student" : "Mentor"}: ${message.content}`).join("\n");
@@ -348,28 +386,24 @@ export const pathpilotRouter = router({
         const response = await invokeLLM({
           model: await preferredModel(),
           messages: [
-            { role: "system", content: "You are PathPilot, a supportive career mentor for high-school students. Provide pragmatic, age-appropriate guidance, not promises. Help create goals, re-prioritize work, and compare learning decisions when requested. Do not diagnose, shame, or state that a student must choose a particular career. Treat the following profile, roadmap, goals, and conversation as private context. Return a JSON response with a concise Markdown reply. Populate suggestedGoal only when the student explicitly asks you to create a goal; otherwise return null. Populate priorityAdjustment only when the student explicitly asks you to change a listed goal's priority; otherwise return null.\n\nStudent profile:\n" + (dashboard.profile ? profileContext(dashboard.profile) : "Not yet completed.") + `\n\nRoadmap:\n${roadmapSummary}\n\nGoals:\n${goalsSummary}\n\nPrior messages:\n${history}` },
+            { role: "system", content: "You are PathPilot, a supportive career mentor for high-school students. Provide pragmatic, age-appropriate guidance, not promises. Help create goals, re-prioritize work, and compare learning decisions when requested. Do not diagnose, shame, or state that a student must choose a particular career. Treat the following profile, roadmap, goals, simulation observations, and conversation as private context. Simulation insights are limited observations from one or more scenarios, not personality diagnoses or career predictions. Return a JSON response with a concise Markdown reply. Populate suggestedGoal only when the student explicitly asks you to create a goal; otherwise return null. Populate priorityAdjustment only when the student explicitly asks you to change a listed goal's priority; otherwise return null.\n\nStudent profile:\n" + (dashboard.profile ? profileContext(dashboard.profile) : "Not yet completed.") + `\n\nRoadmap:\n${roadmapSummary}\n\nGoals:\n${goalsSummary}\n\nLatest simulation:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}\nTop observed traits: ${(latestSimulation?.behavioralProfile?.strongestTraits ?? []).join(", ") || "Not yet available."}\nCareer alignment: ${(latestSimulation?.compatibilityResults ?? []).slice(0, 3).map((item: any) => `${item.careerName} ${item.score}%`).join("; ") || "Not yet available."}\n\nPrior messages:\n${history}` },
             { role: "user", content: input.content },
           ],
           response_format: { type: "json_schema", json_schema: { name: "mentor_response", strict: true, schema: mentorJsonSchema } },
         });
         const parsed = mentorResponseSchema.safeParse(JSON.parse(contentFrom(response)));
         if (!parsed.success) throw new Error("The mentor response failed validation.");
-        const createdGoal = parsed.data.suggestedGoal ? await createGoal(ctx.user.id, {
-          ...parsed.data.suggestedGoal,
-          deadline: parsed.data.suggestedGoal.deadline ? new Date(parsed.data.suggestedGoal.deadline) : undefined,
-          resources: [],
-        }) : null;
         const updatedGoal = parsed.data.priorityAdjustment ? await updateGoal(ctx.user.id, parsed.data.priorityAdjustment.goalId, { priority: parsed.data.priorityAdjustment.priority }) : null;
-        const actionNote = createdGoal ? `\n\n> **Goal created:** ${createdGoal.title}` : updatedGoal ? `\n\n> **Priority updated:** ${updatedGoal.title} is now ${updatedGoal.priority}.` : "";
+        const actionNote = parsed.data.suggestedGoal ? "\n\n> **Suggested goal ready for your review.**" : updatedGoal ? `\n\n> **Priority updated:** ${updatedGoal.title} is now ${updatedGoal.priority}.` : "";
         const reply = parsed.data.reply + actionNote;
         await addMentorMessage(ctx.user.id, conversation.id, "assistant", reply);
-        return { conversationId: conversation.id, reply, createdGoal, updatedGoal };
+        return { conversationId: conversation.id, reply, suggestedGoal: parsed.data.suggestedGoal, updatedGoal };
       } catch (error) {
         console.error("[PathPilot] mentor response failed", error);
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Your career mentor is temporarily unavailable. Please try again shortly." });
       }
     }),
+    acceptSuggestedGoal: protectedProcedure.input(suggestedGoalSchema).mutation(({ ctx, input }) => createGoal(ctx.user.id, { ...input, deadline: input.deadline ? new Date(input.deadline) : undefined, resources: [] })),
   }),
 
   projects: router({

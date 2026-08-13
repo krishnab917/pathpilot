@@ -34,3 +34,15 @@
 - [x] Create a dedicated private krishnab917/pathpilot GitHub repository without modifying Career-Path-Navigator.
 - [x] Verify the Manus project’s active GitHub remote is krishnab917/pathpilot and no longer points to Career-Path-Navigator.
 - [x] Verify the active PathPilot code is associated with the new repository before resuming Supabase work.
+- [ ] Fix the Supabase email-confirmation redirect so Gmail verification does not return to localhost:3000.
+- [x] Audit every SUPABASE_SERVICE_ROLE_KEY path; require independent authentication, authorization, and input validation, and remove unnecessary usage.
+- [x] Add regression coverage for confirmation redirect construction and server-only service-role isolation.
+- [x] Audit the existing PathPilot V1.0 implementation against the supplied production completion and adaptive simulation specification.
+- [x] Design an independent adaptive decision-tree simulation engine with state, node prerequisites, consequences, and non-obvious branching.
+- [x] Add evidence-based behavioral trait accumulation and career-compatibility analysis without deterministic one-click personality labels.
+- [x] Extend the existing Supabase simulation persistence model without creating duplicate tables or exposing hidden scoring metadata.
+- [x] Connect the adaptive simulation journey and meaningful final analysis to the existing workspace UI without redesigning unrelated flows.
+- [x] Verify remaining production modules, security, RLS persistence, error and loading behavior, mobile responsiveness, and mock-data cleanup.
+- [ ] Run and document route-by-route validation for authenticated mobile flows: overview, discovery, roadmap, goals, mentor, portfolio, active simulation, and completed simulation results.
+- [ ] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
+- [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.

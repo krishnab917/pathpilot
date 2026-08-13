@@ -44,7 +44,7 @@ describe("Supabase row-level security", () => {
     if (goal.error) throw goal.error;
     const roadmap = await aClient.from("roadmaps").insert({ user_id: userA, target_career: "Private test career" }).select().single();
     if (roadmap.error) throw roadmap.error;
-    const simulation = await aClient.from("simulations").insert({ user_id: userA, career: "Private test career", title: "Private test simulation", scenarios: [], user_choices: [] });
+    const simulation = await aClient.from("simulations").insert({ user_id: userA, career: "Private test career", title: "Private test simulation", scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: "software-systems-v1", current_node_id: "debrief", node_history: ["model-alert", "data-audit"], decision_history: [{ nodeId: "model-alert", decisionId: "investigate-data" }], simulation_state: { currentNodeId: "debrief" }, behavioral_evidence: [{ trait: "analytical_thinking", direction: 1 }], behavioral_profile: { strongestTraits: ["analytical_thinking"] }, compatibility_results: [{ careerName: "Private test career", score: 91 }], result_summary: "Private observed simulation result.", status: "completed", completed_at: new Date().toISOString() });
     if (simulation.error) throw simulation.error;
     const conversation = await aClient.from("ai_conversations").insert({ user_id: userA, title: "Private test conversation", context: {} }).select().single();
     if (conversation.error) throw conversation.error;
@@ -75,7 +75,7 @@ describe("Supabase row-level security", () => {
       resumedClient.from("career_matches").select("rank, match_score, careers(name)").eq("user_id", userA).single(),
       resumedClient.from("goals").select("title").eq("user_id", userA).single(),
       resumedClient.from("roadmaps").select("target_career").eq("user_id", userA).single(),
-      resumedClient.from("simulations").select("title").eq("user_id", userA).single(),
+      resumedClient.from("simulations").select("title, engine_version, current_node_id, decision_history, behavioral_profile, compatibility_results, result_summary").eq("user_id", userA).single(),
       resumedClient.from("ai_conversations").select("title").eq("user_id", userA).single(),
       resumedClient.from("ai_messages").select("content").eq("user_id", userA).single(),
       resumedClient.from("projects").select("name, description").eq("user_id", userA).single(),
@@ -86,7 +86,7 @@ describe("Supabase row-level security", () => {
     expect(records[2].data).toMatchObject({ rank: 1, match_score: 91, careers: { name: "Private test career" } });
     expect(records[3].data).toMatchObject({ title: "Private test goal" });
     expect(records[4].data).toMatchObject({ target_career: "Private test career" });
-    expect(records[5].data).toMatchObject({ title: "Private test simulation" });
+    expect(records[5].data).toMatchObject({ title: "Private test simulation", engine_version: "adaptive-v2", current_node_id: "debrief", behavioral_profile: { strongestTraits: ["analytical_thinking"] }, compatibility_results: [{ careerName: "Private test career", score: 91 }], result_summary: "Private observed simulation result." });
     expect(records[6].data).toMatchObject({ title: "Private test conversation" });
     expect(records[7].data).toMatchObject({ content: "Private context" });
     expect(records[8].data).toMatchObject({ name: "Private test project", description: "Private test description" });
