@@ -1,0 +1,150 @@
+create extension if not exists "pgcrypto";
+
+create table if not exists public.student_profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  grade text not null,
+  location text not null,
+  interests jsonb not null default '[]'::jsonb,
+  skills jsonb not null default '[]'::jsonb,
+  activities jsonb not null default '[]'::jsonb,
+  career_preferences jsonb not null default '[]'::jsonb,
+  onboarding_completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.careers (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text not null,
+  salary_range text,
+  education_requirements text,
+  required_skills jsonb not null default '[]'::jsonb,
+  daily_responsibilities jsonb not null default '[]'::jsonb,
+  related_careers jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.career_matches (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  career_id uuid not null references public.careers(id) on delete cascade,
+  rank smallint not null check (rank between 1 and 5),
+  match_score smallint not null check (match_score between 0 and 100),
+  reasoning text not null,
+  strengths jsonb not null default '[]'::jsonb,
+  missing_skills jsonb not null default '[]'::jsonb,
+  reality_check text not null,
+  next_steps jsonb not null default '[]'::jsonb,
+  generated_at timestamptz not null default now(),
+  unique (user_id, rank)
+);
+
+create table if not exists public.goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text,
+  category text not null,
+  deadline timestamptz,
+  priority text not null check (priority in ('low', 'medium', 'high')),
+  estimated_hours integer not null check (estimated_hours > 0),
+  resources jsonb not null default '[]'::jsonb,
+  progress smallint not null default 0 check (progress between 0 and 100),
+  status text not null default 'not_started' check (status in ('not_started', 'in_progress', 'completed', 'paused')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.roadmaps (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  target_career text not null,
+  completion_percentage smallint not null default 0 check (completion_percentage between 0 and 100),
+  status text not null default 'active' check (status in ('active', 'archived')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.roadmap_milestones (
+  id uuid primary key default gen_random_uuid(),
+  roadmap_id uuid not null references public.roadmaps(id) on delete cascade,
+  year smallint not null check (year between 1 and 8),
+  title text not null,
+  description text,
+  category text not null check (category in ('skill', 'project', 'experience')),
+  deadline timestamptz,
+  priority text not null check (priority in ('low', 'medium', 'high')),
+  estimated_hours integer not null check (estimated_hours > 0),
+  resources jsonb not null default '[]'::jsonb,
+  progress smallint not null default 0 check (progress between 0 and 100),
+  status text not null default 'not_started' check (status in ('not_started', 'in_progress', 'completed', 'paused')),
+  sort_order integer not null default 0
+);
+
+create table if not exists public.simulations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  career text not null,
+  title text not null,
+  scenarios jsonb not null,
+  user_choices jsonb not null default '[]'::jsonb,
+  technical_score smallint,
+  leadership_score smallint,
+  career_compatibility_score smallint,
+  score smallint,
+  feedback text,
+  status text not null default 'in_progress' check (status in ('in_progress', 'completed')),
+  completed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.ai_conversations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  context jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.ai_messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.ai_conversations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  description text not null,
+  skills jsonb not null default '[]'::jsonb,
+  github_link text,
+  progress smallint not null default 0 check (progress between 0 and 100),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.student_profiles enable row level security;
+alter table public.career_matches enable row level security;
+alter table public.goals enable row level security;
+alter table public.roadmaps enable row level security;
+alter table public.simulations enable row level security;
+alter table public.ai_conversations enable row level security;
+alter table public.ai_messages enable row level security;
+alter table public.projects enable row level security;
+
+create policy "student_profile_owner" on public.student_profiles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "career_match_owner" on public.career_matches for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "goal_owner" on public.goals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "roadmap_owner" on public.roadmaps for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "simulation_owner" on public.simulations for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "conversation_owner" on public.ai_conversations for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "message_owner" on public.ai_messages for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "project_owner" on public.projects for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

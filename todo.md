@@ -18,9 +18,7 @@
 - [x] Verify the rendered interface at desktop and mobile breakpoints, address defects, and document remaining limitations.
 - [x] Save a final checkpoint after reviewing the completed checklist.
 - [x] Remove all UI animations except a subtle fade on the public feature cards.
-- [x] Audit the current frontend, server, data, and AI implementation and document a migration-safe production target architecture.
-- [x] Establish modular application, API, service, contract, utility, type, and feature boundaries without adding functionality.
-- [x] Add a standalone FastAPI service structure with independent AI mentor, roadmap, simulation, and authentication boundary modules.
-- [x] Add Supabase-ready PostgreSQL database models, repository interfaces, and environment templates without credentials.
-- [x] Refactor existing feature logic so UI routes are thin and the simulation, roadmap, and AI mentor logic are independent of presentation code.
-- [x] Validate imports, contracts, project structure, and documentation; save a refactor checkpoint.
+- [x] Configure the connected PathPilot Supabase public API credentials in the project secret manager.
+- [x] Validate the configured Supabase Auth endpoint with a focused Vitest integration test.
+- [x] Apply the PathPilot PostgreSQL schema migration and verify row-level security policies.
+- [x] Resolve Supabase security-advisor findings and document the final API integration boundary.
