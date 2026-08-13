@@ -34,8 +34,12 @@
 }
 
 :root {
-  --primary: oklch(0.49 0.16 268); --primary-foreground: oklch(0.99 0.01 268); --chart-1: oklch(0.72 0.12 268); --chart-2: oklch(0.62 0.15 268); --chart-3: oklch(0.49 0.16 268); --chart-4: oklch(0.39 0.14 268); --chart-5: oklch(0.3 0.12 268); --radius: 0.9rem;
-  --background: oklch(0.992 0.002 250); --foreground: oklch(0.19 0.018 262); --card: oklch(1 0 0); --card-foreground: oklch(0.19 0.018 262); --popover: oklch(1 0 0); --popover-foreground: oklch(0.19 0.018 262); --secondary: oklch(0.97 0.006 260); --secondary-foreground: oklch(0.32 0.02 262); --muted: oklch(0.965 0.006 260); --muted-foreground: oklch(0.52 0.018 262); --accent: oklch(0.965 0.006 260); --accent-foreground: oklch(0.19 0.018 262); --destructive: oklch(0.577 0.245 27.325); --destructive-foreground: oklch(0.985 0 0); --border: oklch(0.91 0.007 260); --input: oklch(0.91 0.007 260); --ring: oklch(0.49 0.16 268);
+  --primary: oklch(0.47 0.13 255); --primary-foreground: oklch(0.99 0.01 255); --chart-1: oklch(0.66 0.12 255); --chart-2: oklch(0.57 0.13 255); --chart-3: oklch(0.47 0.13 255); --chart-4: oklch(0.39 0.11 255); --chart-5: oklch(0.31 0.09 255); --radius: 0.35rem;
+  --background: oklch(0.985 0.002 250); --foreground: oklch(0.2 0.012 250); --card: oklch(1 0 0); --card-foreground: oklch(0.2 0.012 250); --popover: oklch(1 0 0); --popover-foreground: oklch(0.2 0.012 250); --secondary: oklch(0.97 0.004 250); --secondary-foreground: oklch(0.3 0.014 250); --muted: oklch(0.965 0.004 250); --muted-foreground: oklch(0.5 0.014 250); --accent: oklch(0.955 0.006 250); --accent-foreground: oklch(0.2 0.012 250); --destructive: oklch(0.55 0.2 25); --destructive-foreground: oklch(0.99 0 0); --border: oklch(0.9 0.006 250); --input: oklch(0.9 0.006 250); --ring: oklch(0.47 0.13 255);
+}
+
+.dark {
+  --background: oklch(0.145 0.004 250); --foreground: oklch(0.94 0.004 250); --card: oklch(0.18 0.004 250); --card-foreground: oklch(0.94 0.004 250); --popover: oklch(0.18 0.004 250); --popover-foreground: oklch(0.94 0.004 250); --secondary: oklch(0.225 0.004 250); --secondary-foreground: oklch(0.9 0.004 250); --muted: oklch(0.235 0.004 250); --muted-foreground: oklch(0.7 0.006 250); --accent: oklch(0.26 0.006 250); --accent-foreground: oklch(0.95 0.004 250); --border: oklch(0.31 0.006 250); --input: oklch(0.31 0.006 250); --primary: oklch(0.72 0.12 255); --primary-foreground: oklch(0.15 0.004 250); --ring: oklch(0.72 0.12 255);
 }
 
 @layer base {
@@ -47,7 +51,7 @@
 @layer components {
   .container { width: 100%; margin-inline: auto; padding-inline: 1rem; }
   .flex { min-height: 0; min-width: 0; }
-  .surface-panel { @apply rounded-[22px] border border-border/80 bg-card shadow-[0_10px_32px_rgba(23,35,71,0.045)]; }
+  .surface-panel { @apply rounded-md border border-slate-200 bg-card shadow-none dark:border-slate-700; }
   .eyebrow { @apply text-[10px] font-semibold uppercase tracking-[0.15em] text-primary; }
   .field-label { @apply text-xs font-semibold text-foreground; }
   .icon-tile { @apply grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary; }
@@ -56,6 +60,16 @@
   .feature-card:nth-child(3) { animation-delay: 90ms !important; }
   @media (min-width: 640px) { .container { padding-inline: 1.5rem; } }
   @media (min-width: 1024px) { .container { max-width: 1280px; padding-inline: 2rem; } }
+}
+
+@layer utilities {
+  .workspace-shell { @apply bg-slate-50 dark:bg-background; }
+  .workspace-shell .surface-panel { @apply rounded-md border-slate-200 shadow-none dark:border-slate-700; }
+  .workspace-shell [class*="rounded-"] { border-radius: 0.125rem !important; }
+  .workspace-shell [class*="shadow-"] { box-shadow: none !important; }
+  .workspace-shell .data-value { @apply font-mono tabular-nums tracking-tight; }
+  .workspace-shell .status-tag { @apply rounded-sm border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300; }
+  .workspace-shell .utility-link { @apply text-xs font-medium text-slate-600 hover:text-foreground dark:text-slate-300; }
 }
 
 @keyframes feature-card-fade { from { opacity: 0; } to { opacity: 1; } }
