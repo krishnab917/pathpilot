@@ -43,7 +43,7 @@
 - [x] Extend the existing Supabase simulation persistence model without creating duplicate tables or exposing hidden scoring metadata.
 - [x] Connect the adaptive simulation journey and meaningful final analysis to the existing workspace UI without redesigning unrelated flows.
 - [x] Verify remaining production modules, security, RLS persistence, error and loading behavior, mobile responsiveness, and mock-data cleanup.
-- [ ] Run and document route-by-route validation for authenticated mobile flows: overview, discovery, roadmap, goals, mentor, portfolio, active simulation, and completed simulation results.
+- [x] Run and document route-by-route validation for authenticated mobile flows: overview, discovery, roadmap, goals, mentor, portfolio, active simulation, and completed simulation results.
 - [x] Remove the Home-page visual element identified by the user’s “remove this” annotation and verify the landing layout.
 - [x] Remove only the large Home-page workspace preview card while preserving the existing tones.
 - [x] Refactor the authenticated PathPilot workspace to a compact utility-first dashboard with practical data layouts, crisp 1px slate borders, restrained status tags, and no floating rounded/neon styling.
@@ -52,8 +52,8 @@
 - [x] Apply consistent monospace and tabular-number treatment to key quantitative values across every workspace module.
 - [x] Finish explicit utility-first styling in Discovery, Roadmap, Goals, and Mentor beyond the workspace-wide overrides.
 - [x] Add explicit `data-value` treatment to remaining roadmap, goal, and mentor-proposal quantities.
-- [ ] Document authenticated light- and dark-mode visual verification after the remaining route-level styling is complete.
-- [ ] Verify the redesigned authenticated workspace in both light and dark mode across all routes with a real student session.
+- [x] Document authenticated light- and dark-mode visual verification after the remaining route-level styling is complete.
+- [x] Verify the redesigned authenticated workspace in both light and dark mode across all routes with a real student session.
 - [x] Replace the empty Home-page area below the “From curiosity to credible progress” introduction with a compact utility-first workflow panel.
 - [x] Verify the repeated stale Home-card visual selector and confirm the intended card remains removed in the current render.
 - [x] Remove the “An intelligent career workspace for students” badge from the Home hero and verify the landing hierarchy.
@@ -73,3 +73,4 @@
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.
 - [x] Bound live career-guidance model selection and structured completion waits, then align the provider schema and concise prompt with the server validator.
+- [x] Create and document a controlled authenticated in-progress adaptive simulation check at the mobile breakpoint, then complete the temporary session.
