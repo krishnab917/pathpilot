@@ -56,5 +56,6 @@
 - [ ] Verify the redesigned authenticated workspace in both light and dark mode across all routes with a real student session.
 - [x] Replace the empty Home-page area below the “From curiosity to credible progress” introduction with a compact utility-first workflow panel.
 - [x] Verify the repeated stale Home-card visual selector and confirm the intended card remains removed in the current render.
+- [x] Remove the “An intelligent career workspace for students” badge from the Home hero and verify the landing hierarchy.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.
