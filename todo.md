@@ -27,7 +27,7 @@
 - [x] Persist and restore onboarding, profile, dashboard, career matches, roadmap milestones, goals, projects, simulation sessions, and mentor history through user-scoped Supabase access.
 - [x] Preserve the existing UI while replacing mock, hardcoded, and transient product state with real persisted data.
 - [x] Verify cross-user RLS isolation, API behavior, regression coverage, and mobile authentication entry behavior; interactive email confirmation remains a manual acceptance check.
-- [ ] Document the production integration and save a persistent-product checkpoint.
+- [x] Document the production integration and save a persistent-product checkpoint.
 - [x] Connect project portfolio data to the existing user-facing workspace and verify it restores from Supabase after refresh.
 - [x] Remove the temporary legacy OAuth compatibility exports and retired SDK dependency from the active runtime.
 - [x] Record a focused verification that all existing user-facing persisted flows read user-scoped Supabase data after sign-in; interactive email confirmation remains a manual acceptance check.
