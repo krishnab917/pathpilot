@@ -22,3 +22,15 @@
 - [x] Validate the configured Supabase Auth endpoint with a focused Vitest integration test.
 - [x] Apply the PathPilot PostgreSQL schema migration and verify row-level security policies.
 - [x] Resolve Supabase security-advisor findings and document the final API integration boundary.
+- [x] Audit the existing application architecture, routes, state, API calls, mock data, and persistence boundaries.
+- [x] Establish reusable Supabase browser and server clients plus secure authentication, session, and reset-password flows.
+- [x] Persist and restore onboarding, profile, dashboard, career matches, roadmap milestones, goals, projects, simulation sessions, and mentor history through user-scoped Supabase access.
+- [x] Preserve the existing UI while replacing mock, hardcoded, and transient product state with real persisted data.
+- [x] Verify cross-user RLS isolation, API behavior, regression coverage, and mobile authentication entry behavior; interactive email confirmation remains a manual acceptance check.
+- [ ] Document the production integration and save a persistent-product checkpoint.
+- [x] Connect project portfolio data to the existing user-facing workspace and verify it restores from Supabase after refresh.
+- [x] Remove the temporary legacy OAuth compatibility exports and retired SDK dependency from the active runtime.
+- [x] Record a focused verification that all existing user-facing persisted flows read user-scoped Supabase data after sign-in; interactive email confirmation remains a manual acceptance check.
+- [x] Create a dedicated private krishnab917/pathpilot GitHub repository without modifying Career-Path-Navigator.
+- [x] Verify the Manus project’s active GitHub remote is krishnab917/pathpilot and no longer points to Career-Path-Navigator.
+- [x] Verify the active PathPilot code is associated with the new repository before resuming Supabase work.

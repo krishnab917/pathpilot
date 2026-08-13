@@ -4,20 +4,25 @@ import {
   addMentorMessage,
   completeSimulation,
   createGoal,
+  createProject,
   createRoadmap,
   createSimulation,
   getActiveRoadmap,
   getCareerMatches,
   getConversationMessages,
   getDashboardData,
+  getOnboardingDraft,
   getOrCreateMentorConversation,
   getSimulation,
   getStudentProfile,
   listGoals,
+  listProjects,
   replaceCareerMatches,
   RoadmapMilestoneInput,
   saveStudentProfile,
+  saveOnboardingDraft,
   updateGoal,
+  updateProject,
   updateMilestoneProgress,
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
@@ -91,7 +96,7 @@ const mentorResponseSchema = z.object({
     title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200), category: z.string().trim().min(2).max(64),
     priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), deadline: z.string().datetime().nullable(),
   }).nullable(),
-  priorityAdjustment: z.object({ goalId: z.number().int().positive(), priority: prioritySchema }).nullable(),
+  priorityAdjustment: z.object({ goalId: z.string().uuid(), priority: prioritySchema }).nullable(),
 });
 
 const discoveryJsonSchema = {
@@ -168,7 +173,7 @@ const mentorJsonSchema = {
     },
     priorityAdjustment: {
       type: ["object", "null"],
-      properties: { goalId: { type: "integer" }, priority: { type: "string", enum: ["low", "medium", "high"] } },
+      properties: { goalId: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high"] } },
       required: ["goalId", "priority"], additionalProperties: false,
     },
   },
@@ -200,6 +205,8 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
 export const pathpilotRouter = router({
   profile: router({
     get: protectedProcedure.query(({ ctx }) => getStudentProfile(ctx.user.id)),
+    getDraft: protectedProcedure.query(({ ctx }) => getOnboardingDraft(ctx.user.id)),
+    saveDraft: protectedProcedure.input(z.object({ currentStep: z.number().int().min(0).max(4), profile: z.object({ grade: z.string().max(16), location: z.string().max(160), interests: z.array(z.string().max(80)).max(12), skills: z.array(z.string().max(80)).max(12), activities: z.array(z.string().max(80)).max(12), careerPreferences: z.array(z.string().max(80)).max(12) }) })).mutation(({ ctx, input }) => saveOnboardingDraft(ctx.user.id, input.currentStep, input.profile)),
     completeOnboarding: protectedProcedure.input(z.object({
       grade: z.string().trim().min(1).max(16),
       location: z.string().trim().min(2).max(160),
@@ -246,7 +253,7 @@ export const pathpilotRouter = router({
       title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200).optional(), category: z.string().trim().min(2).max(64),
       deadline: z.date().optional(), priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), resources: z.array(resourceSchema).max(8).optional(),
     })).mutation(({ ctx, input }) => createGoal(ctx.user.id, input)),
-    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional() }))
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional() }))
       .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority })),
   }),
 
@@ -281,12 +288,12 @@ export const pathpilotRouter = router({
     }),
     create: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), milestones: z.array(milestoneSchema).min(1).max(30) }))
       .mutation(({ ctx, input }) => createRoadmap(ctx.user.id, input.targetCareer, input.milestones as RoadmapMilestoneInput[])),
-    updateMilestoneProgress: protectedProcedure.input(z.object({ id: z.number().int().positive(), progress: z.number().int().min(0).max(100) }))
+    updateMilestoneProgress: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100) }))
       .mutation(({ ctx, input }) => updateMilestoneProgress(ctx.user.id, input.id, input.progress)),
   }),
 
   simulations: router({
-    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(({ ctx, input }) => getSimulation(ctx.user.id, input.id)),
+    get: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(({ ctx, input }) => getSimulation(ctx.user.id, input.id)),
     start: protectedProcedure.input(z.object({ career: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before starting a simulation." });
@@ -307,7 +314,7 @@ export const pathpilotRouter = router({
         throw new TRPCError({ code: "BAD_GATEWAY", message: "The career simulation is temporarily unavailable. Please try again shortly." });
       }
     }),
-    complete: protectedProcedure.input(z.object({ id: z.number().int().positive(), choices: z.array(z.object({ scenarioId: z.string().regex(/^s[1-3]$/), choiceId: z.string().regex(/^c[1-3]$/) })).length(3) }))
+    complete: protectedProcedure.input(z.object({ id: z.string().uuid(), choices: z.array(z.object({ scenarioId: z.string().regex(/^s[1-3]$/), choiceId: z.string().regex(/^c[1-3]$/) })).length(3) }))
       .mutation(async ({ ctx, input }) => {
         const simulation = await getSimulation(ctx.user.id, input.id);
         if (!simulation) throw new TRPCError({ code: "NOT_FOUND", message: "Simulation not found." });
@@ -363,5 +370,11 @@ export const pathpilotRouter = router({
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Your career mentor is temporarily unavailable. Please try again shortly." });
       }
     }),
+  }),
+
+  projects: router({
+    list: protectedProcedure.query(({ ctx }) => listProjects(ctx.user.id)),
+    create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(({ ctx, input }) => updateProject(ctx.user.id, input.id, input)),
   }),
 });

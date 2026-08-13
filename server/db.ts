@@ -1,327 +1,73 @@
-import { and, asc, desc, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import {
-  aiConversations,
-  aiMessages,
-  careerMatches,
-  careers,
-  goals,
-  InsertUser,
-  projects,
-  roadmapMilestones,
-  roadmaps,
-  simulations,
-  studentProfiles,
-  users,
-} from "../drizzle/schema";
-import { ENV } from "./_core/env";
+import { createClient } from "@supabase/supabase-js";
+import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
 
 export type ResourceLink = { label: string; url: string };
-export type CareerRecommendation = {
-  name: string;
-  description: string;
-  salaryRange: string;
-  educationRequirements: string;
-  requiredSkills: string[];
-  dailyResponsibilities: string[];
-  relatedCareers: string[];
-  matchScore: number;
-  reasoning: string;
-  strengths: string[];
-  missingSkills: string[];
-  realityCheck: string;
-  nextSteps: string[];
-};
+export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
+export type RoadmapMilestoneInput = { year: number; title: string; description?: string; category: "skill" | "project" | "experience"; deadline?: Date; priority: "low" | "medium" | "high"; estimatedHours: number; resources: ResourceLink[]; progress?: number; status?: GoalStatus; sortOrder: number };
+type GoalStatus = "not_started" | "in_progress" | "completed" | "paused";
 
-export type RoadmapMilestoneInput = {
-  year: number;
-  title: string;
-  description?: string;
-  category: "skill" | "project" | "experience";
-  deadline?: Date;
-  priority: "low" | "medium" | "high";
-  estimatedHours: number;
-  resources: ResourceLink[];
-  progress?: number;
-  status?: "not_started" | "in_progress" | "completed" | "paused";
-  sortOrder: number;
-};
+const client = () => currentSupabaseClient();
+const list = <T>(value: T[] | null) => value ?? [];
+const strings = (value: unknown) => Array.isArray(value) ? value as string[] : [];
+const resources = (value: unknown) => Array.isArray(value) ? value as ResourceLink[] : [];
+const check = (error: { message: string } | null) => { if (error) throw new Error("We could not save your PathPilot data. Please try again."); };
+const date = (value: string | null | undefined) => value ? new Date(value) : null;
+const iso = (value?: Date) => value?.toISOString() ?? null;
+const slug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-let _db: ReturnType<typeof drizzle> | null = null;
-
-/** Lazily instantiates the database client so checks can run without a live database. */
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to initialize:", error);
-      _db = null;
-    }
-  }
-  return _db;
+function serviceClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY;
+  if (!key) throw new Error("Career catalog persistence is not configured.");
+  return createClient(getSupabaseConfig().url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
+function profile(row: any) { return row ? { id: row.id, userId: row.user_id, grade: row.grade, location: row.location, interests: strings(row.interests), skills: strings(row.skills), activities: strings(row.activities), careerPreferences: strings(row.career_preferences), onboardingCompletedAt: date(row.onboarding_completed_at), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) } : undefined; }
+function goal(row: any) { return { id: row.id, userId: row.user_id, title: row.title, description: row.description, category: row.category, deadline: date(row.deadline), priority: row.priority, estimatedHours: row.estimated_hours, resources: resources(row.resources), progress: row.progress, status: row.status as GoalStatus, createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) }; }
+function milestone(row: any) { return { id: row.id, roadmapId: row.roadmap_id, year: row.year, title: row.title, description: row.description, category: row.category, deadline: date(row.deadline), priority: row.priority, estimatedHours: row.estimated_hours, resources: resources(row.resources), progress: row.progress, status: row.status as GoalStatus, sortOrder: row.sort_order }; }
+function simulation(row: any) { return row ? { id: row.id, userId: row.user_id, career: row.career, title: row.title, scenarios: row.scenarios ?? [], userChoices: row.user_choices ?? [], technicalScore: row.technical_score ?? 0, leadershipScore: row.leadership_score ?? 0, careerCompatibilityScore: row.career_compatibility_score ?? 0, score: row.score ?? 0, feedback: row.feedback, status: row.status, completedAt: date(row.completed_at), createdAt: new Date(row.created_at) } : undefined; }
 
-async function requireDb() {
-  const db = await getDb();
-  if (!db) throw new Error("The PathPilot database is currently unavailable.");
-  return db;
+export async function getStudentProfile(userId: string) { const { data, error } = await client().from("student_profiles").select("*").eq("user_id", userId).maybeSingle(); check(error); return profile(data); }
+export async function getOnboardingDraft(userId: string) { const { data, error } = await client().from("onboarding_drafts").select("*").eq("user_id", userId).maybeSingle(); check(error); return data ? { currentStep: data.current_step, payload: data.payload as Record<string, unknown> } : undefined; }
+export async function saveOnboardingDraft(userId: string, currentStep: number, payload: Record<string, unknown>) { const { data, error } = await client().from("onboarding_drafts").upsert({ user_id: userId, current_step: currentStep, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single(); check(error); return data; }
+export async function saveStudentProfile(userId: string, value: { grade: string; location: string; interests: string[]; skills: string[]; activities: string[]; careerPreferences: string[] }) { const db = client(); const { data, error } = await db.from("student_profiles").upsert({ user_id: userId, grade: value.grade, location: value.location, interests: value.interests, skills: value.skills, activities: value.activities, career_preferences: value.careerPreferences, onboarding_completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single(); check(error); const draft = await db.from("onboarding_drafts").delete().eq("user_id", userId); check(draft.error); return profile(data); }
+
+export async function getCareerMatches(userId: string) {
+  const { data, error } = await client().from("career_matches").select("*, careers(*)").eq("user_id", userId).order("rank"); check(error);
+  return list(data as any[]).map(row => ({ id: row.id, rank: row.rank, matchScore: row.match_score, reasoning: row.reasoning, strengths: strings(row.strengths), missingSkills: strings(row.missing_skills), realityCheck: row.reality_check, nextSteps: strings(row.next_steps), generatedAt: new Date(row.generated_at), career: { id: row.careers.id, name: row.careers.name, description: row.careers.description, salaryRange: row.careers.salary_range ?? "Location-dependent", educationRequirements: row.careers.education_requirements ?? "Varies by pathway", requiredSkills: strings(row.careers.required_skills), dailyResponsibilities: strings(row.careers.daily_responsibilities), relatedCareers: strings(row.careers.related_careers) } }));
 }
-
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) return;
-
-  const values: InsertUser = { openId: user.openId, lastSignedIn: user.lastSignedIn ?? new Date() };
-  const updateSet: Record<string, unknown> = { lastSignedIn: values.lastSignedIn };
-  for (const field of ["name", "email", "loginMethod"] as const) {
-    if (user[field] !== undefined) {
-      values[field] = user[field] ?? null;
-      updateSet[field] = user[field] ?? null;
-    }
-  }
-  if (user.role !== undefined) {
-    values.role = user.role;
-    updateSet.role = user.role;
-  } else if (user.openId === ENV.ownerOpenId) {
-    values.role = "admin";
-    updateSet.role = "admin";
-  }
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-}
-
-export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
-}
-
-export async function getStudentProfile(userId: number) {
-  const db = await requireDb();
-  const result = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, userId)).limit(1);
-  return result[0];
-}
-
-export async function saveStudentProfile(
-  userId: number,
-  profile: {
-    grade: string;
-    location: string;
-    interests: string[];
-    skills: string[];
-    activities: string[];
-    careerPreferences: string[];
-  }
-) {
-  const db = await requireDb();
-  const values = { ...profile, userId, onboardingCompletedAt: new Date() };
-  await db.insert(studentProfiles).values(values).onDuplicateKeyUpdate({
-    set: { ...profile, onboardingCompletedAt: new Date() },
-  });
-  return getStudentProfile(userId);
-}
-
-function toSlug(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 180);
-}
-
-export async function replaceCareerMatches(userId: number, recommendations: CareerRecommendation[]) {
+export async function replaceCareerMatches(userId: string, recommendations: CareerRecommendation[]) {
   if (recommendations.length !== 5) throw new Error("Career discovery must contain exactly five matches.");
-  const db = await requireDb();
-  await db.delete(careerMatches).where(eq(careerMatches.userId, userId));
-
-  for (let index = 0; index < recommendations.length; index += 1) {
-    const recommendation = recommendations[index];
-    const slug = toSlug(recommendation.name);
-    await db.insert(careers).values({
-      slug,
-      name: recommendation.name,
-      description: recommendation.description,
-      salaryRange: recommendation.salaryRange,
-      educationRequirements: recommendation.educationRequirements,
-      requiredSkills: recommendation.requiredSkills,
-      dailyResponsibilities: recommendation.dailyResponsibilities,
-      relatedCareers: recommendation.relatedCareers,
-    }).onDuplicateKeyUpdate({
-      set: {
-        name: recommendation.name,
-        description: recommendation.description,
-        salaryRange: recommendation.salaryRange,
-        educationRequirements: recommendation.educationRequirements,
-        requiredSkills: recommendation.requiredSkills,
-        dailyResponsibilities: recommendation.dailyResponsibilities,
-        relatedCareers: recommendation.relatedCareers,
-      },
-    });
-    const career = await db.select({ id: careers.id }).from(careers).where(eq(careers.slug, slug)).limit(1);
-    if (!career[0]) throw new Error("Unable to persist the generated career match.");
-    await db.insert(careerMatches).values({
-      userId,
-      careerId: career[0].id,
-      rank: index + 1,
-      matchScore: Math.max(0, Math.min(100, Math.round(recommendation.matchScore))),
-      reasoning: recommendation.reasoning,
-      strengths: recommendation.strengths,
-      missingSkills: recommendation.missingSkills,
-      realityCheck: recommendation.realityCheck,
-      nextSteps: recommendation.nextSteps,
-    });
+  const admin = serviceClient(); const stored: { careerId: string; recommendation: CareerRecommendation }[] = [];
+  for (const recommendation of recommendations) {
+    const { data, error } = await admin.from("careers").upsert({ slug: slug(recommendation.name), name: recommendation.name, description: recommendation.description, salary_range: recommendation.salaryRange, education_requirements: recommendation.educationRequirements, required_skills: recommendation.requiredSkills, daily_responsibilities: recommendation.dailyResponsibilities, related_careers: recommendation.relatedCareers }, { onConflict: "slug" }).select("id").single();
+    check(error); stored.push({ careerId: (data as any).id, recommendation });
   }
+  const remove = await admin.from("career_matches").delete().eq("user_id", userId); check(remove.error);
+  const insert = await admin.from("career_matches").insert(stored.map(({ careerId, recommendation }, index) => ({ user_id: userId, career_id: careerId, rank: index + 1, match_score: Math.round(recommendation.matchScore), reasoning: recommendation.reasoning, strengths: recommendation.strengths, missing_skills: recommendation.missingSkills, reality_check: recommendation.realityCheck, next_steps: recommendation.nextSteps }))); check(insert.error);
   return getCareerMatches(userId);
 }
 
-export async function getCareerMatches(userId: number) {
-  const db = await requireDb();
-  return db.select({
-    id: careerMatches.id,
-    rank: careerMatches.rank,
-    matchScore: careerMatches.matchScore,
-    reasoning: careerMatches.reasoning,
-    strengths: careerMatches.strengths,
-    missingSkills: careerMatches.missingSkills,
-    realityCheck: careerMatches.realityCheck,
-    nextSteps: careerMatches.nextSteps,
-    generatedAt: careerMatches.generatedAt,
-    career: {
-      id: careers.id,
-      name: careers.name,
-      description: careers.description,
-      salaryRange: careers.salaryRange,
-      educationRequirements: careers.educationRequirements,
-      requiredSkills: careers.requiredSkills,
-      dailyResponsibilities: careers.dailyResponsibilities,
-      relatedCareers: careers.relatedCareers,
-    },
-  }).from(careerMatches).innerJoin(careers, eq(careerMatches.careerId, careers.id))
-    .where(eq(careerMatches.userId, userId)).orderBy(asc(careerMatches.rank));
-}
+export async function listGoals(userId: string) { const { data, error } = await client().from("goals").select("*").eq("user_id", userId).order("deadline", { nullsFirst: false }); check(error); return list(data as any[]).map(goal); }
+export async function createGoal(userId: string, value: { title: string; description?: string; category: string; deadline?: Date; priority: "low" | "medium" | "high"; estimatedHours: number; resources?: ResourceLink[] }) { const { data, error } = await client().from("goals").insert({ user_id: userId, title: value.title, description: value.description ?? null, category: value.category, deadline: iso(value.deadline), priority: value.priority, estimated_hours: value.estimatedHours, resources: value.resources ?? [] }).select().single(); check(error); return goal(data); }
+export async function updateGoal(userId: string, goalId: string, update: { progress?: number; status?: GoalStatus; priority?: "low" | "medium" | "high" }) { const { data, error } = await client().from("goals").update({ ...update, updated_at: new Date().toISOString() }).eq("id", goalId).eq("user_id", userId).select().maybeSingle(); check(error); if (!data) throw new Error("Goal not found."); return goal(data); }
 
-export async function listGoals(userId: number) {
-  const db = await requireDb();
-  return db.select().from(goals).where(eq(goals.userId, userId)).orderBy(asc(goals.status), asc(goals.deadline), desc(goals.updatedAt));
-}
+export async function getActiveRoadmap(userId: string) { const { data: roadmap, error } = await client().from("roadmaps").select("*").eq("user_id", userId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(); check(error); if (!roadmap) return undefined; const { data: milestones, error: milestoneError } = await client().from("roadmap_milestones").select("*").eq("roadmap_id", (roadmap as any).id).order("year").order("sort_order"); check(milestoneError); return { id: (roadmap as any).id, userId: (roadmap as any).user_id, targetCareer: (roadmap as any).target_career, completionPercentage: (roadmap as any).completion_percentage, status: (roadmap as any).status, createdAt: new Date((roadmap as any).created_at), updatedAt: new Date((roadmap as any).updated_at), milestones: list(milestones as any[]).map(milestone) }; }
+export async function createRoadmap(userId: string, targetCareer: string, items: RoadmapMilestoneInput[]) { const db = client(); const archive = await db.from("roadmaps").update({ status: "archived", updated_at: new Date().toISOString() }).eq("user_id", userId).eq("status", "active"); check(archive.error); const { data, error } = await db.from("roadmaps").insert({ user_id: userId, target_career: targetCareer }).select().single(); check(error); const inserted = await db.from("roadmap_milestones").insert(items.map(item => ({ roadmap_id: (data as any).id, year: item.year, title: item.title, description: item.description ?? null, category: item.category, deadline: iso(item.deadline), priority: item.priority, estimated_hours: item.estimatedHours, resources: item.resources, progress: item.progress ?? 0, status: item.status ?? "not_started", sort_order: item.sortOrder }))); check(inserted.error); return getActiveRoadmap(userId); }
+export async function updateMilestoneProgress(userId: string, milestoneId: string, progress: number) { const db = client(); const { data: item, error } = await db.from("roadmap_milestones").select("*, roadmaps!inner(user_id)").eq("id", milestoneId).eq("roadmaps.user_id", userId).maybeSingle(); check(error); if (!item) throw new Error("Roadmap milestone not found."); const normalized = Math.max(0, Math.min(100, Math.round(progress))); const saved = await db.from("roadmap_milestones").update({ progress: normalized, status: normalized === 100 ? "completed" : normalized > 0 ? "in_progress" : "not_started" }).eq("id", milestoneId); check(saved.error); const { data: all, error: allError } = await db.from("roadmap_milestones").select("progress").eq("roadmap_id", (item as any).roadmap_id); check(allError); const entries = list(all as any[]); const completion = entries.length ? Math.round(entries.reduce((total, entry) => total + Number(entry.progress), 0) / entries.length) : 0; const update = await db.from("roadmaps").update({ completion_percentage: completion, updated_at: new Date().toISOString() }).eq("id", (item as any).roadmap_id).eq("user_id", userId); check(update.error); return getActiveRoadmap(userId); }
 
-export async function createGoal(userId: number, goal: {
-  title: string; description?: string; category: string; deadline?: Date; priority: "low" | "medium" | "high"; estimatedHours: number; resources?: ResourceLink[];
-}) {
-  const db = await requireDb();
-  const result = await db.insert(goals).values({ ...goal, userId, resources: goal.resources ?? [] });
-  const id = Number(result[0].insertId);
-  return (await db.select().from(goals).where(eq(goals.id, id)).limit(1))[0];
+export async function createSimulation(userId: string, value: { career: string; title: string; scenarios: unknown[] }) {
+  const { data, error } = await client().from("simulations").insert({ user_id: userId, career: value.career, title: value.title, scenarios: value.scenarios, user_choices: [] }).select().single();
+  check(error);
+  const persisted = simulation(data);
+  if (!persisted) throw new Error("Simulation could not be created.");
+  return persisted;
 }
+export async function getSimulation(userId: string, simulationId: string) { const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).maybeSingle(); check(error); return simulation(data); }
+export async function completeSimulation(userId: string, simulationId: string, value: { userChoices: { scenarioId: string; choiceId: string }[]; technicalScore: number; leadershipScore: number; careerCompatibilityScore: number; score: number; feedback: string }) { const { error } = await client().from("simulations").update({ user_choices: value.userChoices, technical_score: value.technicalScore, leadership_score: value.leadershipScore, career_compatibility_score: value.careerCompatibilityScore, score: value.score, feedback: value.feedback, status: "completed", completed_at: new Date().toISOString() }).eq("id", simulationId).eq("user_id", userId); check(error); return getSimulation(userId, simulationId); }
 
-export async function updateGoal(userId: number, goalId: number, update: {
-  progress?: number; status?: "not_started" | "in_progress" | "completed" | "paused"; priority?: "low" | "medium" | "high";
-}) {
-  const db = await requireDb();
-  const result = await db.update(goals).set({ ...update, updatedAt: new Date() })
-    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
-  if (result[0].affectedRows === 0) throw new Error("Goal not found.");
-  return (await db.select().from(goals).where(eq(goals.id, goalId)).limit(1))[0];
-}
-
-export async function getActiveRoadmap(userId: number) {
-  const db = await requireDb();
-  const roadmap = (await db.select().from(roadmaps)
-    .where(and(eq(roadmaps.userId, userId), eq(roadmaps.status, "active"))).orderBy(desc(roadmaps.updatedAt)).limit(1))[0];
-  if (!roadmap) return undefined;
-  const milestones = await db.select().from(roadmapMilestones).where(eq(roadmapMilestones.roadmapId, roadmap.id))
-    .orderBy(asc(roadmapMilestones.year), asc(roadmapMilestones.sortOrder));
-  return { ...roadmap, milestones };
-}
-
-export async function createRoadmap(userId: number, targetCareer: string, milestones: RoadmapMilestoneInput[]) {
-  const db = await requireDb();
-  const result = await db.insert(roadmaps).values({ userId, targetCareer, completionPercentage: 0 });
-  const roadmapId = Number(result[0].insertId);
-  if (milestones.length) {
-    await db.insert(roadmapMilestones).values(milestones.map(milestone => ({
-      ...milestone,
-      roadmapId,
-      resources: milestone.resources,
-      progress: milestone.progress ?? 0,
-      status: milestone.status ?? "not_started",
-    })));
-  }
-  return getActiveRoadmap(userId);
-}
-
-export async function updateMilestoneProgress(userId: number, milestoneId: number, progress: number) {
-  const db = await requireDb();
-  const match = await db.select({ id: roadmapMilestones.id, roadmapId: roadmaps.id }).from(roadmapMilestones)
-    .innerJoin(roadmaps, eq(roadmapMilestones.roadmapId, roadmaps.id))
-    .where(and(eq(roadmapMilestones.id, milestoneId), eq(roadmaps.userId, userId))).limit(1);
-  if (!match[0]) throw new Error("Roadmap milestone not found.");
-  const normalized = Math.max(0, Math.min(100, Math.round(progress)));
-  await db.update(roadmapMilestones).set({
-    progress: normalized,
-    status: normalized === 100 ? "completed" : normalized > 0 ? "in_progress" : "not_started",
-    updatedAt: new Date(),
-  }).where(eq(roadmapMilestones.id, milestoneId));
-  const milestones = await db.select({ progress: roadmapMilestones.progress }).from(roadmapMilestones)
-    .where(eq(roadmapMilestones.roadmapId, match[0].roadmapId));
-  const completionPercentage = milestones.length ? Math.round(milestones.reduce((sum, milestone) => sum + milestone.progress, 0) / milestones.length) : 0;
-  await db.update(roadmaps).set({ completionPercentage, updatedAt: new Date() }).where(eq(roadmaps.id, match[0].roadmapId));
-  return getActiveRoadmap(userId);
-}
-
-export async function createSimulation(userId: number, simulation: { career: string; title: string; scenarios: unknown[] }) {
-  const db = await requireDb();
-  const result = await db.insert(simulations).values({ ...simulation, userId, userChoices: [] });
-  const id = Number(result[0].insertId);
-  return (await db.select().from(simulations).where(eq(simulations.id, id)).limit(1))[0];
-}
-
-export async function getSimulation(userId: number, simulationId: number) {
-  const db = await requireDb();
-  return (await db.select().from(simulations).where(and(eq(simulations.id, simulationId), eq(simulations.userId, userId))).limit(1))[0];
-}
-
-export async function completeSimulation(userId: number, simulationId: number, outcome: {
-  userChoices: { scenarioId: string; choiceId: string }[]; technicalScore: number; leadershipScore: number; careerCompatibilityScore: number; score: number; feedback: string;
-}) {
-  const db = await requireDb();
-  const result = await db.update(simulations).set({ ...outcome, status: "completed", completedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(simulations.id, simulationId), eq(simulations.userId, userId)));
-  if (result[0].affectedRows === 0) throw new Error("Simulation not found.");
-  return getSimulation(userId, simulationId);
-}
-
-export async function getOrCreateMentorConversation(userId: number) {
-  const db = await requireDb();
-  const existing = await db.select().from(aiConversations).where(eq(aiConversations.userId, userId))
-    .orderBy(desc(aiConversations.updatedAt)).limit(1);
-  if (existing[0]) return existing[0];
-  const result = await db.insert(aiConversations).values({ userId, title: "Career mentor" });
-  return (await db.select().from(aiConversations).where(eq(aiConversations.id, Number(result[0].insertId))).limit(1))[0];
-}
-
-export async function getConversationMessages(userId: number, conversationId: number) {
-  const db = await requireDb();
-  const conversation = await db.select({ id: aiConversations.id }).from(aiConversations)
-    .where(and(eq(aiConversations.id, conversationId), eq(aiConversations.userId, userId))).limit(1);
-  if (!conversation[0]) throw new Error("Conversation not found.");
-  return db.select().from(aiMessages).where(and(eq(aiMessages.conversationId, conversationId), eq(aiMessages.userId, userId))).orderBy(asc(aiMessages.createdAt));
-}
-
-export async function addMentorMessage(userId: number, conversationId: number, role: "user" | "assistant", content: string) {
-  const db = await requireDb();
-  await db.insert(aiMessages).values({ userId, conversationId, role, content });
-  await db.update(aiConversations).set({ updatedAt: new Date() }).where(and(eq(aiConversations.id, conversationId), eq(aiConversations.userId, userId)));
-}
-
-export async function listProjects(userId: number) {
-  const db = await requireDb();
-  return db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
-}
-
-export async function getDashboardData(userId: number) {
-  const [profile, matches, allGoals, roadmap, allProjects] = await Promise.all([
-    getStudentProfile(userId), getCareerMatches(userId), listGoals(userId), getActiveRoadmap(userId), listProjects(userId),
-  ]);
-  const activeGoals = allGoals.filter(goal => goal.status !== "completed" && goal.status !== "paused");
-  const readiness = roadmap?.completionPercentage ?? (matches[0]?.matchScore ? Math.round(matches[0].matchScore * 0.35) : 0);
-  return { profile, matches, goals: allGoals, activeGoals, roadmap, projects: allProjects, readiness };
-}
+export async function getOrCreateMentorConversation(userId: string) { const db = client(); const { data: existing, error } = await db.from("ai_conversations").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle(); check(error); if (existing) return existing as any; const { data, error: insertError } = await db.from("ai_conversations").insert({ user_id: userId, title: "Career mentor", context: {} }).select().single(); check(insertError); return data as any; }
+export async function getConversationMessages(userId: string, conversationId: string) { const { data, error } = await client().from("ai_messages").select("*").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at"); check(error); return list(data as any[]).map(row => ({ id: row.id, conversationId: row.conversation_id, userId: row.user_id, role: row.role as "user" | "assistant", content: row.content, createdAt: new Date(row.created_at) })); }
+export async function addMentorMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) { const db = client(); const message = await db.from("ai_messages").insert({ user_id: userId, conversation_id: conversationId, role, content }); check(message.error); const conversation = await db.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", userId); check(conversation.error); }
+export async function listProjects(userId: string) { const { data, error } = await client().from("projects").select("*, project_goals(goal_id)").eq("user_id", userId).order("updated_at", { ascending: false }); check(error); return list(data as any[]).map(row => ({ id: row.id, userId: row.user_id, name: row.name, description: row.description, skills: strings(row.skills), githubLink: row.github_link, liveUrl: row.live_url, status: row.status, progress: row.progress, startDate: row.start_date, completionDate: row.completion_date, careerId: row.career_id, goalIds: list(row.project_goals).map((link: any) => link.goal_id), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) })); }
+export async function createProject(userId: string, value: { name: string; description: string; skills: string[]; githubLink?: string; liveUrl?: string; status: "idea" | "in_progress" | "completed" | "archived"; progress: number; startDate?: string; completionDate?: string; careerId?: string; goalIds?: string[] }) { const db = client(); const { data, error } = await db.from("projects").insert({ user_id: userId, name: value.name, description: value.description, skills: value.skills, github_link: value.githubLink ?? null, live_url: value.liveUrl ?? null, status: value.status, progress: value.progress, start_date: value.startDate ?? null, completion_date: value.completionDate ?? null, career_id: value.careerId ?? null }).select().single(); check(error); if (value.goalIds?.length) { const linked = await db.from("project_goals").insert(value.goalIds.map(goalId => ({ project_id: (data as any).id, goal_id: goalId }))); check(linked.error); } return (await listProjects(userId)).find(project => project.id === (data as any).id); }
+export async function updateProject(userId: string, projectId: string, value: { status?: "idea" | "in_progress" | "completed" | "archived"; progress?: number; liveUrl?: string | null; githubLink?: string | null; completionDate?: string | null }) { const { data, error } = await client().from("projects").update({ status: value.status, progress: value.progress, live_url: value.liveUrl, github_link: value.githubLink, completion_date: value.completionDate, updated_at: new Date().toISOString() }).eq("id", projectId).eq("user_id", userId).select().maybeSingle(); check(error); if (!data) throw new Error("Project not found."); return data; }
+export async function getDashboardData(userId: string) { const [profileValue, matches, goals, roadmap, projects] = await Promise.all([getStudentProfile(userId), getCareerMatches(userId), listGoals(userId), getActiveRoadmap(userId), listProjects(userId)]); const activeGoals = goals.filter(item => item.status !== "completed" && item.status !== "paused"); const completedGoals = goals.filter(item => item.status === "completed").length; const readiness = Math.round(Math.min(100, (roadmap?.completionPercentage ?? 0) * 0.5 + (goals.length ? (completedGoals / goals.length) * 25 : 0) + (matches[0]?.matchScore ?? 0) * 0.25)); return { profile: profileValue, matches, goals, activeGoals, roadmap, projects, readiness }; }
