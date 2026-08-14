@@ -245,6 +245,11 @@ export const pathpilotRouter = router({
 
   discovery: router({
     list: protectedProcedure.query(({ ctx }) => getCareerMatches(ctx.user.id)),
+    preflight: protectedProcedure.mutation(async ({ ctx }) => {
+      const profile = await getStudentProfile(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before requesting career guidance." });
+      return { profileReady: true };
+    }),
     analyze: protectedProcedure.mutation(async ({ ctx }) => {
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before requesting career guidance." });
@@ -292,6 +297,11 @@ export const pathpilotRouter = router({
 
   roadmap: router({
     get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
+    preflight: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx }) => {
+      const profile = await getStudentProfile(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
+      return { profileReady: true };
+    }),
     generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
       const [profile, latestSimulation, goals, projects, activeRoadmap] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), listGoals(ctx.user.id), listProjects(ctx.user.id), getActiveRoadmap(ctx.user.id)]);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });

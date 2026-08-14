@@ -39,4 +39,16 @@ describe("pathpilot.discovery.analyze", () => {
     expect(mocks.invokeLLM).toHaveBeenCalledTimes(2);
     expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
   });
+
+  it("confirms the signed-in profile before a long-running discovery request begins", async () => {
+    await expect(appRouter.createCaller(context).pathpilot.discovery.preflight()).resolves.toEqual({ profileReady: true });
+    expect(mocks.getStudentProfile).toHaveBeenCalledWith(userId);
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
+  });
+
+  it("confirms the signed-in profile before a long-running roadmap request begins", async () => {
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Data scientist" })).resolves.toEqual({ profileReady: true });
+    expect(mocks.getStudentProfile).toHaveBeenCalledWith(userId);
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
+  });
 });

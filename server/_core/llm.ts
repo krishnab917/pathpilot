@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { createTimedAsyncCache } from "../ai/timed-async-cache";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -432,7 +433,9 @@ export type ModelsResponse = {
   data: ModelInfo[];
 };
 
-export async function listLLMModels(): Promise<ModelsResponse> {
+const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60_000;
+
+async function fetchLLMModels(): Promise<ModelsResponse> {
   assertApiKey();
 
   const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
@@ -451,4 +454,10 @@ export async function listLLMModels(): Promise<ModelsResponse> {
   }
 
   return (await response.json()) as ModelsResponse;
+}
+
+const modelCatalogCache = createTimedAsyncCache(fetchLLMModels, MODEL_CATALOG_CACHE_TTL_MS);
+
+export async function listLLMModels(): Promise<ModelsResponse> {
+  return modelCatalogCache.get();
 }

@@ -85,4 +85,5 @@
 - [x] Checkpoint 2 follow-up: browser-verify lazy-loaded auth, onboarding, and authenticated workspace routes, including startup-frame resolution after refresh. _(User acceptance: Checkpoint 2 passed.)_
 - [x] Checkpoint 3: implement reusable content-shaped loading skeletons for existing workspace sections, then validate them before later performance work. _(User acceptance: Checkpoint 3 passed.)_
 - [x] Checkpoint 4: measure and improve React Query cache defaults, route-specific query scope, and targeted invalidation before later optimization work. _(User acceptance: Checkpoint 4 passed.)_
-- [ ] Checkpoint 5: reduce the Career Mentor first-open renderer asset cost and improve its progressive loading boundary before later optimization work.
+- [x] Checkpoint 5: reduce the Career Mentor first-open renderer asset cost and improve its progressive loading boundary before later optimization work. _(User acceptance: Checkpoint 5 passed.)_
+- [x] Checkpoint 6: add safe model-catalog caching and clear AI operation lifecycle feedback before later optimization work.
