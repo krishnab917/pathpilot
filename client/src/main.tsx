@@ -57,10 +57,12 @@ const trpcClient = trpc.createClient({
   ],
 });
 
-void hydrateSupabaseSession().finally(() => {
-  createRoot(document.getElementById("root")!).render(
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}><App /></QueryClientProvider>
-    </trpc.Provider>
-  );
-});
+const root = createRoot(document.getElementById("root")!);
+
+root.render(
+  <trpc.Provider client={trpcClient} queryClient={queryClient}>
+    <QueryClientProvider client={queryClient}><App /></QueryClientProvider>
+  </trpc.Provider>
+);
+
+void hydrateSupabaseSession();
