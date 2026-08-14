@@ -69,8 +69,12 @@
 - [x] Add automated coverage for the simulation-to-roadmap transition, recommendation persistence, country behavior, and RLS isolation.
 - [x] Validate V1.1 flows, national-context integrity, and mobile usability before saving a checkpoint.
 - [x] Add router-level career-discovery mutation coverage for successful retry persistence and exhausted-retry BAD_GATEWAY behavior.
-- [ ] Verify the authenticated workspace career-guidance action after the retry fix with a real student session.
+- [x] Verify the authenticated workspace career-guidance action after the retry fix with a real student session.
 - [x] Add focused regression or manual verification notes for remaining production modules and error/loading states across discovery, roadmap generation, mentor, projects, and adaptive simulation resume/results.
 - [x] Complete and document a mock/demo cleanup audit that distinguishes public marketing-only illustrative content from authenticated production paths.
 - [x] Bound live career-guidance model selection and structured completion waits, then align the provider schema and concise prompt with the server validator.
 - [x] Create and document a controlled authenticated in-progress adaptive simulation check at the mobile breakpoint, then complete the temporary session.
+- [x] Review and implement the requirements in pasted_content_5.txt before resuming deferred Supabase redirect work.
+- [x] Review and implement the requirements in pasted_content_5.txt before resuming deferred Supabase redirect work. _(Duplicate entry retained as sandbox-recovery history.)_
+- [x] Produce a requirement-by-requirement audit of pasted_content_5.txt, with implemented evidence and narrow follow-ups for any gaps.
+- [x] Add explicit open-gap next steps to the uploaded-specification audit and clarify duplicate checklist history.

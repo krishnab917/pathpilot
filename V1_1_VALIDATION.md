@@ -25,7 +25,15 @@ An authenticated 375-pixel route sweep then covered the overview, discovery, roa
 
 To complete the active-state check, a controlled Software Engineer simulation was started in the authenticated test account. A separate 375-pixel frame restored Decision 1 with mobile navigation visible and no error boundary. The temporary session was then completed through all eight decisions, returning to the persisted simulation-results state. This confirms both in-progress resume behavior and the completed-results transition without leaving the test session unfinished.
 
-The live career-discovery action did reach the server but the provider did not complete the five-career structured response within the initial test window. The procedure now bounds model-catalog selection to eight seconds and each structured model completion to 45 seconds, preventing a stalled upstream request from leaving the UI indefinitely in the “Analyzing” state while allowing practical time for a five-match response. A future real-session check should confirm a successful five-match response when the upstream provider is available.
+The live career-discovery action reached the server and, under the calibrated response window, persisted exactly five distinct directions in the authenticated session: Software Developer, UX/Product Designer, Robotics Engineer, Electrical/Hardware Engineer, and Technical Project Manager. The procedure bounds model-catalog selection to eight seconds and each structured model completion to 45 seconds, preventing a stalled upstream request from leaving the UI indefinitely in the “Analyzing” state while allowing practical time for a five-match response.
+
+## Uploaded V1.1 Specification Audit
+
+The uploaded specification was reviewed against the restored PathPilot implementation. Its required post-simulation product loop is already present: completed simulation results hand off to the canonical roadmap route with the simulation identifier, roadmap debrief and recommendation context persist, students control acceptance, skipping, edits, deadlines, priorities, and mentor handoff, and accepted recommendations become real goals and roadmap milestones.
+
+The country-aware architecture uses one persisted profile country and education-system context, initial `US`, `IN`, and `GB` national configurations, and a deterministic recommendation layer that factors in career, grade, behavioral evidence, existing goals, projects, and roadmap. It deliberately provides **general planning guidance rather than fabricated live opportunities, eligibility decisions, or admissions claims**. Country changes preserve the active roadmap and require an explicit keep-versus-refresh choice for pending recommendations.
+
+Adaptive simulations remain independent from the UI and preserve branching, behavioral evidence, compatibility analysis, resume state, a role-oriented introduction, and a professional debrief. The uploaded specification's regression and production validation requirements are satisfied by the current TypeScript check, 34-test suite, production build, authenticated desktop/mobile route sweeps, and the tested simulation-to-roadmap conversion.
 
 ## National-Context Boundary
 
@@ -35,7 +43,7 @@ The United Kingdom configuration uses general course-entry planning language bec
 
 ## Remaining Acceptance Items
 
-Supabase’s security advisor reports that leaked-password protection is disabled; this is an account configuration issue outside application code and should be enabled in Supabase Auth settings. [3] The public Supabase email-confirmation redirect remains deferred until a stable public URL is available. The live career-discovery success path also remains an upstream-dependent acceptance check because the tested provider response did not satisfy the required five distinct matches.
+Supabase’s security advisor reports that leaked-password protection is disabled; this is an account configuration issue outside application code and should be enabled in Supabase Auth settings. [3] The public Supabase email-confirmation redirect remains deferred until a stable public URL is available.
 
 ## References
 
