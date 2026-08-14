@@ -6,10 +6,11 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { pathpilotQueryDefaults } from "./lib/query-defaults";
 import { getSupabaseAccessToken, hydrateSupabaseSession } from "./lib/supabase";
 import "./index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: pathpilotQueryDefaults });
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
