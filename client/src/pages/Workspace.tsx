@@ -12,9 +12,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import Portfolio from "./Portfolio";
-import { ArrowRight, Bot, CalendarDays, Check, ChevronRight, Circle, Compass, FolderKanban, LayoutDashboard, Loader2, Map, Menu, MessageCircle, Moon, Plus, Rocket, Sparkles, Sun, Target, Trophy, Waypoints, X, Zap } from "lucide-react";
+import { ArrowRight, Bot, CalendarDays, Check, ChevronRight, Circle, Compass, FolderKanban, LayoutDashboard, Loader2, LogOut, Map, Menu, MessageCircle, Moon, Plus, Rocket, Sparkles, Sun, Target, Trophy, Waypoints, X, Zap } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { signOutAndNavigate } from "@/lib/sign-out";
 
 type Section = "overview" | "discover" | "roadmap" | "simulate" | "portfolio" | "mentor" | "goals";
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -30,10 +31,26 @@ const readSection = (path: string): Section => { const match = path.match(/^\/ap
 function LoadingWorkspace() { return <div className="grid min-h-screen place-items-center bg-slate-50 dark:bg-background"><div className="flex items-center gap-2 border border-slate-200 bg-card px-3 py-2 text-sm text-muted-foreground dark:border-slate-700"><Loader2 className="size-4" />Loading workspace</div></div>; }
 function EmptyWorkspace({ onStart }: { onStart: () => void }) { return <div className="workspace-shell grid min-h-screen place-items-center px-5"><div className="surface-panel max-w-lg p-7"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center border border-slate-200 bg-slate-50 text-primary dark:border-slate-700 dark:bg-slate-800"><Compass className="size-4" /></span><div><p className="text-sm font-semibold">Workspace setup</p><p className="text-xs text-muted-foreground">Five short prompts to establish your baseline.</p></div></div><h1 className="mt-7 text-2xl font-semibold tracking-[-0.04em]">Start with your career direction.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">PathPilot will use your responses to prepare your exploration workspace, roadmap, and next steps.</p><Button className="mt-6 gap-2" onClick={onStart}>Begin onboarding <ArrowRight className="size-4" /></Button></div></div>; }
 function NavItem({ item, active, onClick }: { item: typeof nav[number]; active: boolean; onClick: () => void }) { const Icon = item.icon; return <button onClick={onClick} className={cn("flex h-9 w-full items-center gap-3 rounded-sm px-2.5 text-sm font-medium", active ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-800")}><Icon className="size-4" /><span>{item.label}</span></button>; }
+function SignOutButton({ signOut, onSignedOut }: { signOut: () => Promise<void>; onSignedOut: () => void }) {
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setError(null);
+    try {
+      await signOutAndNavigate(signOut, onSignedOut);
+    } catch (signOutError) {
+      setError(signOutError instanceof Error ? signOutError.message : "We could not sign you out. Please try again.");
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+  return <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" onClick={handleSignOut} disabled={isSigningOut} className="flex h-9 w-full items-center gap-3 px-2.5 text-sm font-medium text-muted-foreground hover:bg-slate-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"><LogOut className="size-4" />{isSigningOut ? "Signing out…" : "Sign out"}</button>{error ? <p role="alert" className="mt-2 px-2.5 text-xs leading-5 text-destructive">{error}</p> : null}</div>;
+}
 function SectionHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) { return <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow">{eyebrow}</div><h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p></div>{action}</div>; }
 
 export default function Workspace() {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [path, setLocation] = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -45,7 +62,7 @@ export default function Workspace() {
   if (!dashboard.data?.profile) return <EmptyWorkspace onStart={() => setLocation("/onboarding")} />;
   const go = (next: Section) => { setLocation(next === "overview" ? "/app" : `/app/${next}`); setMobileNavOpen(false); };
   const content = { overview: <><Overview data={dashboard.data} onNavigate={go} /><SimulationInsight simulation={dashboard.data.recentSimulation} onNavigate={go} /></>, discover: <CompactDiscover matches={dashboard.data.matches} />, roadmap: <RoadmapExperience matches={dashboard.data.matches} roadmap={dashboard.data.roadmap} />, simulate: <AdaptiveSimulation matches={dashboard.data.matches} />, portfolio: <Portfolio />, mentor: <CompactMentor />, goals: <CompactGoals goals={dashboard.data.goals} /> }[section];
-  const sidebar = <nav className="space-y-1">{nav.map(item => <NavItem key={item.id} item={item} active={item.id === section} onClick={() => go(item.id)} />)}</nav>;
+  const sidebar = <nav className="space-y-1">{nav.map(item => <NavItem key={item.id} item={item} active={item.id === section} onClick={() => go(item.id)} />)}<SignOutButton signOut={logout} onSignedOut={() => { setMobileNavOpen(false); setLocation("/auth"); }} /></nav>;
   const themeControl = <button onClick={() => toggleTheme?.()} className="grid size-8 place-items-center border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}>{theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</button>;
   return <div className="workspace-shell min-h-screen text-foreground"><aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex"><div className="flex items-center justify-between"><Brand />{themeControl}</div><div className="mt-8"><p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Workspace</p><div className="mt-2">{sidebar}</div></div><div className="mt-auto border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"><div className="flex items-center gap-2"><span className="grid size-7 place-items-center bg-slate-900 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">{user?.name?.slice(0, 1).toUpperCase() || "P"}</span><div className="min-w-0"><p className="truncate text-xs font-semibold">{user?.name || "PathPilot student"}</p><p className="truncate text-[11px] text-muted-foreground">{dashboard.data.profile.grade}</p></div></div></div></aside><header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden"><Brand compact /><div className="flex items-center gap-2">{themeControl}<button onClick={() => setMobileNavOpen(true)} className="grid size-9 place-items-center border border-slate-200 bg-card dark:border-slate-700" aria-label="Open navigation"><Menu className="size-4" /></button></div></header>{mobileNavOpen && <div className="fixed inset-0 z-50 bg-black/35 lg:hidden"><div className="flex h-full w-[272px] flex-col bg-card p-4 shadow-2xl"><div className="flex items-center justify-between"><Brand /><button className="grid size-9 place-items-center border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation"><X className="size-4" /></button></div><div className="mt-8">{sidebar}</div></div></div>}<main className="min-h-screen lg:ml-[232px]"><div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{content}</div></main></div>;
 }

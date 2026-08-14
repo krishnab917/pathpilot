@@ -78,3 +78,5 @@
 - [x] Review and implement the requirements in pasted_content_5.txt before resuming deferred Supabase redirect work. _(Duplicate entry retained as sandbox-recovery history.)_
 - [x] Produce a requirement-by-requirement audit of pasted_content_5.txt, with implemented evidence and narrow follow-ups for any gaps.
 - [x] Add explicit open-gap next steps to the uploaded-specification audit and clarify duplicate checklist history.
+- [x] Restore and verify the PathPilot development server after the reported preview outage.
+- [x] Add and verify a visible secure sign-out control in the authenticated workspace.

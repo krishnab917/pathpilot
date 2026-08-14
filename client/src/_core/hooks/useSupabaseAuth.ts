@@ -18,5 +18,11 @@ export function useSupabaseAuth(): AuthState & { signOut: () => Promise<void> } 
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  return { ...state, signOut: async () => { await supabase.auth.signOut(); } };
+  return {
+    ...state,
+    signOut: async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    },
+  };
 }
