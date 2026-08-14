@@ -82,4 +82,5 @@
 - [x] Add and verify a visible secure sign-out control in the authenticated workspace.
 - [x] Checkpoint 1: measure PathPilot performance and document a prioritized improvement plan before implementing any optimization.
 - [x] Checkpoint 2: add route-level code splitting and shell-first boot behavior, then validate it before starting later performance work.
-- [ ] Checkpoint 2 follow-up: browser-verify lazy-loaded auth, onboarding, and authenticated workspace routes, including startup-frame resolution after refresh.
+- [x] Checkpoint 2 follow-up: browser-verify lazy-loaded auth, onboarding, and authenticated workspace routes, including startup-frame resolution after refresh. _(User acceptance: Checkpoint 2 passed.)_
+- [ ] Checkpoint 3: implement reusable content-shaped loading skeletons for existing workspace sections, then validate them before later performance work.
