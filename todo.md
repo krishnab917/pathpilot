@@ -80,3 +80,4 @@
 - [x] Add explicit open-gap next steps to the uploaded-specification audit and clarify duplicate checklist history.
 - [x] Restore and verify the PathPilot development server after the reported preview outage.
 - [x] Add and verify a visible secure sign-out control in the authenticated workspace.
+- [x] Checkpoint 1: measure PathPilot performance and document a prioritized improvement plan before implementing any optimization.
