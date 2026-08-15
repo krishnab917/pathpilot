@@ -87,3 +87,4 @@
 - [x] Checkpoint 4: measure and improve React Query cache defaults, route-specific query scope, and targeted invalidation before later optimization work. _(User acceptance: Checkpoint 4 passed.)_
 - [x] Checkpoint 5: reduce the Career Mentor first-open renderer asset cost and improve its progressive loading boundary before later optimization work. _(User acceptance: Checkpoint 5 passed.)_
 - [x] Checkpoint 6: add safe model-catalog caching and clear AI operation lifecycle feedback before later optimization work.
+- [x] Checkpoint 7: audit actionable page-level CTAs and add a restrained global notification pattern before later optimization work.

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AIOperationLifecycle } from "@/components/AIOperationStatus";
 import { RoadmapRecommendationSkeleton } from "@/components/WorkspaceSkeletons";
+import { notify } from "@/lib/notifications";
 import { trpc } from "@/lib/trpc";
 import { simulationIdFromRoadmapSearch } from "@/lib/simulation-roadmap-handoff";
 import { isVisibleInRecommendationQueue } from "@/lib/recommendation-visibility";
@@ -38,9 +39,9 @@ function RecommendationQueue({ simulationId }: { simulationId: string }) {
   const context = trpc.pathpilot.roadmap.recommendationContext.useQuery({ simulationId });
   const recommendations = trpc.pathpilot.roadmap.recommendations.list.useQuery({ simulationId });
   const generate = trpc.pathpilot.roadmap.recommendations.generate.useMutation({ onSuccess: () => { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); utils.pathpilot.dashboard.get.invalidate(); } });
-  const accept = trpc.pathpilot.roadmap.recommendations.accept.useMutation({ onSuccess: () => { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); utils.pathpilot.dashboard.get.invalidate(); } });
-  const skip = trpc.pathpilot.roadmap.recommendations.skip.useMutation({ onSuccess: () => utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }) });
-  const update = trpc.pathpilot.roadmap.recommendations.update.useMutation({ onSuccess: () => utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }) });
+  const accept = trpc.pathpilot.roadmap.recommendations.accept.useMutation({ onSuccess: () => { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); utils.pathpilot.dashboard.get.invalidate(); notify.success("Recommendation added to your roadmap."); } });
+  const skip = trpc.pathpilot.roadmap.recommendations.skip.useMutation({ onSuccess: () => { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); notify.success("Recommendation skipped."); } });
+  const update = trpc.pathpilot.roadmap.recommendations.update.useMutation({ onSuccess: () => { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); notify.success("Recommendation updated."); } });
   const [editId, setEditId] = useState<string | null>(null); const [editTitle, setEditTitle] = useState(""); const [editPriority, setEditPriority] = useState<Priority>("medium"); const [editDeadline, setEditDeadline] = useState("");
   useEffect(() => { if (context.data && !recommendations.isLoading && !recommendations.data?.length && !generate.isPending && !generate.data) generate.mutate({ simulationId }); }, [context.data, generate, recommendations.data?.length, recommendations.isLoading, simulationId]);
   const openEdit = (item: any) => { setEditId(item.id); setEditTitle(item.title); setEditPriority(item.priority); setEditDeadline(item.suggestedDeadline ? new Date(item.suggestedDeadline).toISOString().slice(0, 10) : ""); };
@@ -60,7 +61,7 @@ export function RoadmapExperience({ matches, roadmap }: { matches: Matches; road
   useEffect(() => { if (!target && matches[0]?.career.name) setTarget(matches[0].career.name); }, [matches, target]);
   const buildWithAi = trpc.pathpilot.roadmap.generate.useMutation({ onMutate: () => setStage("generating"), onSuccess: () => { setStage("ready"); utils.pathpilot.dashboard.get.invalidate(); }, onError: () => setStage("error") });
   const preflight = trpc.pathpilot.roadmap.preflight.useMutation({ onMutate: () => setStage("analyzing"), onSuccess: () => buildWithAi.mutate({ targetCareer: target }), onError: () => setStage("error") });
-  const update = trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({ onSuccess: () => utils.pathpilot.dashboard.get.invalidate() });
+  const update = trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({ onSuccess: () => { utils.pathpilot.dashboard.get.invalidate(); notify.success("Roadmap milestone updated."); } });
   const milestones = useMemo(() => roadmap?.milestones ?? [], [roadmap]);
   const isRunning = preflight.isPending || buildWithAi.isPending; const error = preflight.error ?? buildWithAi.error; const buildRoadmap = () => preflight.mutate({ targetCareer: target });
 
