@@ -24,10 +24,13 @@ import {
   getStudentProfile,
   listGoals,
   listProjects,
+  listVerifiedOpportunities,
+  refreshNasaSpaceAppsOpportunity,
   replaceCareerMatches,
   RoadmapMilestoneInput,
   saveStudentProfile,
   saveOnboardingDraft,
+  setStudentOpportunityState,
   updateGoal,
   updateProject,
   updateMilestoneProgress,
@@ -294,6 +297,20 @@ export const pathpilotRouter = router({
     })).mutation(({ ctx, input }) => createGoal(ctx.user.id, input)),
     update: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional() }))
       .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority })),
+  }),
+
+  opportunities: router({
+    list: protectedProcedure.query(({ ctx }) => listVerifiedOpportunities(ctx.user.id)),
+    setState: protectedProcedure.input(z.object({ opportunityId: z.string().uuid(), status: z.enum(["saved", "dismissed"]) })).mutation(({ ctx, input }) => setStudentOpportunityState(ctx.user.id, input.opportunityId, input.status)),
+    refreshNasaSource: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the verified source." });
+      try {
+        return await refreshNasaSpaceAppsOpportunity();
+      } catch (error) {
+        console.error("[PathPilot] NASA source refresh failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "The official source could not be refreshed. The last verified record remains unchanged." });
+      }
+    }),
   }),
 
   roadmap: router({

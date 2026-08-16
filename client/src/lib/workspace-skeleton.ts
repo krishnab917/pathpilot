@@ -1,4 +1,4 @@
-export type WorkspaceSkeletonSection = "overview" | "discover" | "roadmap" | "simulate" | "portfolio" | "mentor" | "goals";
+export type WorkspaceSkeletonSection = "overview" | "discover" | "roadmap" | "simulate" | "portfolio" | "opportunities" | "mentor" | "goals";
 
 const loadingLabels: Record<WorkspaceSkeletonSection, string> = {
   overview: "Loading workspace overview",
@@ -6,6 +6,7 @@ const loadingLabels: Record<WorkspaceSkeletonSection, string> = {
   roadmap: "Loading roadmap",
   simulate: "Restoring simulation",
   portfolio: "Loading project portfolio",
+  opportunities: "Loading verified opportunities",
   mentor: "Loading career mentor",
   goals: "Loading commitments",
 };

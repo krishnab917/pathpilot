@@ -12,6 +12,7 @@ const accountB = `pathpilot.rls.b.${suffix}@example.test`;
 let userA = "";
 let userB = "";
 let careerId = "";
+let opportunityId = "";
 let aClient: ReturnType<typeof createClient>;
 let bClient: ReturnType<typeof createClient>;
 
@@ -54,6 +55,11 @@ describe("Supabase row-level security", () => {
     if (project.error) throw project.error;
     const recommendation = await aClient.from("roadmap_recommendations").insert({ user_id: userA, source_simulation_id: simulation.data.id, roadmap_id: roadmap.data.id, target_career: "Private test career", country_snapshot: "US", education_system_snapshot: "US high school and institution-specific admissions context", phase: "Foundation", title: "Private test recommendation", description: "Private recommendation description", rationale: "Private recommendation rationale", category: "skill", priority: "medium", estimated_hours: 4, sort_order: 0 });
     if (recommendation.error) throw recommendation.error;
+    const opportunity = await aClient.from("opportunities").select("id").eq("status", "active").limit(1).single();
+    if (opportunity.error) throw opportunity.error;
+    opportunityId = opportunity.data.id;
+    const opportunityState = await aClient.from("student_opportunity_states").insert({ user_id: userA, opportunity_id: opportunityId, status: "saved" });
+    if (opportunityState.error) throw opportunityState.error;
   }, 30_000);
 
   it("prevents User B from reading User A's profile, plans, work, and conversations", async () => {
@@ -66,8 +72,20 @@ describe("Supabase row-level security", () => {
       bClient.from("ai_messages").select("id").eq("user_id", userA),
       bClient.from("projects").select("id").eq("user_id", userA),
       bClient.from("roadmap_recommendations").select("id").eq("user_id", userA),
+      bClient.from("student_opportunity_states").select("opportunity_id").eq("user_id", userA),
     ]);
     for (const result of checks) { expect(result.error).toBeNull(); expect(result.data).toEqual([]); }
+  });
+
+  it("shares active verified catalog records but keeps each student opportunity state private", async () => {
+    const [catalog, otherStudentState] = await Promise.all([
+      bClient.from("opportunities").select("id, title").eq("id", opportunityId),
+      bClient.from("student_opportunity_states").select("status").eq("opportunity_id", opportunityId),
+    ]);
+    expect(catalog.error).toBeNull();
+    expect(catalog.data).toHaveLength(1);
+    expect(otherStudentState.error).toBeNull();
+    expect(otherStudentState.data).toEqual([]);
   });
 
   it("restores persisted student workspace records in a fresh authenticated session", async () => {
@@ -83,6 +101,7 @@ describe("Supabase row-level security", () => {
       resumedClient.from("ai_messages").select("content").eq("user_id", userA).single(),
       resumedClient.from("projects").select("name, description").eq("user_id", userA).single(),
       resumedClient.from("roadmap_recommendations").select("title, country_snapshot, status, source_simulation_id").eq("user_id", userA).single(),
+      resumedClient.from("student_opportunity_states").select("opportunity_id, status").eq("opportunity_id", opportunityId).single(),
     ]);
     for (const result of records) expect(result.error).toBeNull();
     expect(records[0].data).toMatchObject({ grade: "Grade 11", location: "Test city", country_code: "US", education_system: "US high school and institution-specific admissions context" });
@@ -95,6 +114,7 @@ describe("Supabase row-level security", () => {
     expect(records[7].data).toMatchObject({ content: "Private context" });
     expect(records[8].data).toMatchObject({ name: "Private test project", description: "Private test description" });
     expect(records[9].data).toMatchObject({ title: "Private test recommendation", country_snapshot: "US", status: "pending" });
+    expect(records[10].data).toMatchObject({ opportunity_id: opportunityId, status: "saved" });
   });
 
   afterAll(async () => {

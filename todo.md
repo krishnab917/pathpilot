@@ -90,3 +90,5 @@
 - [x] Checkpoint 7: audit actionable page-level CTAs and add a restrained global notification pattern before later optimization work.
 - [x] Checkpoint 8: establish the roadmap-to-action project workspace foundation before controlled opportunity-data work.
 - [x] Checkpoint 8 follow-up: add visible failure feedback and focused ownership, category, and duplicate behavior coverage for roadmap-initiated project creation.
+- [x] Checkpoint 9: establish a verified opportunity data model and one controlled, attributable first source integration before broader opportunity coverage.
+- [x] Checkpoint 9 follow-up: add a real controlled official-source ingestion path and extend opportunity-table RLS validation.

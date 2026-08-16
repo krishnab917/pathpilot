@@ -11,8 +11,9 @@ describe("PathPilot query defaults", () => {
 });
 
 describe("workspace data scope", () => {
-  it("keeps the aggregate dashboard query off the portfolio and mentor routes", () => {
+  it("keeps the aggregate dashboard query off independently loaded workspace routes", () => {
     expect(requiresWorkspaceDashboard("portfolio")).toBe(false);
+    expect(requiresWorkspaceDashboard("opportunities")).toBe(false);
     expect(requiresWorkspaceDashboard("mentor")).toBe(false);
   });
 
