@@ -5,6 +5,7 @@ import {
   completeSimulation,
   createGoal,
   createProject,
+  createProjectFromRoadmapMilestone,
   createRoadmap,
   createSimulation,
   createAdaptiveSimulation,
@@ -448,6 +449,7 @@ export const pathpilotRouter = router({
   projects: router({
     list: protectedProcedure.query(({ ctx }) => listProjects(ctx.user.id)),
     create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
+    createFromRoadmapMilestone: protectedProcedure.input(z.object({ milestoneId: z.string().uuid() })).mutation(({ ctx, input }) => createProjectFromRoadmapMilestone(ctx.user.id, input.milestoneId)),
     update: protectedProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(({ ctx, input }) => updateProject(ctx.user.id, input.id, input)),
   }),
 });
