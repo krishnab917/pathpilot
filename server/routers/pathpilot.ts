@@ -43,6 +43,8 @@ import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-gui
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, generateRoadmapRecommendations, getRoadmapRecommendationContext, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
+import { getSimulationGraph } from "../simulation/engine";
+import { buildDecisionReview } from "../simulation/presentation";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
 const prioritySchema = z.enum(["low", "medium", "high"]);
@@ -221,7 +223,8 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
 }
 
 function adaptiveSimulationResponse(simulation: any) {
-  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score, latestConsequence: simulation.behavioralEvents?.at(-1) ?? null };
+  const decisionReview = buildDecisionReview(getSimulationGraph(simulation.career), simulation.decisionHistory, simulation.behavioralEvents ?? []);
+  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score, latestConsequence: simulation.behavioralEvents?.at(-1) ?? null, decisionReview };
   return { simulation: publicSimulation, scenario: simulation.status === "completed" ? null : getAdaptivePublicScenario(simulation) };
 }
 
