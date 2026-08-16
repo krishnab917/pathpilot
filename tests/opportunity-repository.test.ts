@@ -13,11 +13,12 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const opportunityId = "22222222-2222-4222-8222-222222222222";
 
 function listQuery(data: unknown[]) {
-  const chain = { select: vi.fn(), eq: vi.fn(), gte: vi.fn(), order: vi.fn() };
+  const chain = { select: vi.fn(), eq: vi.fn(), gte: vi.fn(), order: vi.fn(), limit: vi.fn() };
   chain.select.mockReturnValue(chain);
   chain.eq.mockReturnValue(chain);
   chain.gte.mockReturnValue(chain);
-  chain.order.mockResolvedValue({ data, error: null });
+  chain.order.mockReturnValue(chain);
+  chain.limit.mockResolvedValue({ data, error: null });
   return chain;
 }
 
@@ -26,8 +27,8 @@ describe("verified opportunity repository", () => {
 
   it("returns source-attributed active opportunities and hides a student-dismissed record", async () => {
     const query = listQuery([
-      { id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "event", participation_mode: "hybrid", location_label: "Global", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [] },
-      { id: "33333333-3333-4333-8333-333333333333", title: "Dismissed event", summary: "A prior record.", category: "event", participation_mode: "digital", location_label: "Online", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [{ status: "dismissed" }] },
+      { id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "competition", participation_mode: "hybrid", location_label: "Global", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [] },
+      { id: "33333333-3333-4333-8333-333333333333", title: "Dismissed event", summary: "A prior record.", category: "competition", participation_mode: "digital", location_label: "Online", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [{ status: "dismissed" }] },
     ]);
     mocks.client = { from: vi.fn(() => query) };
 
@@ -35,7 +36,7 @@ describe("verified opportunity repository", () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ id: opportunityId, sourceName: "Official organizer", savedStatus: null });
     expect(result[0].startAt).toBeInstanceOf(Date);
-    expect(query.gte).toHaveBeenCalledWith("end_at", expect.any(String));
+    expect(query.limit).toHaveBeenCalledWith(250);
   });
 
   it("checks availability then writes a status only under the authenticated student identity", async () => {

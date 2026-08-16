@@ -25,6 +25,7 @@ import {
   listGoals,
   listProjects,
   listVerifiedOpportunities,
+  refreshCuratedOpportunityCatalog,
   refreshNasaSpaceAppsOpportunity,
   replaceCareerMatches,
   RoadmapMilestoneInput,
@@ -300,7 +301,7 @@ export const pathpilotRouter = router({
   }),
 
   opportunities: router({
-    list: protectedProcedure.query(({ ctx }) => listVerifiedOpportunities(ctx.user.id)),
+    list: protectedProcedure.input(z.object({ category: z.enum(["internship", "competition", "research"]).optional(), alignedOnly: z.boolean().optional() }).optional()).query(({ ctx, input }) => input ? listVerifiedOpportunities(ctx.user.id, input) : listVerifiedOpportunities(ctx.user.id)),
     setState: protectedProcedure.input(z.object({ opportunityId: z.string().uuid(), status: z.enum(["saved", "dismissed"]) })).mutation(({ ctx, input }) => setStudentOpportunityState(ctx.user.id, input.opportunityId, input.status)),
     refreshNasaSource: protectedProcedure.mutation(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the verified source." });
@@ -309,6 +310,15 @@ export const pathpilotRouter = router({
       } catch (error) {
         console.error("[PathPilot] NASA source refresh failed", error);
         throw new TRPCError({ code: "BAD_GATEWAY", message: "The official source could not be refreshed. The last verified record remains unchanged." });
+      }
+    }),
+    refreshCuratedCatalog: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the curated catalog." });
+      try {
+        return await refreshCuratedOpportunityCatalog();
+      } catch (error) {
+        console.error("[PathPilot] curated opportunity refresh failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "The popular opportunity directories could not be refreshed. Existing records remain available." });
       }
     }),
   }),

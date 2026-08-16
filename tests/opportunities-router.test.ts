@@ -27,6 +27,11 @@ describe("pathpilot.opportunities", () => {
     expect(mocks.listVerifiedOpportunities).toHaveBeenCalledWith(userId);
   });
 
+  it("forwards the requested category and career-aligned scope under the signed-in user", async () => {
+    await expect(appRouter.createCaller(context).pathpilot.opportunities.list({ category: "research", alignedOnly: true })).resolves.toEqual([]);
+    expect(mocks.listVerifiedOpportunities).toHaveBeenCalledWith(userId, { category: "research", alignedOnly: true });
+  });
+
   it("records a user-scoped save state for a valid opportunity identifier", async () => {
     await expect(appRouter.createCaller(context).pathpilot.opportunities.setState({ opportunityId, status: "saved" })).resolves.toEqual({ opportunityId, status: "saved" });
     expect(mocks.setStudentOpportunityState).toHaveBeenCalledWith(userId, opportunityId, "saved");

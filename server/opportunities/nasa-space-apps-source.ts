@@ -15,7 +15,7 @@ export type VerifiedNasaSpaceAppsRecord = {
     externalId: "2026-space-apps-challenge";
     title: "NASA Space Apps Challenge 2026";
     summary: string;
-    category: "hackathon";
+    category: "competition";
     participationMode: "details_on_source";
     locationLabel: string;
     countryCodes: string[];
@@ -47,7 +47,7 @@ export function parseNasaSpaceAppsPage(html: string, verifiedAt = new Date()): V
       externalId: "2026-space-apps-challenge",
       title: "NASA Space Apps Challenge 2026",
       summary: "A global hackathon where participants work on real-world challenges connected to space and science.",
-      category: "hackathon",
+      category: "competition",
       participationMode: "details_on_source",
       locationLabel: "See the official event page for local and virtual participation details",
       countryCodes: [],
