@@ -17,11 +17,13 @@ export type SimulationState = {
 
 export type StatePatch = Partial<Omit<SimulationState, "currentNodeId" | "previousNodeIds" | "decisionCount">>;
 export type TraitSignal = { trait: TraitKey; direction: -1 | 1; weight: 1 | 2 | 3; context: ContextTag };
+export type ConsequenceDefinition = { id: string; message: string; kind: "learning" | "caution" | "team" | "progress" };
 export type DecisionDefinition = {
   id: string;
   label: string;
   signals: TraitSignal[];
   statePatch?: StatePatch;
+  consequences?: ConsequenceDefinition[];
   next: string | ((state: SimulationState) => string);
 };
 export type ScenarioNode = {
@@ -37,6 +39,7 @@ export type SimulationGraph = { id: string; title: string; startNodeId: string; 
 
 export type DecisionRecord = { nodeId: string; decisionId: string; contexts: ContextTag[]; difficulty: number; selectedAt: string };
 export type BehavioralEvidence = TraitSignal & { nodeId: string; decisionId: string; difficulty: number };
+export type BehavioralEvent = { id: string; nodeId: string; decisionId: string; message: string; kind: ConsequenceDefinition["kind"]; contexts: ContextTag[]; occurredAt: string };
 export type TraitResult = { trait: TraitKey; score: number; confidence: ConfidenceLevel; evidenceCount: number; contexts: ContextTag[] };
 export type ContextObservation = { trait: TraitKey; context: ContextTag; score: number; confidence: ConfidenceLevel };
 export type BehavioralProfile = { traits: TraitResult[]; patterns: string[]; contradictions: string[]; contextObservations: ContextObservation[]; strongestTraits: TraitKey[]; developmentTraits: TraitKey[] };

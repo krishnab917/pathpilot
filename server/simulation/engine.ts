@@ -1,10 +1,17 @@
 import { buildBehavioralProfile } from "./behavioral";
 import { calculateCareerCompatibility } from "./compatibility";
-import type { AdaptiveResults, BehavioralEvidence, DecisionRecord, PublicScenario, SimulationGraph, SimulationState } from "./contracts";
+import type { AdaptiveResults, BehavioralEvent, BehavioralEvidence, DecisionRecord, PublicScenario, SimulationGraph, SimulationState } from "./contracts";
 import { softwareV1Graph } from "./graphs/software-v1";
+import { businessV1Graph, designV1Graph, healthV1Graph } from "./graphs/career-graphs";
 
 const clamp = (value: number) => Math.max(0, Math.min(10, value));
-export const getSimulationGraph = (_career: string): SimulationGraph => softwareV1Graph;
+export const getSimulationGraph = (career: string): SimulationGraph => {
+  const value = career.toLowerCase();
+  if (/doctor|nurs|health|medical|therap|biolog|public health/.test(value)) return healthV1Graph;
+  if (/design|artist|creative|ux|ui|media|writer/.test(value)) return designV1Graph;
+  if (/business|market|finance|entrepreneur|manager|sales/.test(value)) return businessV1Graph;
+  return softwareV1Graph;
+};
 export const initialSimulationState = (graph: SimulationGraph): SimulationState => ({ currentNodeId: graph.startNodeId, previousNodeIds: [], decisionCount: 0, timePressure: 1, projectHealth: 5, teamTrust: 3, riskExposure: 1, discoveredInformation: [], unresolvedEvents: [] });
 export function getPublicScenario(graph: SimulationGraph, state: SimulationState): PublicScenario {
   const node = graph.nodes[state.currentNodeId];
@@ -18,7 +25,7 @@ function applyPatch(state: SimulationState, patch: Record<string, unknown> | und
   for (const key of ["discoveredInformation", "unresolvedEvents"] as const) if (Array.isArray(patch[key])) next[key] = Array.from(new Set([...next[key], ...patch[key].filter((value): value is string => typeof value === "string")]));
   return next;
 }
-export function chooseSimulationDecision(graph: SimulationGraph, state: SimulationState, decisionId: string, existingEvidence: BehavioralEvidence[], existingHistory: DecisionRecord[]) {
+export function chooseSimulationDecision(graph: SimulationGraph, state: SimulationState, decisionId: string, existingEvidence: BehavioralEvidence[], existingHistory: DecisionRecord[], existingEvents: BehavioralEvent[] = []) {
   const node = graph.nodes[state.currentNodeId];
   if (!node || node.terminal) throw new Error("The simulation is not waiting for a decision.");
   const decision = node.decisions.find(item => item.id === decisionId);
@@ -31,7 +38,9 @@ export function chooseSimulationDecision(graph: SimulationGraph, state: Simulati
   const record: DecisionRecord = { nodeId: node.id, decisionId: decision.id, contexts: node.contexts, difficulty: node.difficulty, selectedAt: new Date().toISOString() };
   const evidence = [...existingEvidence, ...decision.signals.map(signal => ({ ...signal, nodeId: node.id, decisionId: decision.id, difficulty: node.difficulty }))];
   const history = [...existingHistory, record];
-  return { state: nextState, evidence, history, completed: Boolean(nextNode.terminal) };
+  const occurredAt = record.selectedAt;
+  const events = [...existingEvents, ...(decision.consequences ?? [{ id: "decision-recorded", message: "Your decision changed the team’s next situation and added another learning signal.", kind: "learning" as const }]).map(item => ({ id: `${node.id}:${decision.id}:${item.id}:${existingEvents.length}`, nodeId: node.id, decisionId: decision.id, message: item.message, kind: item.kind, contexts: node.contexts, occurredAt }))];
+  return { state: nextState, evidence, history, events, consequence: events.at(-1) ?? null, completed: Boolean(nextNode.terminal) };
 }
 export function buildAdaptiveResults(evidence: BehavioralEvidence[], careers: Array<{ name: string; matchScore: number }>): AdaptiveResults {
   const behavioralProfile = buildBehavioralProfile(evidence);

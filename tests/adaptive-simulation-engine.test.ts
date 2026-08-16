@@ -25,6 +25,21 @@ describe("adaptive simulation engine", () => {
     expect(peerPath.state.teamTrust).toBeGreaterThan(initialSimulationState(getSimulationGraph("Software Engineer")).teamTrust);
   });
 
+  it("selects distinct health, design, and business work situations from the requested career", () => {
+    expect(getSimulationGraph("Registered Nurse").id).toBe("health-care-team-v1");
+    expect(getSimulationGraph("UX Designer").id).toBe("design-feedback-v1");
+    expect(getSimulationGraph("Entrepreneur").id).toBe("business-decision-v1");
+    expect(getSimulationGraph("Software Engineer").id).toBe("software-systems-v1");
+  });
+
+  it("records a student-visible consequence event for each decision without exposing signals publicly", () => {
+    const graph = getSimulationGraph("UX Designer");
+    const response = chooseSimulationDecision(graph, initialSimulationState(graph), "gather-evidence", [], []);
+    expect(response.events).toHaveLength(1);
+    expect(response.consequence).toMatchObject({ kind: "learning", message: expect.stringContaining("evidence") });
+    expect(JSON.stringify(getPublicScenario(graph, response.state))).not.toContain("consequence");
+  });
+
   it("persists sequential decision history and completes a multi-node evidence path", () => {
     let state = initialSimulationState(getSimulationGraph("Software Engineer")); let evidence: BehavioralEvidence[] = []; let history: DecisionRecord[] = []; let result;
     for (const decisionId of ["investigate-data", "document-and-test", "pause-and-analyze", "protect-validation", "run-experiment", "present-options", "capture-learning", "practice-skill"]) {

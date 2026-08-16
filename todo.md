@@ -94,3 +94,4 @@
 - [x] Checkpoint 9 follow-up: add a real controlled official-source ingestion path and extend opportunity-table RLS validation.
 - [x] Opportunity catalog expansion: align verified opportunities to each student’s career directions, add Internship/Competition/Research filters, and provide at least 100 source-attributed records without fabricating listings.
 - [x] Opportunity catalog curation: gather popular official opportunities, retain source attribution, and normalize each record for student-facing filters and career alignment.
+- [x] Checkpoint 10: expand career-specific simulation coverage, add consequence events, and establish behavioral-event persistence while preserving resume, analysis, and roadmap handoff.

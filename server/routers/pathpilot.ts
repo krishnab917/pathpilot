@@ -221,7 +221,7 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
 }
 
 function adaptiveSimulationResponse(simulation: any) {
-  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score };
+  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score, latestConsequence: simulation.behavioralEvents?.at(-1) ?? null };
   return { simulation: publicSimulation, scenario: simulation.status === "completed" ? null : getAdaptivePublicScenario(simulation) };
 }
 
