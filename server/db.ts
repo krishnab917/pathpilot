@@ -4,6 +4,7 @@ import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getS
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchCuratedOpportunityDrafts, type OpportunityCategory } from "./opportunities/curated-catalog-source";
+import { buildBehaviorEvolution } from "./simulation/evolution";
 
 export type ResourceLink = { label: string; url: string };
 export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
@@ -121,6 +122,11 @@ export async function createAdaptiveSimulation(userId: string, career: string) {
 export async function getAdaptiveSimulation(userId: string, simulationId: string) { const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).eq("engine_version", "adaptive-v2").maybeSingle(); check(error); return simulation(data); }
 export async function getResumableAdaptiveSimulation(userId: string) { const { data, error } = await client().from("simulations").select("*").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "in_progress").order("updated_at", { ascending: false }).limit(1).maybeSingle(); check(error); return simulation(data); }
 export async function getLatestCompletedAdaptiveSimulation(userId: string) { const { data, error } = await client().from("simulations").select("*").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").order("completed_at", { ascending: false }).limit(1).maybeSingle(); check(error); return simulation(data); }
+export async function getBehaviorEvolution(userId: string) {
+  const { data, error } = await client().from("simulations").select("*").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").order("completed_at", { ascending: false }).limit(5);
+  check(error);
+  return buildBehaviorEvolution(list(data as any[]).map(simulation).filter(Boolean) as any[]);
+}
 export function getAdaptivePublicScenario(value: NonNullable<Awaited<ReturnType<typeof getAdaptiveSimulation>>>) { if (!value.simulationState || !value.scenarioGraphId) throw new Error("Adaptive simulation state is unavailable."); return getPublicScenario(getSimulationGraph(value.career), value.simulationState as SimulationState); }
 export async function chooseAdaptiveSimulationDecision(userId: string, simulationId: string, decisionId: string) {
   const current = await getAdaptiveSimulation(userId, simulationId); if (!current) throw new Error("Simulation not found."); if (current.status !== "in_progress") throw new Error("Simulation is already complete."); if (!current.simulationState) throw new Error("Adaptive simulation state is unavailable.");

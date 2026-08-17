@@ -19,6 +19,7 @@ type Context = {
   activities: string[];
   existingTitles: string[];
   strongestTraits: string[];
+  evolvingFocus?: { title: string; description: string; rationale: string };
 };
 
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -61,8 +62,9 @@ export function buildCountryAwareRecommendations(context: Context): RoadmapRecom
   const track = careerTrack(context.career);
   const existing = [...context.skills, ...context.activities, ...context.existingTitles];
   const traitNote = context.strongestTraits.length ? ` Your simulation showed evidence of ${context.strongestTraits.slice(0, 2).join(" and ")}.` : "";
+  const evolutionNote = context.evolvingFocus ? ` ${context.evolvingFocus.rationale}` : "";
   const base = [
-    { phase: "Foundation", title: track.foundation, description: `Choose one focused learning block that advances the skills used in ${context.career}.`, rationale: `This builds from your current grade (${context.grade}) and prevents a vague “learn more skills” task.${traitNote}`, category: "skill" as const, priority: "high" as const, estimatedHours: 18, terms: track.foundationTerms },
+    { phase: "Foundation", title: track.foundation, description: `Choose one focused learning block that advances the skills used in ${context.career}.`, rationale: `This builds from your current grade (${context.grade}) and prevents a vague “learn more skills” task.${traitNote}${evolutionNote}`, category: "skill" as const, priority: "high" as const, estimatedHours: 18, terms: track.foundationTerms },
     { phase: "Experience", title: track.project, description: "Define a clear problem, a small scope, evidence of progress, and a reflection on what changed.", rationale: `A tangible project turns exploration of ${context.career} into evidence you can review and improve.${traitNote}`, category: "project" as const, priority: "high" as const, estimatedHours: 32, terms: ["project", "portfolio", normalized(context.career)] },
     { phase: "Exploration", title: track.experiment, description: "Use a time-bounded scenario, interview, observation, or research brief; record what the work felt like.", rationale: `This extends the simulation with a real-world learning loop instead of treating one result as a final answer.${traitNote}`, category: "experience" as const, priority: "medium" as const, estimatedHours: 8, terms: ["career experiment", "job shadow", "observation"] },
     { phase: "Preparation", title: track.communication, description: "Create a short explanation, write-up, or presentation that makes your reasoning visible.", rationale: "Communicating your process helps you identify what to improve and creates evidence for future applications or conversations.", category: "project" as const, priority: "medium" as const, estimatedHours: 6, terms: ["technical writing", "presentation", "write up"] },

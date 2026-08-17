@@ -24,4 +24,9 @@ describe("country-aware roadmap recommendations", () => {
     expect(context.code).toBe("ZZ");
     expect(context.sourceNote).toContain("not yet available");
   });
+
+  it("makes multi-simulation evolution visible in the editable recommendation rationale", () => {
+    const recommendations = buildCountryAwareRecommendations({ ...base, countryCode: "US", evolvingFocus: { title: "Practice analytical thinking", description: "Test this in a project.", rationale: "This focus is based on 3 of your 3 most recent completed simulations; newer simulations contribute more to the summary." } });
+    expect(recommendations[0]?.rationale).toContain("3 most recent completed simulations");
+  });
 });

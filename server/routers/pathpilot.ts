@@ -14,6 +14,7 @@ import {
   getAdaptiveSimulation,
   getLatestCompletedAdaptiveSimulation,
   getActiveRoadmap,
+  getBehaviorEvolution,
   getCareerMatches,
   getConversationMessages,
   getDashboardData,
@@ -376,6 +377,7 @@ export const pathpilotRouter = router({
 
   simulations: router({
     adaptive: router({
+      behaviorSummary: protectedProcedure.query(({ ctx }) => getBehaviorEvolution(ctx.user.id)),
       resume: protectedProcedure.query(async ({ ctx }) => {
         const simulation = await getResumableAdaptiveSimulation(ctx.user.id) ?? await getLatestCompletedAdaptiveSimulation(ctx.user.id);
         return simulation ? adaptiveSimulationResponse(simulation) : null;

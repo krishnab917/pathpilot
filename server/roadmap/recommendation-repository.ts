@@ -1,5 +1,5 @@
 import { currentSupabaseClient } from "../supabase";
-import { createGoal, createRoadmap, getActiveRoadmap, getLatestCompletedAdaptiveSimulation, getStudentProfile, listGoals, listProjects, type RoadmapMilestoneInput } from "../db";
+import { createGoal, createRoadmap, getActiveRoadmap, getBehaviorEvolution, getLatestCompletedAdaptiveSimulation, getStudentProfile, listGoals, listProjects, type RoadmapMilestoneInput } from "../db";
 import { buildCountryAwareRecommendations } from "./recommendations";
 import { getNationalEducationContext } from "./national-context";
 
@@ -28,15 +28,15 @@ export async function listRoadmapRecommendations(userId: string, sourceSimulatio
 }
 
 export async function getRoadmapRecommendationContext(userId: string, simulationId?: string) {
-  const [profile, simulation, goals, projects, roadmap] = await Promise.all([
+  const [profile, simulation, goals, projects, roadmap, behaviorEvolution] = await Promise.all([
     getStudentProfile(userId),
     simulationId ? getLatestCompletedSimulationById(userId, simulationId) : getLatestCompletedAdaptiveSimulation(userId),
-    listGoals(userId), listProjects(userId), getActiveRoadmap(userId),
+    listGoals(userId), listProjects(userId), getActiveRoadmap(userId), getBehaviorEvolution(userId),
   ]);
   if (!profile) throw new Error("Complete onboarding before building a roadmap.");
   if (!simulation) throw new Error("Complete a simulation before building recommendations.");
   const national = getNationalEducationContext(profile.countryCode);
-  return { profile, simulation, goals, projects, roadmap, national };
+  return { profile, simulation, goals, projects, roadmap, national, behaviorEvolution };
 }
 
 async function getLatestCompletedSimulationById(userId: string, simulationId: string) {
@@ -64,7 +64,8 @@ export async function generateRoadmapRecommendations(userId: string, simulationI
   const drafts = buildCountryAwareRecommendations({
     career: context.simulation.career, countryCode: context.profile.countryCode, grade: context.profile.grade,
     skills: context.profile.skills, activities: context.profile.activities, existingTitles,
-    strongestTraits: context.simulation.behavioralProfile?.strongestTraits ?? [],
+    strongestTraits: context.behaviorEvolution?.strongestTraits ?? context.simulation.behavioralProfile?.strongestTraits ?? [],
+    evolvingFocus: context.behaviorEvolution?.evolvingFocus ?? undefined,
   });
   const { data, error } = await client().from("roadmap_recommendations").insert(drafts.map(item => ({
     user_id: userId, source_simulation_id: context.simulation.id, target_career: context.simulation.career,
