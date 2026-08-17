@@ -226,6 +226,59 @@ function projectWorkspaceMilestone(row: any) { return { id: row.id, projectId: r
 function project(row: any) { return { id: row.id, userId: row.user_id, name: row.name, description: row.description, scopeStatement: row.scope_statement ?? null, projectNotes: row.project_notes ?? null, skills: strings(row.skills), githubLink: row.github_link, liveUrl: row.live_url, status: row.status as ProjectStatus, progress: Number(row.progress ?? 0), startDate: row.start_date, completionDate: row.completion_date, careerId: row.career_id, roadmapMilestoneId: row.roadmap_milestone_id ?? null, goalIds: list(row.project_goals).map((link: any) => link.goal_id), milestones: list(row.project_milestones).map(projectWorkspaceMilestone).sort((left, right) => left.sortOrder - right.sortOrder || left.createdAt.getTime() - right.createdAt.getTime()), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) }; }
 export async function listProjects(userId: string) { const { data, error } = await client().from("projects").select("*, project_goals(goal_id), project_milestones(*)").eq("user_id", userId).order("updated_at", { ascending: false }); check(error); return list(data as any[]).map(project); }
 export async function getProjectWorkspace(userId: string, projectId: string) { const { data, error } = await client().from("projects").select("*, project_goals(goal_id), project_milestones(*)").eq("id", projectId).eq("user_id", userId).maybeSingle(); check(error); return data ? project(data) : null; }
+type PortfolioProfileInput = { handle: string; displayName: string; introduction?: string | null };
+type PortfolioProjectInput = { title?: string; summary?: string; technologies?: string[]; repositoryUrl?: string | null; liveUrl?: string | null };
+function portfolioProfile(row: any) { return { handle: row.handle as string, displayName: row.display_name as string, introduction: row.introduction ?? null, updatedAt: new Date(row.updated_at) }; }
+function portfolioProject(row: any) { return { id: row.id as string, projectId: row.project_id as string, title: row.title as string, summary: row.summary as string, technologies: strings(row.technologies), repositoryUrl: row.repository_url ?? null, liveUrl: row.live_url ?? null, isPublished: Boolean(row.is_published), publishedAt: date(row.published_at), updatedAt: new Date(row.updated_at) }; }
+function defaultPortfolioProfile(userId: string) { return { handle: `student-${userId.slice(0, 8)}`, display_name: "Student portfolio", introduction: null }; }
+export async function getPortfolioWorkspace(userId: string) {
+  const [profileResult, projectsResult] = await Promise.all([
+    client().from("portfolio_profiles").select("handle, display_name, introduction, updated_at").eq("user_id", userId).maybeSingle(),
+    client().from("portfolio_projects").select("*").eq("user_id", userId).order("updated_at", { ascending: false }),
+  ]);
+  check(profileResult.error); check(projectsResult.error);
+  return { profile: profileResult.data ? portfolioProfile(profileResult.data) : null, projects: list(projectsResult.data as any[]).map(portfolioProject) };
+}
+export async function upsertPortfolioProfile(userId: string, value: PortfolioProfileInput) {
+  const { data, error } = await client().from("portfolio_profiles").upsert({ user_id: userId, handle: value.handle, display_name: value.displayName, introduction: value.introduction ?? null, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select("handle, display_name, introduction, updated_at").single();
+  check(error); return portfolioProfile(data);
+}
+export async function createPortfolioDraftFromProject(userId: string, projectId: string) {
+  const source = await getProjectWorkspace(userId, projectId);
+  if (!source) throw new Error("Project workspace not found.");
+  const db = client();
+  const { data: profile, error: profileError } = await db.from("portfolio_profiles").select("user_id").eq("user_id", userId).maybeSingle();
+  check(profileError);
+  if (!profile) { const created = await db.from("portfolio_profiles").insert({ user_id: userId, ...defaultPortfolioProfile(userId) }); check(created.error); }
+  const { data: existing, error: existingError } = await db.from("portfolio_projects").select("*").eq("user_id", userId).eq("project_id", projectId).maybeSingle();
+  check(existingError); if (existing) return portfolioProject(existing);
+  const { data, error } = await db.from("portfolio_projects").insert({ user_id: userId, project_id: projectId, title: source.name, summary: source.description, technologies: source.skills, repository_url: source.githubLink, live_url: source.liveUrl }).select().single();
+  check(error); return portfolioProject(data);
+}
+export async function updatePortfolioProject(userId: string, portfolioProjectId: string, value: PortfolioProjectInput) {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), is_published: false, published_at: null };
+  if (value.title !== undefined) patch.title = value.title;
+  if (value.summary !== undefined) patch.summary = value.summary;
+  if (value.technologies !== undefined) patch.technologies = value.technologies;
+  if (value.repositoryUrl !== undefined) patch.repository_url = value.repositoryUrl;
+  if (value.liveUrl !== undefined) patch.live_url = value.liveUrl;
+  const { data, error } = await client().from("portfolio_projects").update(patch).eq("id", portfolioProjectId).eq("user_id", userId).select().maybeSingle();
+  check(error); if (!data) throw new Error("Portfolio project not found."); return portfolioProject(data);
+}
+export async function publishPortfolioProject(userId: string, portfolioProjectId: string) {
+  const { data, error } = await client().from("portfolio_projects").update({ is_published: true, published_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", portfolioProjectId).eq("user_id", userId).select().maybeSingle();
+  check(error); if (!data) throw new Error("Portfolio project not found."); return portfolioProject(data);
+}
+export async function unpublishPortfolioProject(userId: string, portfolioProjectId: string) {
+  const { data, error } = await client().from("portfolio_projects").update({ is_published: false, published_at: null, updated_at: new Date().toISOString() }).eq("id", portfolioProjectId).eq("user_id", userId).select().maybeSingle();
+  check(error); if (!data) throw new Error("Portfolio project not found."); return portfolioProject(data);
+}
+export async function getPublicPortfolio(handle: string) {
+  const db = client(); const { data: profile, error: profileError } = await db.from("portfolio_profiles").select("user_id, handle, display_name, introduction, updated_at").eq("handle", handle).maybeSingle();
+  check(profileError); if (!profile) return null;
+  const { data: entries, error: entryError } = await db.from("portfolio_projects").select("id, project_id, title, summary, technologies, repository_url, live_url, is_published, published_at, updated_at").eq("user_id", (profile as any).user_id).eq("is_published", true).order("published_at", { ascending: false });
+  check(entryError); const projects = list(entries as any[]).map(portfolioProject); return projects.length ? { profile: portfolioProfile(profile), projects } : null;
+}
 export async function getPlanningReview(userId: string) { const [goals, projects, roadmap, activity] = await Promise.all([listGoals(userId), listProjects(userId), getActiveRoadmap(userId), listPlanningActivity(userId)]); return buildPlanningReview({ goals, projects, roadmap, visibleActivityCount: activity.length }); }
 export async function createPlanningReportShareLink(userId: string) {
   const token = createPlanningReportShareToken();

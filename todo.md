@@ -116,7 +116,7 @@
 - [x] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
 - [x] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
 - [x] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
-- [ ] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
+- [x] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
 - [ ] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
 - [ ] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
 - [ ] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
@@ -140,3 +140,6 @@
 - [x] Checkpoint 28 implementation: audit the existing AI integration, project workspace data, and privacy boundaries to define the minimum project-only context contract.
 - [x] Checkpoint 28 implementation: add a protected project guidance operation with real generated output, request validation, and explicit loading, success, and failure feedback.
 - [x] Checkpoint 28 verification: add focused context, ownership, and generated-response tests; run TypeScript/tests/build; and confirm no unrelated student records enter the project assistant.
+- [x] Checkpoint 29 implementation: audit current project display and publication boundaries, then define the minimal student-approved portfolio profile and visibility contract.
+- [x] Checkpoint 29 implementation: add a prefilled, editable project-to-portfolio handoff with explicit publish and unpublish actions under user ownership.
+- [x] Checkpoint 29 verification: add focused publication, ownership, and no-automatic-publish tests; run TypeScript/tests/build; and verify public versus private route behavior.

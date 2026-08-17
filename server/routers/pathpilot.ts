@@ -7,6 +7,7 @@ import {
   createProject,
   createProjectFromRoadmapMilestone,
   createProjectWorkspaceMilestone,
+  createPortfolioDraftFromProject,
   createGoalFromVerifiedOpportunity,
   createRoadmap,
   createSimulation,
@@ -24,6 +25,8 @@ import {
   getBehaviorEvolution,
   getPlanningReview,
   getProjectWorkspace,
+  getPortfolioWorkspace,
+  getPublicPortfolio,
   getSharedPlanningReport,
   getCareerMatches,
   getConversationMessages,
@@ -47,6 +50,10 @@ import {
   updateGoal,
   updateProject,
   updateProjectWorkspaceMilestone,
+  updatePortfolioProject,
+  upsertPortfolioProfile,
+  publishPortfolioProject,
+  unpublishPortfolioProject,
   deleteProjectWorkspaceMilestone,
   updateMilestoneProgress,
   updateStudentCountryContext,
@@ -583,5 +590,14 @@ export const pathpilotRouter = router({
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Project guidance is temporarily unavailable. Please try again shortly." });
       }
     }),
+  }),
+  portfolio: router({
+    mine: protectedProcedure.query(({ ctx }) => getPortfolioWorkspace(ctx.user.id)),
+    saveProfile: protectedProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/), displayName: z.string().trim().min(1).max(80), introduction: z.string().trim().min(1).max(1000).nullable().optional() })).mutation(({ ctx, input }) => upsertPortfolioProfile(ctx.user.id, input)),
+    createDraftFromProject: protectedProcedure.input(z.object({ projectId: z.string().uuid() })).mutation(({ ctx, input }) => createPortfolioDraftFromProject(ctx.user.id, input.projectId)),
+    updateProject: protectedProcedure.input(z.object({ id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), summary: z.string().trim().min(10).max(4000).optional(), technologies: z.array(z.string().trim().min(1).max(80)).max(20).optional(), repositoryUrl: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional() })).mutation(({ ctx, input }) => updatePortfolioProject(ctx.user.id, input.id, input)),
+    publish: protectedProcedure.input(z.object({ id: z.string().uuid(), confirmed: z.literal(true) })).mutation(({ ctx, input }) => publishPortfolioProject(ctx.user.id, input.id)),
+    unpublish: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => unpublishPortfolioProject(ctx.user.id, input.id)),
+    public: publicProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/) })).query(({ input }) => getPublicPortfolio(input.handle)),
   }),
 });
