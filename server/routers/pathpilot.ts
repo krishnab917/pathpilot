@@ -24,6 +24,7 @@ import {
   listPlanningReportShareLinks,
   getActiveRoadmap,
   getBehaviorEvolution,
+  getCrossProductEvidenceSummary,
   getPlanningReview,
   getProjectWorkspace,
   getPortfolioWorkspace,
@@ -363,6 +364,10 @@ export const pathpilotRouter = router({
     list: protectedProcedure.query(({ ctx }) => listPlanningActivity(ctx.user.id)),
     export: protectedProcedure.query(({ ctx }) => exportPlanningActivity(ctx.user.id)),
     clear: protectedProcedure.input(z.object({ confirmed: z.literal(true) })).mutation(({ ctx }) => clearPlanningActivity(ctx.user.id)),
+  }),
+
+  evidencePolicy: router({
+    summary: protectedProcedure.query(({ ctx }) => getCrossProductEvidenceSummary(ctx.user.id)),
   }),
 
   review: router({

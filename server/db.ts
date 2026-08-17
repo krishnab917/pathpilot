@@ -11,6 +11,7 @@ import { hasTimePressurePresentation } from "./simulation/time-pressure-presenta
 import { buildDashboardNextAction } from "./dashboard/intelligence";
 import { goalActivity, presentPlanningActivity, projectActivity, roadmapMilestoneActivity, type PlanningActivitySubject, type PlanningActivityType } from "./planning-activity";
 import { buildPlanningReview } from "./planning-review";
+import { buildCrossProductEvidenceSummary } from "./cross-product-evidence-policy";
 import { createPlanningReportShareToken, hashPlanningReportShareToken, isPlanningReportShareToken, planningReportShareExpiresAt, toSharedPlanningReport } from "./report-share";
 
 export type ResourceLink = { label: string; url: string };
@@ -296,6 +297,14 @@ export async function getPublicPortfolio(handle: string) {
   check(entryError); const projects = list(entries as any[]).map(portfolioProject); return projects.length ? { profile: portfolioProfile(profile), projects } : null;
 }
 export async function getPlanningReview(userId: string) { const [goals, projects, roadmap, activity] = await Promise.all([listGoals(userId), listProjects(userId), getActiveRoadmap(userId), listPlanningActivity(userId)]); return buildPlanningReview({ goals, projects, roadmap, visibleActivityCount: activity.length }); }
+export async function getCrossProductEvidenceSummary(userId: string) {
+  const [simulations, activity] = await Promise.all([
+    client().from("simulations").select("id").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").limit(5),
+    client().from("behavioral_activity_events").select("id").eq("user_id", userId).limit(12),
+  ]);
+  check(simulations.error); check(activity.error);
+  return buildCrossProductEvidenceSummary({ completedSimulationCount: list(simulations.data as any[]).length, planningActivityCount: list(activity.data as any[]).length });
+}
 export async function createPlanningReportShareLink(userId: string) {
   const token = createPlanningReportShareToken();
   const expiresAt = planningReportShareExpiresAt();

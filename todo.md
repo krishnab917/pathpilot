@@ -120,7 +120,7 @@
 - [x] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
 - [x] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
 - [x] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
-- [ ] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
+- [x] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
 - [ ] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
 - [ ] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
 - [ ] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
@@ -152,3 +152,6 @@
 - [x] Checkpoint 32 implementation: audit terminal graph nodes and define safe, non-punitive outcome categories and student-facing framing.
 - [x] Checkpoint 32 implementation: add clearly framed terminal branches and richer outcome state without changing evidence scoring, personality labels, or student-owned plans.
 - [x] Checkpoint 32 verification: add branch, persistence, and presentation tests; run TypeScript/tests/build; and confirm every outcome remains non-diagnostic and non-abusive.
+- [x] Checkpoint 33 implementation: audit cross-product simulation, planning, mentor, recommendation, and public-projection data flows; define explicit allowed and prohibited derived-signal inputs.
+- [x] Checkpoint 33 implementation: add a bounded derived-signal policy that preserves raw records and excludes diagnostic, predictive, personality, or automatic-action claims.
+- [x] Checkpoint 33 verification: add policy-boundary and public-projection tests; run TypeScript/tests/build; and confirm no raw cross-product record is mutated or newly exposed.
