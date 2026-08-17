@@ -118,7 +118,7 @@
 - [x] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
 - [x] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
 - [x] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
-- [ ] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
+- [x] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
 - [ ] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
 - [ ] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
 - [ ] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
@@ -146,3 +146,6 @@
 - [x] Checkpoint 30 implementation: audit the adaptive graph catalog and identify distinct career-family coverage gaps without changing the shared simulation engine or UI shell.
 - [x] Checkpoint 30 implementation: add maintainable career-specific graph modules with valid branching, accessible consequences, and existing evidence compatibility.
 - [x] Checkpoint 30 verification: add graph-catalog and engine compatibility tests, run TypeScript/tests/build, and verify existing simulation resume, review, result, and roadmap handoff behavior remains intact.
+- [x] Checkpoint 31 implementation: audit existing simulation timing, state, persistence, and accessibility behavior; define explicit consent, collection, and non-use boundaries.
+- [x] Checkpoint 31 implementation: add optional scenario-specific time-pressure presentation and bounded response-time recording that does not block, score, label, or alter simulation outcomes.
+- [x] Checkpoint 31 verification: add focused consent, timing, persistence, and accessibility coverage; run TypeScript/tests/build; and confirm response time never enters behavioral or recommendation logic.
