@@ -48,6 +48,7 @@ import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqu
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, generateRoadmapRecommendations, getRoadmapRecommendationContext, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 import { getSimulationGraph } from "../simulation/engine";
+import { buildMentorPlanningContext } from "../mentor-context";
 import { buildDecisionReview } from "../simulation/presentation";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
@@ -457,17 +458,18 @@ export const pathpilotRouter = router({
       return { conversation, messages };
     }),
     send: protectedProcedure.input(z.object({ content: z.string().trim().min(1).max(3000) })).mutation(async ({ ctx, input }) => {
-      const [conversation, dashboard, latestSimulation] = await Promise.all([getOrCreateMentorConversation(ctx.user.id), getDashboardData(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id)]);
+      const [conversation, dashboard, latestSimulation, behaviorEvolution, planningActivity] = await Promise.all([getOrCreateMentorConversation(ctx.user.id), getDashboardData(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), getBehaviorEvolution(ctx.user.id), listPlanningActivity(ctx.user.id)]);
       const messages = await getConversationMessages(ctx.user.id, conversation.id);
       await addMentorMessage(ctx.user.id, conversation.id, "user", input.content);
       const history = messages.slice(-12).map(message => `${message.role === "user" ? "Student" : "Mentor"}: ${message.content}`).join("\n");
       const roadmapSummary = dashboard.roadmap ? `${dashboard.roadmap.targetCareer} (${dashboard.roadmap.completionPercentage}% complete); milestones: ${dashboard.roadmap.milestones.map(milestone => `${milestone.title} ${milestone.progress}%`).join(", ")}` : "No roadmap created yet.";
       const goalsSummary = dashboard.goals.slice(0, 8).map(goal => `#${goal.id} ${goal.title} [${goal.status}, ${goal.priority}, ${goal.progress}%]`).join("; ") || "No goals yet.";
+      const planningContext = buildMentorPlanningContext({ behaviorEvolution, planningActivity });
       try {
         const response = await invokeLLM({
           model: await preferredModel(),
           messages: [
-            { role: "system", content: "You are PathPilot, a supportive career mentor for high-school students. Provide pragmatic, age-appropriate guidance, not promises. Help create goals, re-prioritize work, and compare learning decisions when requested. Do not diagnose, shame, or state that a student must choose a particular career. Treat the following profile, roadmap, goals, simulation observations, and conversation as private context. Simulation insights are limited observations from one or more scenarios, not personality diagnoses or career predictions. Return a JSON response with a concise Markdown reply. Populate suggestedGoal only when the student explicitly asks you to create a goal; otherwise return null. Populate priorityAdjustment only when the student explicitly asks you to change a listed goal's priority; otherwise return null.\n\nStudent profile:\n" + (dashboard.profile ? profileContext(dashboard.profile) : "Not yet completed.") + `\n\nRoadmap:\n${roadmapSummary}\n\nGoals:\n${goalsSummary}\n\nLatest simulation:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}\nTop observed traits: ${(latestSimulation?.behavioralProfile?.strongestTraits ?? []).join(", ") || "Not yet available."}\nCareer alignment: ${(latestSimulation?.compatibilityResults ?? []).slice(0, 3).map((item: any) => `${item.careerName} ${item.score}%`).join("; ") || "Not yet available."}\n\nPrior messages:\n${history}` },
+            { role: "system", content: "You are PathPilot, a supportive career mentor for high-school students. Provide pragmatic, age-appropriate guidance, not promises. Help create goals, re-prioritize work, and compare learning decisions when requested. Do not diagnose, shame, or state that a student must choose a particular career. Treat the following profile, roadmap, goals, simulation observations, planning context, and conversation as private context. Simulation insights are limited observations from one or more scenarios, not personality diagnoses or career predictions. Return a JSON response with a concise Markdown reply. Populate suggestedGoal only when the student explicitly asks you to create a goal; otherwise return null. Populate priorityAdjustment only when the student explicitly asks you to change a listed goal's priority; otherwise return null.\n\nStudent profile:\n" + (dashboard.profile ? profileContext(dashboard.profile) : "Not yet completed.") + `\n\nRoadmap:\n${roadmapSummary}\n\nGoals:\n${goalsSummary}\n\nLatest simulation:\n${latestSimulation?.resultSummary ?? "No completed simulation yet."}\nTop observed traits: ${(latestSimulation?.behavioralProfile?.strongestTraits ?? []).join(", ") || "Not yet available."}\nCareer alignment: ${(latestSimulation?.compatibilityResults ?? []).slice(0, 3).map((item: any) => `${item.careerName} ${item.score}%`).join("; ") || "Not yet available."}\n\n${planningContext}\n\nPrior messages:\n${history}` },
             { role: "user", content: input.content },
           ],
           response_format: { type: "json_schema", json_schema: { name: "mentor_response", strict: true, schema: mentorJsonSchema } },
