@@ -97,3 +97,4 @@
 - [x] Checkpoint 10: expand career-specific simulation coverage, add consequence events, and establish behavioral-event persistence while preserving resume, analysis, and roadmap handoff.
 - [x] Simulation review screen: show persisted past decisions and consequence messages before final simulation results.
 - [x] Checkpoint 11: add bounded cross-simulation behavior synthesis with transparent recency weighting and evolving recommendation feedback while preserving student control and existing roadmap ownership.
+- [x] Checkpoint 12: add deterministic dashboard intelligence and a transparent next-best-action recommendation from real profile, roadmap, goal, project, opportunity, and simulation state without changing existing student-owned data.
