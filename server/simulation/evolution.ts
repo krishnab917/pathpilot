@@ -7,9 +7,10 @@ const weights = [1, 0.85, 0.7, 0.55, 0.4] as const;
 export type BehaviorEvolution = {
   completedSimulationCount: number;
   includedSimulationCount: number;
+  mostRecentCompletedAt: Date | null;
   method: string;
   simulations: Array<{ id: string; career: string; completedAt: Date | null; recencyWeight: number }>;
-  traits: Array<{ trait: TraitKey; label: string; score: number; consistency: "consistent" | "varied"; observations: number }>;
+  traits: Array<{ trait: TraitKey; label: string; score: number; consistency: "consistent" | "varied"; observations: number; confidence: "initial" | "building" | "repeated"; trend: "insufficient" | "similar" | "recently_higher" | "recently_lower" | "varied" }>;
   strongestTraits: TraitKey[];
   evolvingFocus: { title: string; description: string; rationale: string } | null;
 };
@@ -25,10 +26,12 @@ export function buildBehaviorEvolution(all: CompletedSimulationBehavior[]): Beha
     const denominator = entries.reduce((sum, item) => sum + item.weight, 0);
     const score = Math.round(entries.reduce((sum, item) => sum + item.score * item.weight, 0) / denominator);
     const spread = Math.max(...entries.map(item => item.score)) - Math.min(...entries.map(item => item.score));
-    return { trait, label: traitLabels[trait], score, consistency: (entries.length < 2 || spread <= 18 ? "consistent" : "varied") as "consistent" | "varied", observations: entries.length };
+    const confidence: BehaviorEvolution["traits"][number]["confidence"] = entries.length === 1 ? "initial" : entries.length === 2 ? "building" : "repeated";
+    const trend: BehaviorEvolution["traits"][number]["trend"] = entries.length < 2 ? "insufficient" : spread > 18 ? "varied" : entries[0].score - entries.at(-1)!.score >= 12 ? "recently_higher" : entries.at(-1)!.score - entries[0].score >= 12 ? "recently_lower" : "similar";
+    return { trait, label: traitLabels[trait], score, consistency: (entries.length < 2 || spread <= 18 ? "consistent" : "varied") as "consistent" | "varied", observations: entries.length, confidence, trend };
   }).sort((a, b) => b.score - a.score || b.observations - a.observations);
   const strongestTraits = traits.filter(item => item.score >= 58).slice(0, 3).map(item => item.trait);
   const leading = traits[0];
   const evolvingFocus = leading ? { title: `Practice ${leading.label}`, description: simulations.length === 1 ? "Complete another career simulation to see whether this learning signal repeats in a different context." : `Use one small project or experience to test how ${leading.label} shows up in a new setting.`, rationale: simulations.length === 1 ? "This is an initial signal from one completed simulation, not a stable conclusion." : `This focus is based on ${leading.observations} of your ${simulations.length} most recent completed simulations; newer simulations contribute more to the summary.` } : null;
-  return { completedSimulationCount: all.filter(item => item.behavioralProfile).length, includedSimulationCount: simulations.length, method: "The five most recent completed simulations are included. The newest contributes 1.00 weight; each earlier simulation contributes less (0.85, 0.70, 0.55, then 0.40). This is a learning summary, not a personality or career prediction.", simulations: simulations.map((item, index) => ({ id: item.id, career: item.career, completedAt: item.completedAt, recencyWeight: weights[index] })), traits: traits.slice(0, 6), strongestTraits, evolvingFocus };
+  return { completedSimulationCount: all.filter(item => item.behavioralProfile).length, includedSimulationCount: simulations.length, mostRecentCompletedAt: simulations[0]?.completedAt ?? null, method: "The five most recent completed simulations are included. The newest contributes 1.00 weight; each earlier simulation contributes less (0.85, 0.70, 0.55, then 0.40). Confidence describes how often an observation appears in included simulations, and trend describes only the direction of the included simulation observations. This is a learning summary, not a personality, ability, motivation, or career prediction.", simulations: simulations.map((item, index) => ({ id: item.id, career: item.career, completedAt: item.completedAt, recencyWeight: weights[index] })), traits: traits.slice(0, 6), strongestTraits, evolvingFocus };
 }
