@@ -34,7 +34,7 @@
 - [x] Create a dedicated private krishnab917/pathpilot GitHub repository without modifying Career-Path-Navigator.
 - [x] Verify the Manus project’s active GitHub remote is krishnab917/pathpilot and no longer points to Career-Path-Navigator.
 - [x] Verify the active PathPilot code is associated with the new repository before resuming Supabase work.
-- [ ] Fix the Supabase email-confirmation redirect so Gmail verification does not return to localhost:3000.
+- [x] Fix the Supabase email-confirmation redirect so Gmail verification does not return to localhost:3000.
 - [x] Audit every SUPABASE_SERVICE_ROLE_KEY path; require independent authentication, authorization, and input validation, and remove unnecessary usage.
 - [x] Add regression coverage for confirmation redirect construction and server-only service-role isolation.
 - [x] Audit the existing PathPilot V1.0 implementation against the supplied production completion and adaptive simulation specification.
@@ -104,7 +104,8 @@
 - [x] Checkpoint 14: record a minimal, privacy-bounded history of student goal and opportunity planning actions under the existing user-owned access boundary, without changing simulation evidence or making diagnostic claims.
 - [x] Checkpoint 15: add a student-visible, user-owned planning activity timeline that explains recorded goal and opportunity actions without personality labels, diagnoses, or recommendation changes.
 - [x] Checkpoint 16: give students a guarded, user-owned way to clear only their private planning-activity history, with explicit confirmation and no change to goals, opportunities, simulations, roadmaps, or recommendations.
-- [ ] Checkpoint 17: configure Supabase email confirmation and password-recovery redirects for https://pathpilot-s64joaqq.manus.space, removing the obsolete localhost confirmation destination while retaining secure server-only credential boundaries.
+- [x] Checkpoint 17: configure Supabase email confirmation and password-recovery redirects for https://pathpilot-s64joaqq.manus.space, removing the obsolete localhost confirmation destination while retaining secure server-only credential boundaries.
 - [x] Checkpoint 18: extend the private planning-activity history to student-owned project and roadmap progress actions using bounded operational metadata, without diagnoses, personality claims, or recommendation changes.
 - [x] Checkpoint 19: give the Career Mentor a bounded, transparent summary of recent student-owned planning activity and simulation learning signals, with explicit non-diagnostic and non-predictive guardrails.
 - [x] Checkpoint 20: let students export a bounded private copy of their planning-activity history with neutral event fields only, excluding simulation evidence, mentor content, and private event metadata.
+- [x] Checkpoint 21: finalize the live Supabase email-confirmation and password-recovery redirect configuration for https://pathpilot-s64joaqq.manus.space, then verify the application callback path without exposing service credentials.

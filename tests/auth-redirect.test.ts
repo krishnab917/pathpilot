@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 
 describe("Supabase email redirect construction", () => {
   it("uses the active HTTPS application origin rather than a localhost default", () => {
-    expect(getAuthRedirectUrl("/auth", "https://pathpilot.manus.space")).toBe("https://pathpilot.manus.space/auth");
-    expect(getAuthRedirectUrl("auth", "https://pathpilot.manus.space")).toBe("https://pathpilot.manus.space/auth");
+    expect(getAuthRedirectUrl("/auth", "https://pathpilot-s64joaqq.manus.space")).toBe("https://pathpilot-s64joaqq.manus.space/auth");
+    expect(getAuthRedirectUrl("auth", "https://pathpilot-s64joaqq.manus.space")).toBe("https://pathpilot-s64joaqq.manus.space/auth");
   });
 
   it("permits HTTP only for local development and rejects insecure remote origins", () => {
