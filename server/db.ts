@@ -5,6 +5,7 @@ import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simu
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchBnlHighSchoolResearchRecord } from "./opportunities/bnl-high-school-research-source";
 import { fetchCuratedOpportunityDrafts, type OpportunityCategory } from "./opportunities/curated-catalog-source";
+import { explainOpportunityRelevance, opportunityRelevanceMethod } from "./opportunities/relevance";
 import { buildBehaviorEvolution } from "./simulation/evolution";
 import { buildDashboardNextAction } from "./dashboard/intelligence";
 import { goalActivity, presentPlanningActivity, projectActivity, roadmapMilestoneActivity, type PlanningActivitySubject, type PlanningActivityType } from "./planning-activity";
@@ -70,7 +71,8 @@ export async function updateStudentCountryContext(userId: string, countryCode: s
 function careerDomainsFor(name: string) { const value = name.toLowerCase(); const tags = new Set<string>(); if (/software|data|cyber|computer|developer|it/.test(value)) tags.add("technology"); if (/engineer|architect|mechanic/.test(value)) tags.add("engineering"); if (/doctor|nurs|biolog|scient|environment|research|chemist|physic/.test(value)) tags.add("science"); if (/designer|artist|media|writer/.test(value)) tags.add("design"); if (/business|market|finance|entrepreneur/.test(value)) tags.add("business"); if (/teacher|psych|social|policy|law/.test(value)) tags.add("social-impact"); return Array.from(tags); }
 export type OpportunityDiscoveryFilters = { category?: OpportunityCategory; alignedOnly?: boolean; search?: string; countryCode?: string; grade?: string; deadlineOnly?: boolean; page?: number; pageSize?: number };
 export async function searchVerifiedOpportunities(userId: string, filters: OpportunityDiscoveryFilters = {}) {
-  const matches = filters.alignedOnly ? await getCareerMatches(userId) : [];
+  const [profile, matches] = await Promise.all([getStudentProfile(userId), getCareerMatches(userId)]);
+  const careerDirections = matches.map(match => match.career.name);
   const targetDomains = Array.from(new Set(matches.flatMap(match => careerDomainsFor(match.career.name))));
   const page = Math.max(1, Math.floor(filters.page ?? 1));
   const pageSize = Math.max(1, Math.min(48, Math.floor(filters.pageSize ?? 12)));
@@ -86,13 +88,17 @@ export async function searchVerifiedOpportunities(userId: string, filters: Oppor
     filter_domains: filters.alignedOnly && targetDomains.length ? targetDomains : null,
     page_number: page,
     page_size: pageSize,
+    ranking_country_code: profile?.countryCode ?? null,
+    ranking_grade: profile?.grade ?? null,
+    ranking_domains: targetDomains.length ? targetDomains : null,
   });
   check(error);
   const rows = list(data as any[]);
-  const items = rows.map(opportunity).map(item => ({ ...item, alignedCareers: matches.filter(match => careerDomainsFor(match.career.name).some(domain => item.careerDomains.includes(domain))).map(match => match.career.name) }));
+  const relevanceContext = { careerDirections, careerDomains: targetDomains, countryCode: profile?.countryCode ?? null, grade: profile?.grade ?? null };
+  const items = rows.map(opportunity).map(item => ({ ...item, alignedCareers: matches.filter(match => careerDomainsFor(match.career.name).some(domain => item.careerDomains.includes(domain))).map(match => match.career.name), relevanceReasons: explainOpportunityRelevance(item, relevanceContext) }));
   const totalCount = rows.length ? Number((rows[0] as any).total_count) : 0;
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 0;
-  return { items, totalCount, page, pageSize, totalPages, hasNextPage: page < totalPages };
+  return { items, totalCount, page, pageSize, totalPages, hasNextPage: page < totalPages, relevanceMethod: opportunityRelevanceMethod };
 }
 export async function listVerifiedOpportunities(userId: string, filters: OpportunityDiscoveryFilters = {}) { return (await searchVerifiedOpportunities(userId, filters)).items; }
 export async function getLatestSavedOpportunity(userId: string) { const { data, error } = await client().from("student_opportunity_states").select("updated_at, opportunities!inner(title, source_date_label)").eq("user_id", userId).eq("status", "saved").order("updated_at", { ascending: false }).limit(1).maybeSingle(); check(error); const row = data as any; const record = Array.isArray(row?.opportunities) ? row.opportunities[0] : row?.opportunities; return record ? { title: record.title as string, sourceDateLabel: record.source_date_label as string | null } : null; }

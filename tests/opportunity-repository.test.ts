@@ -12,12 +12,20 @@ import { createGoalFromVerifiedOpportunity, listVerifiedOpportunities, searchVer
 const userId = "11111111-1111-4111-8111-111111111111";
 const opportunityId = "22222222-2222-4222-8222-222222222222";
 
+function discoveryClient(rpc: ReturnType<typeof vi.fn>, profileData: unknown = null, matchData: unknown[] = []) {
+  const profile = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn() };
+  profile.select.mockReturnValue(profile); profile.eq.mockReturnValue(profile); profile.maybeSingle.mockResolvedValue({ data: profileData, error: null });
+  const matches = { select: vi.fn(), eq: vi.fn(), order: vi.fn() };
+  matches.select.mockReturnValue(matches); matches.eq.mockReturnValue(matches); matches.order.mockResolvedValue({ data: matchData, error: null });
+  return { rpc, from: vi.fn((table: string) => table === "student_profiles" ? profile : matches) };
+}
+
 describe("verified opportunity repository", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns source-attributed opportunities through the paginated database discovery function", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [{ id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "competition", participation_mode: "hybrid", location_label: "Global", source_date_label: null, career_domains: [], country_codes: [], eligible_grades: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, application_deadline_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", source_name: "Official organizer", verified_at: "2026-08-16T00:00:00Z", student_status: null, total_count: 1 }], error: null });
-    mocks.client = { rpc };
+    mocks.client = discoveryClient(rpc);
 
     const result = await listVerifiedOpportunities(userId);
     expect(result).toHaveLength(1);
@@ -29,11 +37,11 @@ describe("verified opportunity repository", () => {
 
   it("forwards only explicit discovery filters and returns bounded pagination metadata", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [{ id: opportunityId, title: "Published deadline", summary: "A verified deadline record.", category: "research", participation_mode: "digital", location_label: "Online", source_date_label: null, career_domains: ["science"], country_codes: ["US"], eligible_grades: ["Grade 10"], start_at: null, end_at: null, registration_opens_at: null, application_deadline_at: "2026-10-15T00:00:00Z", eligibility_summary: "Organizer-published Grade 10 information.", application_url: "https://example.org/apply", source_url: "https://example.org", source_name: "Official organizer", verified_at: "2026-08-16T00:00:00Z", student_status: null, total_count: 25 }], error: null });
-    mocks.client = { rpc };
+    mocks.client = discoveryClient(rpc, { user_id: userId, grade: "Grade 10", location: "Example", country_code: "US", education_system: null, interests: [], skills: [], activities: [], career_preferences: [], onboarding_completed_at: null, created_at: "2026-08-16T00:00:00Z", updated_at: "2026-08-16T00:00:00Z" });
 
     const result = await searchVerifiedOpportunities(userId, { search: "  climate ", countryCode: "us", grade: "Grade 10", deadlineOnly: true, page: 2, pageSize: 12 });
 
-    expect(rpc).toHaveBeenCalledWith("list_discoverable_opportunities", expect.objectContaining({ filter_search: "climate", filter_country_code: "US", filter_grade: "Grade 10", require_application_deadline: true, page_number: 2, page_size: 12 }));
+    expect(rpc).toHaveBeenCalledWith("list_discoverable_opportunities", expect.objectContaining({ filter_search: "climate", filter_country_code: "US", filter_grade: "Grade 10", require_application_deadline: true, page_number: 2, page_size: 12, ranking_country_code: "US", ranking_grade: "Grade 10", ranking_domains: null }));
     expect(result).toMatchObject({ totalCount: 25, page: 2, pageSize: 12, totalPages: 3, hasNextPage: true });
     expect(result.items[0]).toMatchObject({ eligibleGrades: ["Grade 10"], countryCodes: ["US"] });
     expect(result.items[0]?.applicationDeadlineAt).toEqual(new Date("2026-10-15T00:00:00Z"));

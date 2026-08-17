@@ -113,7 +113,7 @@
 - [x] Checkpoint 23: add a student-owned print-friendly planning report from the existing review, using only neutral saved-plan counts and no automatic data changes or private content expansion.
 - [x] Checkpoint 24: add an opt-in, time-limited, revocable counselor share link for the neutral planning report only, with no detailed records, behavioral content, or automatic sharing.
 - [x] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
-- [ ] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
+- [x] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
 - [ ] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
 - [ ] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
 - [ ] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
@@ -131,3 +131,6 @@
 - [x] Checkpoint 25 implementation: add responsive Opportunities controls, results summary, pagination, and explicit unknown-data states.
 - [x] Checkpoint 25 data completion: populate eligible grades, verified application deadlines, and explicit country availability from organizer-published sources where available, without filling unknown values.
 - [x] Checkpoint 25 verification: add source-backed filter-result coverage, run TypeScript/tests/build, verify desktop/mobile behavior, and confirm no cross-student data exposure.
+- [x] Checkpoint 26 implementation: audit approved explicit profile and verified opportunity fields, then document deterministic relevance factors and prohibited inputs.
+- [x] Checkpoint 26 implementation: rank opportunity discovery results with concise, source-backed explanations while preserving full catalog access and student dismissal state.
+- [x] Checkpoint 26 verification: add focused ranking and explanation tests, run TypeScript/tests/build, verify UI behavior, and confirm no behavioral, diagnostic, or private data enters ranking.
