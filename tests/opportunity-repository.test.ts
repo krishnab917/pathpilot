@@ -7,36 +7,36 @@ vi.mock("../server/supabase", () => ({
   getSupabaseConfig: () => ({ url: "https://example.supabase.co" }),
 }));
 
-import { createGoalFromVerifiedOpportunity, listVerifiedOpportunities, setStudentOpportunityState, updateGoal } from "../server/db";
+import { createGoalFromVerifiedOpportunity, listVerifiedOpportunities, searchVerifiedOpportunities, setStudentOpportunityState, updateGoal } from "../server/db";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const opportunityId = "22222222-2222-4222-8222-222222222222";
 
-function listQuery(data: unknown[]) {
-  const chain = { select: vi.fn(), eq: vi.fn(), gte: vi.fn(), order: vi.fn(), limit: vi.fn() };
-  chain.select.mockReturnValue(chain);
-  chain.eq.mockReturnValue(chain);
-  chain.gte.mockReturnValue(chain);
-  chain.order.mockReturnValue(chain);
-  chain.limit.mockResolvedValue({ data, error: null });
-  return chain;
-}
-
 describe("verified opportunity repository", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns source-attributed active opportunities and hides a student-dismissed record", async () => {
-    const query = listQuery([
-      { id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "competition", participation_mode: "hybrid", location_label: "Global", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [] },
-      { id: "33333333-3333-4333-8333-333333333333", title: "Dismissed event", summary: "A prior record.", category: "competition", participation_mode: "digital", location_label: "Online", country_codes: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", verified_at: "2026-08-16T00:00:00Z", opportunity_sources: { name: "Official organizer" }, student_opportunity_states: [{ status: "dismissed" }] },
-    ]);
-    mocks.client = { from: vi.fn(() => query) };
+  it("returns source-attributed opportunities through the paginated database discovery function", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [{ id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "competition", participation_mode: "hybrid", location_label: "Global", source_date_label: null, career_domains: [], country_codes: [], eligible_grades: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, application_deadline_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", source_name: "Official organizer", verified_at: "2026-08-16T00:00:00Z", student_status: null, total_count: 1 }], error: null });
+    mocks.client = { rpc };
 
     const result = await listVerifiedOpportunities(userId);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ id: opportunityId, sourceName: "Official organizer", savedStatus: null });
     expect(result[0].startAt).toBeInstanceOf(Date);
-    expect(query.limit).toHaveBeenCalledWith(250);
+    expect(result[0].applicationDeadlineAt).toBeNull();
+    expect(rpc).toHaveBeenCalledWith("list_discoverable_opportunities", expect.objectContaining({ filter_category: null, require_application_deadline: false, page_number: 1, page_size: 12 }));
+  });
+
+  it("forwards only explicit discovery filters and returns bounded pagination metadata", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [{ id: opportunityId, title: "Published deadline", summary: "A verified deadline record.", category: "research", participation_mode: "digital", location_label: "Online", source_date_label: null, career_domains: ["science"], country_codes: ["US"], eligible_grades: ["Grade 10"], start_at: null, end_at: null, registration_opens_at: null, application_deadline_at: "2026-10-15T00:00:00Z", eligibility_summary: "Organizer-published Grade 10 information.", application_url: "https://example.org/apply", source_url: "https://example.org", source_name: "Official organizer", verified_at: "2026-08-16T00:00:00Z", student_status: null, total_count: 25 }], error: null });
+    mocks.client = { rpc };
+
+    const result = await searchVerifiedOpportunities(userId, { search: "  climate ", countryCode: "us", grade: "Grade 10", deadlineOnly: true, page: 2, pageSize: 12 });
+
+    expect(rpc).toHaveBeenCalledWith("list_discoverable_opportunities", expect.objectContaining({ filter_search: "climate", filter_country_code: "US", filter_grade: "Grade 10", require_application_deadline: true, page_number: 2, page_size: 12 }));
+    expect(result).toMatchObject({ totalCount: 25, page: 2, pageSize: 12, totalPages: 3, hasNextPage: true });
+    expect(result.items[0]).toMatchObject({ eligibleGrades: ["Grade 10"], countryCodes: ["US"] });
+    expect(result.items[0]?.applicationDeadlineAt).toEqual(new Date("2026-10-15T00:00:00Z"));
   });
 
   it("checks availability then writes a status only under the authenticated student identity", async () => {

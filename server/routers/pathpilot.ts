@@ -33,7 +33,7 @@ import {
   getStudentProfile,
   listGoals,
   listProjects,
-  listVerifiedOpportunities,
+  searchVerifiedOpportunities,
   refreshCuratedOpportunityCatalog,
   refreshNasaSpaceAppsOpportunity,
   replaceCareerMatches,
@@ -335,7 +335,16 @@ export const pathpilotRouter = router({
   }),
 
   opportunities: router({
-    list: protectedProcedure.input(z.object({ category: z.enum(["internship", "competition", "research"]).optional(), alignedOnly: z.boolean().optional() }).optional()).query(({ ctx, input }) => input ? listVerifiedOpportunities(ctx.user.id, input) : listVerifiedOpportunities(ctx.user.id)),
+    list: protectedProcedure.input(z.object({
+      category: z.enum(["internship", "competition", "research"]).optional(),
+      alignedOnly: z.boolean().optional(),
+      search: z.string().trim().max(100).optional(),
+      countryCode: z.string().regex(/^[A-Z]{2}$/).optional(),
+      grade: z.string().trim().min(1).max(32).optional(),
+      deadlineOnly: z.boolean().optional(),
+      page: z.number().int().min(1).max(10000).optional(),
+      pageSize: z.number().int().min(1).max(48).optional(),
+    }).optional()).query(({ ctx, input }) => searchVerifiedOpportunities(ctx.user.id, input ?? {})),
     setState: protectedProcedure.input(z.object({ opportunityId: z.string().uuid(), status: z.enum(["saved", "dismissed"]) })).mutation(({ ctx, input }) => setStudentOpportunityState(ctx.user.id, input.opportunityId, input.status)),
     createGoal: protectedProcedure.input(z.object({ opportunityId: z.string().uuid() })).mutation(({ ctx, input }) => createGoalFromVerifiedOpportunity(ctx.user.id, input.opportunityId)),
     refreshNasaSource: protectedProcedure.mutation(async ({ ctx }) => {

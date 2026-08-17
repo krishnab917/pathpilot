@@ -112,7 +112,7 @@
 - [x] Checkpoint 22: add a separate student-owned planning review that summarizes real goal, project, roadmap, and activity progress with clear action links, without behavioral diagnoses or automatic changes.
 - [x] Checkpoint 23: add a student-owned print-friendly planning report from the existing review, using only neutral saved-plan counts and no automatic data changes or private content expansion.
 - [x] Checkpoint 24: add an opt-in, time-limited, revocable counselor share link for the neutral planning report only, with no detailed records, behavioral content, or automatic sharing.
-- [ ] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
+- [x] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
 - [ ] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
 - [ ] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
 - [ ] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
@@ -126,3 +126,8 @@
 - [ ] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
 - [ ] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
 - [ ] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
+- [x] Checkpoint 25 implementation: audit source-backed opportunity fields and define safe semantics for search, pagination, country, grade, and deadline filters.
+- [x] Checkpoint 25 implementation: add server-scoped discovery query controls with stable paging and no inferred eligibility or urgency.
+- [x] Checkpoint 25 implementation: add responsive Opportunities controls, results summary, pagination, and explicit unknown-data states.
+- [x] Checkpoint 25 data completion: populate eligible grades, verified application deadlines, and explicit country availability from organizer-published sources where available, without filling unknown values.
+- [x] Checkpoint 25 verification: add source-backed filter-result coverage, run TypeScript/tests/build, verify desktop/mobile behavior, and confirm no cross-student data exposure.

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 
-const mocks = vi.hoisted(() => ({ listVerifiedOpportunities: vi.fn(), setStudentOpportunityState: vi.fn(), refreshNasaSpaceAppsOpportunity: vi.fn() }));
+const mocks = vi.hoisted(() => ({ searchVerifiedOpportunities: vi.fn(), setStudentOpportunityState: vi.fn(), refreshNasaSpaceAppsOpportunity: vi.fn() }));
 
 vi.mock("../server/db", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/db")>();
-  return { ...actual, listVerifiedOpportunities: mocks.listVerifiedOpportunities, setStudentOpportunityState: mocks.setStudentOpportunityState, refreshNasaSpaceAppsOpportunity: mocks.refreshNasaSpaceAppsOpportunity };
+  return { ...actual, searchVerifiedOpportunities: mocks.searchVerifiedOpportunities, setStudentOpportunityState: mocks.setStudentOpportunityState, refreshNasaSpaceAppsOpportunity: mocks.refreshNasaSpaceAppsOpportunity };
 });
 
 import { appRouter } from "../server/routers";
@@ -17,19 +17,20 @@ const context: TrpcContext = { user: { id: userId, email: "student@example.com",
 describe("pathpilot.opportunities", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.listVerifiedOpportunities.mockResolvedValue([]);
+    mocks.searchVerifiedOpportunities.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 12, totalPages: 0, hasNextPage: false });
     mocks.setStudentOpportunityState.mockResolvedValue({ opportunityId, status: "saved" });
     mocks.refreshNasaSpaceAppsOpportunity.mockResolvedValue({ id: opportunityId, title: "NASA Space Apps Challenge 2026", verifiedAt: new Date("2026-08-16T00:00:00Z") });
   });
 
   it("reads verified opportunities only through the signed-in user context", async () => {
-    await expect(appRouter.createCaller(context).pathpilot.opportunities.list()).resolves.toEqual([]);
-    expect(mocks.listVerifiedOpportunities).toHaveBeenCalledWith(userId);
+    await expect(appRouter.createCaller(context).pathpilot.opportunities.list()).resolves.toMatchObject({ items: [], page: 1 });
+    expect(mocks.searchVerifiedOpportunities).toHaveBeenCalledWith(userId, {});
   });
 
-  it("forwards the requested category and career-aligned scope under the signed-in user", async () => {
-    await expect(appRouter.createCaller(context).pathpilot.opportunities.list({ category: "research", alignedOnly: true })).resolves.toEqual([]);
-    expect(mocks.listVerifiedOpportunities).toHaveBeenCalledWith(userId, { category: "research", alignedOnly: true });
+  it("forwards bounded discovery filters and pagination under the signed-in user", async () => {
+    const input = { category: "research" as const, alignedOnly: true, search: "climate", countryCode: "US", grade: "Grade 10", deadlineOnly: true, page: 2, pageSize: 12 };
+    await expect(appRouter.createCaller(context).pathpilot.opportunities.list(input)).resolves.toMatchObject({ items: [], page: 1 });
+    expect(mocks.searchVerifiedOpportunities).toHaveBeenCalledWith(userId, input);
   });
 
   it("records a user-scoped save state for a valid opportunity identifier", async () => {
