@@ -78,3 +78,24 @@
 /* The workspace mobile drawer retains its semantic DOM while these overrides keep it immediate. */
 [class*="z-50"][class*="backdrop-blur-sm"][style] { opacity: 1 !important; }
 [class*="w-[284px]"][style] { transform: none !important; }
+
+.planning-print-report { display: none; }
+
+@media print {
+  @page { margin: 0.6in; }
+  body { background: white !important; color: #0f172a !important; }
+  body * { visibility: hidden; }
+  .planning-print-report, .planning-print-report * { visibility: visible; }
+  .planning-print-report { display: block; position: absolute; inset: 0; width: 100%; color: #0f172a; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; }
+  .planning-print-eyebrow { margin: 0; color: #1d4ed8; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .planning-print-report h1 { margin: 10px 0 0; font-size: 28px; letter-spacing: -0.04em; }
+  .planning-print-subtitle { margin: 8px 0 0; color: #475569; font-size: 13px; line-height: 1.5; }
+  .planning-print-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+  .planning-print-metrics section, .planning-print-focus { border: 1px solid #cbd5e1; padding: 14px; break-inside: avoid; }
+  .planning-print-metrics p, .planning-print-focus > p { margin: 0; color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .planning-print-metrics strong { display: block; margin-top: 7px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; }
+  .planning-print-metrics span, .planning-print-focus span { display: block; margin-top: 5px; color: #475569; font-size: 12px; line-height: 1.45; }
+  .planning-print-focus { margin-top: 16px; }
+  .planning-print-focus h2 { margin: 7px 0 0; font-size: 17px; }
+  .planning-print-note { margin-top: 22px; border-top: 1px solid #cbd5e1; padding-top: 12px; color: #475569; font-size: 11px; line-height: 1.5; }
+}

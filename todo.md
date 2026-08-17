@@ -110,3 +110,4 @@
 - [x] Checkpoint 20: let students export a bounded private copy of their planning-activity history with neutral event fields only, excluding simulation evidence, mentor content, and private event metadata.
 - [x] Checkpoint 21: finalize the live Supabase email-confirmation and password-recovery redirect configuration for https://pathpilot-s64joaqq.manus.space, then verify the application callback path without exposing service credentials.
 - [x] Checkpoint 22: add a separate student-owned planning review that summarizes real goal, project, roadmap, and activity progress with clear action links, without behavioral diagnoses or automatic changes.
+- [x] Checkpoint 23: add a student-owned print-friendly planning report from the existing review, using only neutral saved-plan counts and no automatic data changes or private content expansion.
