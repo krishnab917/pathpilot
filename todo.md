@@ -101,3 +101,4 @@
 - [x] Checkpoint 13: let students create one editable goal from a verified opportunity, reusing only verified metadata and never inferring deadlines, while enforcing user ownership and preventing duplicates.
 - [x] Checkpoint 13 follow-up: add a student-controlled edit flow for opportunity-created goals, including title, description, priority, deadline, and resource preservation.
 - [x] Checkpoint 13 follow-up: add focused coverage proving opportunity-created goals remain editable without inferred deadlines or duplicate creation.
+- [x] Checkpoint 14: record a minimal, privacy-bounded history of student goal and opportunity planning actions under the existing user-owned access boundary, without changing simulation evidence or making diagnostic claims.

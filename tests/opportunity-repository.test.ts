@@ -44,10 +44,12 @@ describe("verified opportunity repository", () => {
     available.select.mockReturnValue(available); available.eq.mockReturnValue(available); available.maybeSingle.mockResolvedValue({ data: { id: opportunityId }, error: null });
     const state = { upsert: vi.fn(), select: vi.fn(), single: vi.fn() };
     state.upsert.mockReturnValue(state); state.select.mockReturnValue(state); state.single.mockResolvedValue({ data: { opportunity_id: opportunityId, status: "saved" }, error: null });
-    mocks.client = { from: vi.fn((table: string) => table === "opportunities" ? available : state) };
+    const activity = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    mocks.client = { from: vi.fn((table: string) => table === "opportunities" ? available : table === "student_opportunity_states" ? state : activity) };
 
     await expect(setStudentOpportunityState(userId, opportunityId, "saved")).resolves.toEqual({ opportunityId, status: "saved" });
     expect(state.upsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: userId, opportunity_id: opportunityId, status: "saved" }), { onConflict: "user_id,opportunity_id" });
+    expect(activity.insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: userId, event_type: "opportunity_saved", subject_type: "opportunity", subject_id: opportunityId, metadata: {} }));
   });
 
   it("creates one editable goal from a verified active opportunity without inferring a deadline", async () => {
@@ -57,11 +59,13 @@ describe("verified opportunity repository", () => {
     goalLookup.select.mockReturnValue(goalLookup); goalLookup.eq.mockResolvedValue({ data: [], error: null });
     const insert = { insert: vi.fn(), select: vi.fn(), single: vi.fn() };
     insert.insert.mockReturnValue(insert); insert.select.mockReturnValue(insert); insert.single.mockResolvedValue({ data: { id: "44444444-4444-4444-8444-444444444444", user_id: userId, title: "Prepare for Verified research program", description: "Created goal", category: "opportunity", deadline: null, priority: "medium", estimated_hours: 2, resources: [], progress: 0, status: "not_started", created_at: "2026-08-17T00:00:00Z", updated_at: "2026-08-17T00:00:00Z" }, error: null });
+    const activity = { insert: vi.fn().mockResolvedValue({ error: null }) };
     let goalCalls = 0;
-    mocks.client = { from: vi.fn((table: string) => table === "opportunities" ? verified : (++goalCalls === 1 ? goalLookup : insert)) };
+    mocks.client = { from: vi.fn((table: string) => table === "opportunities" ? verified : table === "goals" ? (++goalCalls === 1 ? goalLookup : insert) : activity) };
 
     await expect(createGoalFromVerifiedOpportunity(userId, opportunityId)).resolves.toEqual({ goalId: "44444444-4444-4444-8444-444444444444", created: true });
     expect(insert.insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: userId, deadline: null, category: "opportunity", resources: expect.arrayContaining([expect.objectContaining({ label: `PathPilot opportunity: ${opportunityId}` })]) }));
+    expect(activity.insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: userId, event_type: "opportunity_goal_created", subject_type: "opportunity", subject_id: opportunityId, metadata: {} }));
   });
 
   it("returns an existing student-owned opportunity goal instead of creating a duplicate", async () => {
@@ -77,10 +81,12 @@ describe("verified opportunity repository", () => {
   it("lets the student edit an opportunity-created goal without inventing a deadline", async () => {
     const edited = { update: vi.fn(), eq: vi.fn(), select: vi.fn(), maybeSingle: vi.fn() };
     edited.update.mockReturnValue(edited); edited.eq.mockReturnValue(edited); edited.select.mockReturnValue(edited); edited.maybeSingle.mockResolvedValue({ data: { id: "66666666-6666-4666-8666-666666666666", user_id: userId, title: "Prepare application outline", description: "Student-adjusted plan", category: "opportunity", deadline: null, priority: "high", estimated_hours: 2, resources: [{ label: "Organizer source page", url: "https://example.org" }], progress: 0, status: "not_started", created_at: "2026-08-17T00:00:00Z", updated_at: "2026-08-17T00:00:00Z" }, error: null });
-    mocks.client = { from: vi.fn(() => edited) };
+    const activity = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    mocks.client = { from: vi.fn((table: string) => table === "goals" ? edited : activity) };
 
     await expect(updateGoal(userId, "66666666-6666-4666-8666-666666666666", { title: "Prepare application outline", description: "Student-adjusted plan", priority: "high", deadline: null, resources: [{ label: "Organizer source page", url: "https://example.org" }] })).resolves.toMatchObject({ title: "Prepare application outline", deadline: null, priority: "high" });
     expect(edited.update).toHaveBeenCalledWith(expect.objectContaining({ title: "Prepare application outline", deadline: null, resources: [{ label: "Organizer source page", url: "https://example.org" }] }));
     expect(edited.eq).toHaveBeenCalledWith("user_id", userId);
+    expect(activity.insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: userId, event_type: "goal_updated", subject_type: "goal", subject_id: "66666666-6666-4666-8666-666666666666", metadata: { fields: ["title", "description", "priority", "deadline", "resources"] } }));
   });
 });
