@@ -6,7 +6,7 @@ import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source
 import { fetchCuratedOpportunityDrafts, type OpportunityCategory } from "./opportunities/curated-catalog-source";
 import { buildBehaviorEvolution } from "./simulation/evolution";
 import { buildDashboardNextAction } from "./dashboard/intelligence";
-import { goalActivity, type PlanningActivitySubject, type PlanningActivityType } from "./planning-activity";
+import { goalActivity, presentPlanningActivity, type PlanningActivitySubject, type PlanningActivityType } from "./planning-activity";
 
 export type ResourceLink = { label: string; url: string };
 export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
@@ -22,6 +22,7 @@ const date = (value: string | null | undefined) => value ? new Date(value) : nul
 const iso = (value?: Date) => value?.toISOString() ?? null;
 const slug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 export async function recordPlanningActivity(userId: string, eventType: PlanningActivityType, subjectType: PlanningActivitySubject, subjectId: string, metadata: Record<string, unknown>) { try { const { error } = await client().from("behavioral_activity_events").insert({ user_id: userId, event_type: eventType, subject_type: subjectType, subject_id: subjectId, metadata }); if (error) console.warn("[PathPilot] planning activity was not recorded", error.message); } catch (error) { console.warn("[PathPilot] planning activity was not recorded", error); } }
+export async function listPlanningActivity(userId: string) { const { data, error } = await client().from("behavioral_activity_events").select("id, event_type, subject_type, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(12); check(error); return list(data as any[]).map(row => presentPlanningActivity({ id: row.id, eventType: row.event_type as PlanningActivityType, subjectType: row.subject_type as PlanningActivitySubject, createdAt: new Date(row.created_at) })); }
 
 function serviceClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

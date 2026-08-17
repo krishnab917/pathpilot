@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { goalActivity } from "../server/planning-activity";
+import { goalActivity, presentPlanningActivity } from "../server/planning-activity";
 
 describe("planning activity classifier", () => {
   it("records only bounded operational context when a goal is created", () => {
@@ -15,5 +15,11 @@ describe("planning activity classifier", () => {
 
   it("records an explicit edit field list rather than values", () => {
     expect(goalActivity({ category: "skill", estimatedHours: 4, fields: ["title", "deadline", "resources"] })).toEqual({ eventType: "goal_updated", metadata: { fields: ["title", "deadline", "resources"] } });
+  });
+
+  it("projects a neutral student-visible event without personality or recommendation language", () => {
+    const item = presentPlanningActivity({ id: "11111111-1111-4111-8111-111111111111", eventType: "opportunity_goal_created", subjectType: "opportunity", createdAt: new Date("2026-08-17T00:00:00Z") });
+    expect(item).toMatchObject({ title: "Set an opportunity as a goal", detail: "You turned a verified listing into an editable commitment." });
+    expect(JSON.stringify(item)).not.toMatch(/personality|diagnos|recommendation/i);
   });
 });

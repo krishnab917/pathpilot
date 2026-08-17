@@ -102,3 +102,4 @@
 - [x] Checkpoint 13 follow-up: add a student-controlled edit flow for opportunity-created goals, including title, description, priority, deadline, and resource preservation.
 - [x] Checkpoint 13 follow-up: add focused coverage proving opportunity-created goals remain editable without inferred deadlines or duplicate creation.
 - [x] Checkpoint 14: record a minimal, privacy-bounded history of student goal and opportunity planning actions under the existing user-owned access boundary, without changing simulation evidence or making diagnostic claims.
+- [x] Checkpoint 15: add a student-visible, user-owned planning activity timeline that explains recorded goal and opportunity actions without personality labels, diagnoses, or recommendation changes.

@@ -14,6 +14,7 @@ import {
   getAdaptivePublicScenario,
   getAdaptiveSimulation,
   getLatestCompletedAdaptiveSimulation,
+  listPlanningActivity,
   getActiveRoadmap,
   getBehaviorEvolution,
   getCareerMatches,
@@ -303,6 +304,10 @@ export const pathpilotRouter = router({
     })).mutation(({ ctx, input }) => createGoal(ctx.user.id, input)),
     update: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional(), title: z.string().trim().min(2).max(180).optional(), description: z.string().trim().max(1200).optional(), deadline: z.date().nullable().optional(), resources: z.array(resourceSchema).max(8).optional() }))
       .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority, title: input.title, description: input.description, deadline: input.deadline, resources: input.resources })),
+  }),
+
+  activity: router({
+    list: protectedProcedure.query(({ ctx }) => listPlanningActivity(ctx.user.id)),
   }),
 
   opportunities: router({
