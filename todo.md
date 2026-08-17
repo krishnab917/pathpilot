@@ -107,3 +107,4 @@
 - [ ] Checkpoint 17: configure Supabase email confirmation and password-recovery redirects for https://pathpilot-s64joaqq.manus.space, removing the obsolete localhost confirmation destination while retaining secure server-only credential boundaries.
 - [x] Checkpoint 18: extend the private planning-activity history to student-owned project and roadmap progress actions using bounded operational metadata, without diagnoses, personality claims, or recommendation changes.
 - [x] Checkpoint 19: give the Career Mentor a bounded, transparent summary of recent student-owned planning activity and simulation learning signals, with explicit non-diagnostic and non-predictive guardrails.
+- [x] Checkpoint 20: let students export a bounded private copy of their planning-activity history with neutral event fields only, excluding simulation evidence, mentor content, and private event metadata.

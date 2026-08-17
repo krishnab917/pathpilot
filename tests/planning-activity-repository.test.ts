@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ client: null as any }));
 vi.mock("../server/supabase", () => ({ currentSupabaseClient: () => mocks.client, getSupabaseConfig: () => ({ url: "https://example.supabase.co" }) }));
 
-import { clearPlanningActivity, listPlanningActivity, updateProject } from "../server/db";
+import { clearPlanningActivity, exportPlanningActivity, listPlanningActivity, updateProject } from "../server/db";
 
 describe("planning activity repository", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -29,6 +29,19 @@ describe("planning activity repository", () => {
     await expect(clearPlanningActivity("33333333-3333-4333-8333-333333333333")).resolves.toEqual({ cleared: true });
     expect(mocks.client.from).toHaveBeenCalledWith("behavioral_activity_events");
     expect(command.eq).toHaveBeenCalledWith("user_id", "33333333-3333-4333-8333-333333333333");
+  });
+
+  it("exports a bounded neutral projection only for the authenticated student", async () => {
+    const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn() };
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.order.mockReturnValue(query); query.limit.mockResolvedValue({ data: [{ event_type: "project_completed", subject_type: "project", created_at: "2026-08-17T00:00:00Z", metadata: { ignored: true } }], error: null });
+    mocks.client = { from: vi.fn(() => query) };
+
+    const result = await exportPlanningActivity("33333333-3333-4333-8333-333333333333");
+    expect(query.select).toHaveBeenCalledWith("event_type, subject_type, created_at");
+    expect(query.eq).toHaveBeenCalledWith("user_id", "33333333-3333-4333-8333-333333333333");
+    expect(query.limit).toHaveBeenCalledWith(100);
+    expect(result).toMatchObject([{ activity: "Completed a project", subject: "project" }]);
+    expect(JSON.stringify(result)).not.toContain("ignored");
   });
 
   it("records a bounded project progress event only after the owner-scoped project update succeeds", async () => {

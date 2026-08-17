@@ -11,6 +11,7 @@ import {
   createSimulation,
   createAdaptiveSimulation,
   clearPlanningActivity,
+  exportPlanningActivity,
   chooseAdaptiveSimulationDecision,
   getAdaptivePublicScenario,
   getAdaptiveSimulation,
@@ -310,6 +311,7 @@ export const pathpilotRouter = router({
 
   activity: router({
     list: protectedProcedure.query(({ ctx }) => listPlanningActivity(ctx.user.id)),
+    export: protectedProcedure.query(({ ctx }) => exportPlanningActivity(ctx.user.id)),
     clear: protectedProcedure.input(z.object({ confirmed: z.literal(true) })).mutation(({ ctx }) => clearPlanningActivity(ctx.user.id)),
   }),
 
