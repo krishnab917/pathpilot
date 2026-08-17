@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
-import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, initialSimulationState } from "./simulation/engine";
+import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState } from "./simulation/engine";
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchBnlHighSchoolResearchRecord } from "./opportunities/bnl-high-school-research-source";
@@ -200,10 +200,10 @@ export async function getBehaviorEvolution(userId: string) {
   check(error);
   return buildBehaviorEvolution(list(data as any[]).map(simulation).filter(Boolean) as any[]);
 }
-export function getAdaptivePublicScenario(value: NonNullable<Awaited<ReturnType<typeof getAdaptiveSimulation>>>) { if (!value.simulationState || !value.scenarioGraphId) throw new Error("Adaptive simulation state is unavailable."); return getPublicScenario(getSimulationGraph(value.career), value.simulationState as SimulationState); }
+export function getAdaptivePublicScenario(value: NonNullable<Awaited<ReturnType<typeof getAdaptiveSimulation>>>) { if (!value.simulationState || !value.scenarioGraphId) throw new Error("Adaptive simulation state is unavailable."); const graph = getSimulationGraphById(value.scenarioGraphId) ?? getSimulationGraph(value.career); return getPublicScenario(graph, value.simulationState as SimulationState); }
 export async function chooseAdaptiveSimulationDecision(userId: string, simulationId: string, decisionId: string) {
   const current = await getAdaptiveSimulation(userId, simulationId); if (!current) throw new Error("Simulation not found."); if (current.status !== "in_progress") throw new Error("Simulation is already complete."); if (!current.simulationState) throw new Error("Adaptive simulation state is unavailable.");
-  const graph = getSimulationGraph(current.career);
+  const graph = getSimulationGraphById(current.scenarioGraphId) ?? getSimulationGraph(current.career);
   const transition = chooseSimulationDecision(graph, current.simulationState as SimulationState, decisionId, current.behavioralEvidence as BehavioralEvidence[], current.decisionHistory as DecisionRecord[], current.behavioralEvents as any[]);
   const patch: Record<string, unknown> = { current_node_id: transition.state.currentNodeId, node_history: transition.state.previousNodeIds, decision_history: transition.history, simulation_state: transition.state, behavioral_evidence: transition.evidence, behavioral_events: transition.events, user_choices: transition.history.map(item => ({ scenarioId: item.nodeId, choiceId: item.decisionId })), updated_at: new Date().toISOString() };
   if (transition.completed) {

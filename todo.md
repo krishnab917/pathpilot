@@ -117,7 +117,7 @@
 - [x] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
 - [x] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
 - [x] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
-- [ ] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
+- [x] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
 - [ ] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
 - [ ] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
 - [ ] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
@@ -143,3 +143,6 @@
 - [x] Checkpoint 29 implementation: audit current project display and publication boundaries, then define the minimal student-approved portfolio profile and visibility contract.
 - [x] Checkpoint 29 implementation: add a prefilled, editable project-to-portfolio handoff with explicit publish and unpublish actions under user ownership.
 - [x] Checkpoint 29 verification: add focused publication, ownership, and no-automatic-publish tests; run TypeScript/tests/build; and verify public versus private route behavior.
+- [x] Checkpoint 30 implementation: audit the adaptive graph catalog and identify distinct career-family coverage gaps without changing the shared simulation engine or UI shell.
+- [x] Checkpoint 30 implementation: add maintainable career-specific graph modules with valid branching, accessible consequences, and existing evidence compatibility.
+- [x] Checkpoint 30 verification: add graph-catalog and engine compatibility tests, run TypeScript/tests/build, and verify existing simulation resume, review, result, and roadmap handoff behavior remains intact.

@@ -3,10 +3,20 @@ import { calculateCareerCompatibility } from "./compatibility";
 import type { AdaptiveResults, BehavioralEvent, BehavioralEvidence, DecisionRecord, PublicScenario, SimulationGraph, SimulationState } from "./contracts";
 import { softwareV1Graph } from "./graphs/software-v1";
 import { businessV1Graph, designV1Graph, healthV1Graph } from "./graphs/career-graphs";
+import { communicationsV1Graph, educationV1Graph, engineeringV1Graph, environmentV1Graph, policyV1Graph, researchV1Graph } from "./graphs/expanded-career-graphs";
 
 const clamp = (value: number) => Math.max(0, Math.min(10, value));
+export const simulationGraphCatalog: SimulationGraph[] = [softwareV1Graph, healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
+export const getSimulationGraphById = (graphId: string | null | undefined): SimulationGraph | null => simulationGraphCatalog.find(graph => graph.id === graphId) ?? null;
 export const getSimulationGraph = (career: string): SimulationGraph => {
   const value = career.toLowerCase();
+  if (/software|data|computer|web developer|cyber|machine learning|artificial intelligence|it specialist/.test(value)) return softwareV1Graph;
+  if (/journal|report|communications|public relations|newsroom|broadcast|copywriter/.test(value)) return communicationsV1Graph;
+  if (/teacher|educat|school counsel|learning design|instruction/.test(value)) return educationV1Graph;
+  if (/environment|climate|conservation|ecolog|geolog|earth science|sustainab/.test(value)) return environmentV1Graph;
+  if (/law|legal|policy|government|civic|urban plan|diplomat/.test(value)) return policyV1Graph;
+  if (/research|scientist|chemist|physic|laboratory|lab tech/.test(value)) return researchV1Graph;
+  if (/engineer|engineering|robotic|civil|mechanical|electrical|manufactur|construction/.test(value)) return engineeringV1Graph;
   if (/doctor|nurs|health|medical|therap|biolog|public health/.test(value)) return healthV1Graph;
   if (/design|artist|creative|ux|ui|media|writer/.test(value)) return designV1Graph;
   if (/business|market|finance|entrepreneur|manager|sales/.test(value)) return businessV1Graph;
