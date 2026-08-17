@@ -6,6 +6,7 @@ import {
   createGoal,
   createProject,
   createProjectFromRoadmapMilestone,
+  createGoalFromVerifiedOpportunity,
   createRoadmap,
   createSimulation,
   createAdaptiveSimulation,
@@ -300,13 +301,14 @@ export const pathpilotRouter = router({
       title: z.string().trim().min(2).max(180), description: z.string().trim().max(1200).optional(), category: z.string().trim().min(2).max(64),
       deadline: z.date().optional(), priority: prioritySchema, estimatedHours: z.number().int().min(1).max(1000), resources: z.array(resourceSchema).max(8).optional(),
     })).mutation(({ ctx, input }) => createGoal(ctx.user.id, input)),
-    update: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional() }))
-      .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority })),
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), progress: z.number().int().min(0).max(100).optional(), status: z.enum(["not_started", "in_progress", "completed", "paused"]).optional(), priority: prioritySchema.optional(), title: z.string().trim().min(2).max(180).optional(), description: z.string().trim().max(1200).optional(), deadline: z.date().nullable().optional(), resources: z.array(resourceSchema).max(8).optional() }))
+      .mutation(({ ctx, input }) => updateGoal(ctx.user.id, input.id, { progress: input.progress, status: input.status, priority: input.priority, title: input.title, description: input.description, deadline: input.deadline, resources: input.resources })),
   }),
 
   opportunities: router({
     list: protectedProcedure.input(z.object({ category: z.enum(["internship", "competition", "research"]).optional(), alignedOnly: z.boolean().optional() }).optional()).query(({ ctx, input }) => input ? listVerifiedOpportunities(ctx.user.id, input) : listVerifiedOpportunities(ctx.user.id)),
     setState: protectedProcedure.input(z.object({ opportunityId: z.string().uuid(), status: z.enum(["saved", "dismissed"]) })).mutation(({ ctx, input }) => setStudentOpportunityState(ctx.user.id, input.opportunityId, input.status)),
+    createGoal: protectedProcedure.input(z.object({ opportunityId: z.string().uuid() })).mutation(({ ctx, input }) => createGoalFromVerifiedOpportunity(ctx.user.id, input.opportunityId)),
     refreshNasaSource: protectedProcedure.mutation(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the verified source." });
       try {

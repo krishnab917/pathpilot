@@ -98,3 +98,6 @@
 - [x] Simulation review screen: show persisted past decisions and consequence messages before final simulation results.
 - [x] Checkpoint 11: add bounded cross-simulation behavior synthesis with transparent recency weighting and evolving recommendation feedback while preserving student control and existing roadmap ownership.
 - [x] Checkpoint 12: add deterministic dashboard intelligence and a transparent next-best-action recommendation from real profile, roadmap, goal, project, opportunity, and simulation state without changing existing student-owned data.
+- [x] Checkpoint 13: let students create one editable goal from a verified opportunity, reusing only verified metadata and never inferring deadlines, while enforcing user ownership and preventing duplicates.
+- [x] Checkpoint 13 follow-up: add a student-controlled edit flow for opportunity-created goals, including title, description, priority, deadline, and resource preservation.
+- [x] Checkpoint 13 follow-up: add focused coverage proving opportunity-created goals remain editable without inferred deadlines or duplicate creation.
