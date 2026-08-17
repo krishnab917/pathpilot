@@ -11,15 +11,18 @@ import {
   createSimulation,
   createAdaptiveSimulation,
   clearPlanningActivity,
+  createPlanningReportShareLink,
   exportPlanningActivity,
   chooseAdaptiveSimulationDecision,
   getAdaptivePublicScenario,
   getAdaptiveSimulation,
   getLatestCompletedAdaptiveSimulation,
   listPlanningActivity,
+  listPlanningReportShareLinks,
   getActiveRoadmap,
   getBehaviorEvolution,
   getPlanningReview,
+  getSharedPlanningReport,
   getCareerMatches,
   getConversationMessages,
   getDashboardData,
@@ -34,6 +37,7 @@ import {
   refreshCuratedOpportunityCatalog,
   refreshNasaSpaceAppsOpportunity,
   replaceCareerMatches,
+  revokePlanningReportShareLink,
   RoadmapMilestoneInput,
   saveStudentProfile,
   saveOnboardingDraft,
@@ -44,7 +48,7 @@ import {
   updateStudentCountryContext,
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
-import { protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
@@ -318,6 +322,16 @@ export const pathpilotRouter = router({
 
   review: router({
     get: protectedProcedure.query(({ ctx }) => getPlanningReview(ctx.user.id)),
+  }),
+
+  reportShares: router({
+    list: protectedProcedure.query(({ ctx }) => listPlanningReportShareLinks(ctx.user.id)),
+    create: protectedProcedure.mutation(({ ctx }) => createPlanningReportShareLink(ctx.user.id)),
+    revoke: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => revokePlanningReportShareLink(ctx.user.id, input.id)),
+  }),
+
+  sharedReport: router({
+    get: publicProcedure.input(z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })).query(({ input }) => getSharedPlanningReport(input.token)),
   }),
 
   opportunities: router({

@@ -8,6 +8,7 @@ import { buildBehaviorEvolution } from "./simulation/evolution";
 import { buildDashboardNextAction } from "./dashboard/intelligence";
 import { goalActivity, presentPlanningActivity, projectActivity, roadmapMilestoneActivity, type PlanningActivitySubject, type PlanningActivityType } from "./planning-activity";
 import { buildPlanningReview } from "./planning-review";
+import { createPlanningReportShareToken, hashPlanningReportShareToken, isPlanningReportShareToken, planningReportShareExpiresAt, toSharedPlanningReport } from "./report-share";
 
 export type ResourceLink = { label: string; url: string };
 export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
@@ -175,6 +176,49 @@ export async function getConversationMessages(userId: string, conversationId: st
 export async function addMentorMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) { const db = client(); const message = await db.from("ai_messages").insert({ user_id: userId, conversation_id: conversationId, role, content }); check(message.error); const conversation = await db.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", userId); check(conversation.error); }
 export async function listProjects(userId: string) { const { data, error } = await client().from("projects").select("*, project_goals(goal_id)").eq("user_id", userId).order("updated_at", { ascending: false }); check(error); return list(data as any[]).map(row => ({ id: row.id, userId: row.user_id, name: row.name, description: row.description, skills: strings(row.skills), githubLink: row.github_link, liveUrl: row.live_url, status: row.status, progress: row.progress, startDate: row.start_date, completionDate: row.completion_date, careerId: row.career_id, roadmapMilestoneId: row.roadmap_milestone_id ?? null, goalIds: list(row.project_goals).map((link: any) => link.goal_id), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) })); }
 export async function getPlanningReview(userId: string) { const [goals, projects, roadmap, activity] = await Promise.all([listGoals(userId), listProjects(userId), getActiveRoadmap(userId), listPlanningActivity(userId)]); return buildPlanningReview({ goals, projects, roadmap, visibleActivityCount: activity.length }); }
+export async function createPlanningReportShareLink(userId: string) {
+  const token = createPlanningReportShareToken();
+  const expiresAt = planningReportShareExpiresAt();
+  const { data, error } = await client().from("planning_report_share_links").insert({ user_id: userId, token_hash: hashPlanningReportShareToken(token), expires_at: expiresAt.toISOString() }).select("id, expires_at").single();
+  check(error);
+  return { id: (data as any).id as string, token, expiresAt: new Date((data as any).expires_at) };
+}
+export async function listPlanningReportShareLinks(userId: string) {
+  const { data, error } = await client().from("planning_report_share_links").select("id, expires_at, revoked_at, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20);
+  check(error);
+  return list(data as any[]).map(row => ({ id: row.id as string, expiresAt: new Date(row.expires_at), revokedAt: date(row.revoked_at), createdAt: new Date(row.created_at) }));
+}
+export async function revokePlanningReportShareLink(userId: string, shareId: string) {
+  const { data, error } = await client().from("planning_report_share_links").update({ revoked_at: new Date().toISOString() }).eq("id", shareId).eq("user_id", userId).select("id").maybeSingle();
+  check(error);
+  if (!data) throw new Error("Report link not found.");
+  return { id: (data as any).id as string, revoked: true };
+}
+async function getPrivilegedPlanningReview(userId: string) {
+  const admin = serviceClient();
+  const [goalsResult, projectsResult, roadmapResult, activityResult] = await Promise.all([
+    admin.from("goals").select("progress, status").eq("user_id", userId),
+    admin.from("projects").select("progress, status").eq("user_id", userId),
+    admin.from("roadmaps").select("id, completion_percentage").eq("user_id", userId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("behavioral_activity_events").select("id").eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
+  ]);
+  check(goalsResult.error); check(projectsResult.error); check(roadmapResult.error); check(activityResult.error);
+  let roadmap: { completionPercentage: number; milestones: Array<{ progress: number }> } | undefined;
+  if (roadmapResult.data) {
+    const { data: milestones, error: milestoneError } = await admin.from("roadmap_milestones").select("progress").eq("roadmap_id", (roadmapResult.data as any).id);
+    check(milestoneError);
+    roadmap = { completionPercentage: Number((roadmapResult.data as any).completion_percentage), milestones: list(milestones as any[]).map(item => ({ progress: Number(item.progress) })) };
+  }
+  return buildPlanningReview({ goals: list(goalsResult.data as any[]), projects: list(projectsResult.data as any[]), roadmap, visibleActivityCount: list(activityResult.data as any[]).length });
+}
+export async function getSharedPlanningReport(token: string) {
+  if (!isPlanningReportShareToken(token)) return null;
+  const admin = serviceClient();
+  const { data, error } = await admin.from("planning_report_share_links").select("user_id, expires_at, revoked_at").eq("token_hash", hashPlanningReportShareToken(token)).maybeSingle();
+  check(error);
+  if (!data || (data as any).revoked_at || new Date((data as any).expires_at).getTime() <= Date.now()) return null;
+  return toSharedPlanningReport(await getPrivilegedPlanningReview((data as any).user_id as string));
+}
 export async function createProject(userId: string, value: { name: string; description: string; skills: string[]; githubLink?: string; liveUrl?: string; status: "idea" | "in_progress" | "completed" | "archived"; progress: number; startDate?: string; completionDate?: string; careerId?: string; roadmapMilestoneId?: string; goalIds?: string[] }) { const db = client(); const { data, error } = await db.from("projects").insert({ user_id: userId, name: value.name, description: value.description, skills: value.skills, github_link: value.githubLink ?? null, live_url: value.liveUrl ?? null, status: value.status, progress: value.progress, start_date: value.startDate ?? null, completion_date: value.completionDate ?? null, career_id: value.careerId ?? null, roadmap_milestone_id: value.roadmapMilestoneId ?? null }).select().single(); check(error); if (value.goalIds?.length) { const linked = await db.from("project_goals").insert(value.goalIds.map(goalId => ({ project_id: (data as any).id, goal_id: goalId }))); check(linked.error); } const activity = projectActivity({ status: value.status, progress: value.progress, hasRoadmapMilestone: Boolean(value.roadmapMilestoneId) }); await recordPlanningActivity(userId, activity.eventType, "project", (data as any).id, activity.metadata); return (await listProjects(userId)).find(project => project.id === (data as any).id); }
 export async function createProjectFromRoadmapMilestone(userId: string, milestoneId: string) {
   const db = client();
