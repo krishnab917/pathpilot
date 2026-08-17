@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ client: null as any }));
 vi.mock("../server/supabase", () => ({ currentSupabaseClient: () => mocks.client, getSupabaseConfig: () => ({ url: "https://example.supabase.co" }) }));
 
-import { clearPlanningActivity, listPlanningActivity } from "../server/db";
+import { clearPlanningActivity, listPlanningActivity, updateProject } from "../server/db";
 
 describe("planning activity repository", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -29,5 +29,16 @@ describe("planning activity repository", () => {
     await expect(clearPlanningActivity("33333333-3333-4333-8333-333333333333")).resolves.toEqual({ cleared: true });
     expect(mocks.client.from).toHaveBeenCalledWith("behavioral_activity_events");
     expect(command.eq).toHaveBeenCalledWith("user_id", "33333333-3333-4333-8333-333333333333");
+  });
+
+  it("records a bounded project progress event only after the owner-scoped project update succeeds", async () => {
+    const project = { update: vi.fn(), eq: vi.fn(), select: vi.fn(), maybeSingle: vi.fn() };
+    project.update.mockReturnValue(project); project.eq.mockReturnValue(project); project.select.mockReturnValue(project); project.maybeSingle.mockResolvedValue({ data: { id: "44444444-4444-4444-8444-444444444444", user_id: "33333333-3333-4333-8333-333333333333", progress: 60, status: "in_progress" }, error: null });
+    const activity = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    mocks.client = { from: vi.fn((table: string) => table === "projects" ? project : activity) };
+
+    await expect(updateProject("33333333-3333-4333-8333-333333333333", "44444444-4444-4444-8444-444444444444", { progress: 60 })).resolves.toMatchObject({ progress: 60 });
+    expect(project.eq).toHaveBeenCalledWith("user_id", "33333333-3333-4333-8333-333333333333");
+    expect(activity.insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: "33333333-3333-4333-8333-333333333333", event_type: "project_progress_updated", subject_type: "project", subject_id: "44444444-4444-4444-8444-444444444444", metadata: { progress: 60 } }));
   });
 });
