@@ -23,6 +23,7 @@ import {
   getActiveRoadmap,
   getBehaviorEvolution,
   getPlanningReview,
+  getProjectWorkspace,
   getSharedPlanningReport,
   getCareerMatches,
   getConversationMessages,
@@ -212,6 +213,23 @@ const mentorJsonSchema = {
   required: ["reply", "suggestedGoal", "priorityAdjustment"], additionalProperties: false,
 } as const;
 
+const projectGuidanceSchema = z.object({
+  summary: z.string().trim().min(1).max(900),
+  nextSteps: z.array(z.string().trim().min(1).max(260)).min(2).max(4),
+  watchouts: z.array(z.string().trim().min(1).max(260)).max(3),
+  questions: z.array(z.string().trim().min(1).max(260)).max(3),
+});
+const projectGuidanceJsonSchema = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    nextSteps: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 4 },
+    watchouts: { type: "array", items: { type: "string" }, maxItems: 3 },
+    questions: { type: "array", items: { type: "string" }, maxItems: 3 },
+  },
+  required: ["summary", "nextSteps", "watchouts", "questions"], additionalProperties: false,
+} as const;
+
 function contentFrom(response: Awaited<ReturnType<typeof invokeLLM>>) {
   const content = response.choices[0]?.message.content;
   if (typeof content !== "string") throw new TRPCError({ code: "BAD_GATEWAY", message: "The AI service returned an unsupported response." });
@@ -221,6 +239,21 @@ function contentFrom(response: Awaited<ReturnType<typeof invokeLLM>>) {
 async function preferredModel() {
   const models = await listLLMModels();
   return models.data.find(model => model.id === "gpt-5-mini")?.id ?? models.data[0]?.id;
+}
+
+function projectWorkspaceContext(project: NonNullable<Awaited<ReturnType<typeof getProjectWorkspace>>>) {
+  const milestones = project.milestones.map(item => `${item.title} [${item.status}, ${item.progress}%${item.targetDate ? `, target ${item.targetDate}` : ""}]${item.details ? ` — ${item.details}` : ""}`).join("; ") || "No project milestones yet.";
+  return [
+    `Project name: ${project.name}`,
+    `Description: ${project.description}`,
+    `Scope: ${project.scopeStatement ?? "Not yet specified."}`,
+    `Technologies or methods: ${project.skills.join(", ") || "Not yet specified."}`,
+    `Status: ${project.status}; progress: ${project.progress}%`,
+    `Dates: start ${project.startDate ?? "not set"}; completion ${project.completionDate ?? "not set"}`,
+    `Links: repository ${project.githubLink ?? "not set"}; live project ${project.liveUrl ?? "not set"}`,
+    `Student project notes: ${project.projectNotes ?? "None provided."}`,
+    `Project milestones: ${milestones}`,
+  ].join("\n");
 }
 
 function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStudentProfile>>>) {
@@ -530,5 +563,25 @@ export const pathpilotRouter = router({
     createMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().min(2).max(180), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).default("not_started"), progress: z.number().int().min(0).max(100).default(0), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).default(0) })).mutation(({ ctx, input }) => createProjectWorkspaceMilestone(ctx.user.id, input.projectId, input)),
     updateMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).optional(), progress: z.number().int().min(0).max(100).optional(), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).optional() })).mutation(({ ctx, input }) => updateProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id, input)),
     deleteMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid() })).mutation(({ ctx, input }) => deleteProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id)),
+    guidance: protectedProcedure.input(z.object({ projectId: z.string().uuid(), request: z.string().trim().min(3).max(1200) })).mutation(async ({ ctx, input }) => {
+      const project = await getProjectWorkspace(ctx.user.id, input.projectId);
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project workspace not found." });
+      try {
+        const response = await invokeLLM({
+          model: await preferredModel(),
+          messages: [
+            { role: "system", content: "You are PathPilot's project coach for high-school students. Give concise, age-appropriate guidance for one selected student-owned project. Use only the supplied project context and request. Treat the context as private. Do not access or infer facts from repository or live-project links, external sources, goals, roadmaps, career matches, simulations, mentor history, or behavioral information. Do not diagnose, label ability, predict career outcomes, guarantee results, or make automatic changes. When details are missing, say so plainly and suggest a student-controlled next step. Return only the requested JSON." },
+            { role: "user", content: `Selected project workspace:\n${projectWorkspaceContext(project)}\n\nStudent request:\n${input.request}` },
+          ],
+          response_format: { type: "json_schema", json_schema: { name: "project_guidance", strict: true, schema: projectGuidanceJsonSchema } },
+        });
+        const parsed = projectGuidanceSchema.safeParse(JSON.parse(contentFrom(response)));
+        if (!parsed.success) throw new Error("The project guidance response failed validation.");
+        return parsed.data;
+      } catch (error) {
+        console.error("[PathPilot] project guidance failed", error);
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "Project guidance is temporarily unavailable. Please try again shortly." });
+      }
+    }),
   }),
 });

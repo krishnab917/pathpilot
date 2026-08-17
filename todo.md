@@ -115,7 +115,7 @@
 - [x] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
 - [x] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
 - [x] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
-- [ ] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
+- [x] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
 - [ ] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
 - [ ] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
 - [ ] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
@@ -137,3 +137,6 @@
 - [x] Checkpoint 27 implementation: audit the existing project model, roadmap handoff, and project UI to preserve current student-owned records and compatibility.
 - [x] Checkpoint 27 implementation: add editable project scope, milestones, technologies, notes, and progress state under the existing user-scoped project access boundary.
 - [x] Checkpoint 27 verification: add focused persistence and ownership tests, run TypeScript/tests/build, and verify the project workspace’s responsive states.
+- [x] Checkpoint 28 implementation: audit the existing AI integration, project workspace data, and privacy boundaries to define the minimum project-only context contract.
+- [x] Checkpoint 28 implementation: add a protected project guidance operation with real generated output, request validation, and explicit loading, success, and failure feedback.
+- [x] Checkpoint 28 verification: add focused context, ownership, and generated-response tests; run TypeScript/tests/build; and confirm no unrelated student records enter the project assistant.
