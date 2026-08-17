@@ -119,7 +119,7 @@
 - [x] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
 - [x] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
 - [x] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
-- [ ] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
+- [x] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
 - [ ] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
 - [ ] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
 - [ ] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
@@ -149,3 +149,6 @@
 - [x] Checkpoint 31 implementation: audit existing simulation timing, state, persistence, and accessibility behavior; define explicit consent, collection, and non-use boundaries.
 - [x] Checkpoint 31 implementation: add optional scenario-specific time-pressure presentation and bounded response-time recording that does not block, score, label, or alter simulation outcomes.
 - [x] Checkpoint 31 verification: add focused consent, timing, persistence, and accessibility coverage; run TypeScript/tests/build; and confirm response time never enters behavioral or recommendation logic.
+- [x] Checkpoint 32 implementation: audit terminal graph nodes and define safe, non-punitive outcome categories and student-facing framing.
+- [x] Checkpoint 32 implementation: add clearly framed terminal branches and richer outcome state without changing evidence scoring, personality labels, or student-owned plans.
+- [x] Checkpoint 32 verification: add branch, persistence, and presentation tests; run TypeScript/tests/build; and confirm every outcome remains non-diagnostic and non-abusive.

@@ -2,6 +2,8 @@ export const traitKeys = ["analytical_thinking", "problem_solving", "systems_thi
 export type TraitKey = typeof traitKeys[number];
 export type ContextTag = "technical" | "uncertainty" | "time_pressure" | "interpersonal" | "ethical" | "resource_constraint" | "failure" | "planning" | "execution";
 export type ConfidenceLevel = "low" | "moderate" | "high";
+export const terminalOutcomeCategories = ["practice_next_step", "evidence_review", "feedback_conversation"] as const;
+export type TerminalOutcomeCategory = typeof terminalOutcomeCategories[number];
 
 export type SimulationState = {
   currentNodeId: string;
@@ -34,6 +36,7 @@ export type ScenarioNode = {
   difficulty: 1 | 2 | 3;
   decisions: DecisionDefinition[];
   terminal?: boolean;
+  terminalOutcome?: TerminalOutcomeCategory;
 };
 export type SimulationGraph = { id: string; title: string; startNodeId: string; nodes: Record<string, ScenarioNode> };
 

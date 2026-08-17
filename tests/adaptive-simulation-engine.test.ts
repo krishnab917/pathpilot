@@ -46,7 +46,7 @@ describe("adaptive simulation engine", () => {
       result = advance(decisionId, state, evidence, history); state = result.state; evidence = result.evidence; history = result.history;
     }
     expect(result?.completed).toBe(true);
-    expect(state.currentNodeId).toBe("debrief");
+    expect(state.currentNodeId).toBe("debrief-practice");
     expect(history).toHaveLength(8);
     expect(evidence.length).toBeGreaterThan(9);
     expect(new Set(history.map(item => item.nodeId)).size).toBeGreaterThan(6);
@@ -71,7 +71,7 @@ describe("adaptive simulation engine", () => {
 
   it("does not allow an already completed graph state to accept another decision", () => {
     const graph = getSimulationGraph("Software Engineer");
-    const completeState = { ...initialSimulationState(graph), currentNodeId: "debrief" };
+    const completeState = { ...initialSimulationState(graph), currentNodeId: "debrief-practice" };
     expect(() => chooseSimulationDecision(graph, completeState, "anything", [], [])).toThrow("not waiting for a decision");
   });
 
