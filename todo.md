@@ -112,3 +112,17 @@
 - [x] Checkpoint 22: add a separate student-owned planning review that summarizes real goal, project, roadmap, and activity progress with clear action links, without behavioral diagnoses or automatic changes.
 - [x] Checkpoint 23: add a student-owned print-friendly planning report from the existing review, using only neutral saved-plan counts and no automatic data changes or private content expansion.
 - [x] Checkpoint 24: add an opt-in, time-limited, revocable counselor share link for the neutral planning report only, with no detailed records, behavioral content, or automatic sharing.
+- [ ] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
+- [ ] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
+- [ ] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
+- [ ] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
+- [ ] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
+- [ ] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
+- [ ] Checkpoint 31: add accessible, scenario-specific simulation time pressure and consent-aware response-time recording without personality labels or punitive scoring.
+- [ ] Checkpoint 32: add safe, clearly framed terminal simulation branches and richer outcome states while preserving non-abusive student feedback.
+- [ ] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
+- [ ] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
+- [ ] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
+- [ ] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
+- [ ] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
+- [ ] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
