@@ -10,6 +10,7 @@ import {
   createRoadmap,
   createSimulation,
   createAdaptiveSimulation,
+  clearPlanningActivity,
   chooseAdaptiveSimulationDecision,
   getAdaptivePublicScenario,
   getAdaptiveSimulation,
@@ -308,6 +309,7 @@ export const pathpilotRouter = router({
 
   activity: router({
     list: protectedProcedure.query(({ ctx }) => listPlanningActivity(ctx.user.id)),
+    clear: protectedProcedure.input(z.object({ confirmed: z.literal(true) })).mutation(({ ctx }) => clearPlanningActivity(ctx.user.id)),
   }),
 
   opportunities: router({
