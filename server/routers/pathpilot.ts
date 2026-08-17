@@ -6,6 +6,7 @@ import {
   createGoal,
   createProject,
   createProjectFromRoadmapMilestone,
+  createProjectWorkspaceMilestone,
   createGoalFromVerifiedOpportunity,
   createRoadmap,
   createSimulation,
@@ -44,6 +45,8 @@ import {
   setStudentOpportunityState,
   updateGoal,
   updateProject,
+  updateProjectWorkspaceMilestone,
+  deleteProjectWorkspaceMilestone,
   updateMilestoneProgress,
   updateStudentCountryContext,
 } from "../db";
@@ -521,8 +524,11 @@ export const pathpilotRouter = router({
 
   projects: router({
     list: protectedProcedure.query(({ ctx }) => listProjects(ctx.user.id)),
-    create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
+    create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
     createFromRoadmapMilestone: protectedProcedure.input(z.object({ milestoneId: z.string().uuid() })).mutation(({ ctx, input }) => createProjectFromRoadmapMilestone(ctx.user.id, input.milestoneId)),
-    update: protectedProcedure.input(z.object({ id: z.string().uuid(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(({ ctx, input }) => updateProject(ctx.user.id, input.id, input)),
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(4000).optional(), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), startDate: z.string().date().nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(({ ctx, input }) => updateProject(ctx.user.id, input.id, input)),
+    createMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().min(2).max(180), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).default("not_started"), progress: z.number().int().min(0).max(100).default(0), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).default(0) })).mutation(({ ctx, input }) => createProjectWorkspaceMilestone(ctx.user.id, input.projectId, input)),
+    updateMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).optional(), progress: z.number().int().min(0).max(100).optional(), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).optional() })).mutation(({ ctx, input }) => updateProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id, input)),
+    deleteMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid() })).mutation(({ ctx, input }) => deleteProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id)),
   }),
 });

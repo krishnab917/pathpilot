@@ -114,7 +114,7 @@
 - [x] Checkpoint 24: add an opt-in, time-limited, revocable counselor share link for the neutral planning report only, with no detailed records, behavioral content, or automatic sharing.
 - [x] Checkpoint 25: add database-backed opportunity search, pagination, and verified country, grade, and deadline filters without fabricating eligibility or urgency.
 - [x] Checkpoint 26: add transparent opportunity relevance ranking using explicit profile and verified record fields, with clear explanations and no behavioral diagnosis.
-- [ ] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
+- [x] Checkpoint 27: extend the roadmap-to-project handoff into a student-owned project workspace with editable scope, milestones, technologies, and progress state.
 - [ ] Checkpoint 28: add a project-specific AI assistant with strictly bounded student/project context, real generation, lifecycle feedback, and no scripted responses.
 - [ ] Checkpoint 29: complete the project-to-portfolio handoff with prefilled editable project details and explicit student approval before publication.
 - [ ] Checkpoint 30: scale the adaptive simulation catalog through a maintainable set of distinct career-specific graphs without changing the shared simulation engine or UI shell.
@@ -134,3 +134,6 @@
 - [x] Checkpoint 26 implementation: audit approved explicit profile and verified opportunity fields, then document deterministic relevance factors and prohibited inputs.
 - [x] Checkpoint 26 implementation: rank opportunity discovery results with concise, source-backed explanations while preserving full catalog access and student dismissal state.
 - [x] Checkpoint 26 verification: add focused ranking and explanation tests, run TypeScript/tests/build, verify UI behavior, and confirm no behavioral, diagnostic, or private data enters ranking.
+- [x] Checkpoint 27 implementation: audit the existing project model, roadmap handoff, and project UI to preserve current student-owned records and compatibility.
+- [x] Checkpoint 27 implementation: add editable project scope, milestones, technologies, notes, and progress state under the existing user-scoped project access boundary.
+- [x] Checkpoint 27 verification: add focused persistence and ownership tests, run TypeScript/tests/build, and verify the project workspace’s responsive states.
