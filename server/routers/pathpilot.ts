@@ -19,6 +19,7 @@ import {
   listPlanningActivity,
   getActiveRoadmap,
   getBehaviorEvolution,
+  getPlanningReview,
   getCareerMatches,
   getConversationMessages,
   getDashboardData,
@@ -313,6 +314,10 @@ export const pathpilotRouter = router({
     list: protectedProcedure.query(({ ctx }) => listPlanningActivity(ctx.user.id)),
     export: protectedProcedure.query(({ ctx }) => exportPlanningActivity(ctx.user.id)),
     clear: protectedProcedure.input(z.object({ confirmed: z.literal(true) })).mutation(({ ctx }) => clearPlanningActivity(ctx.user.id)),
+  }),
+
+  review: router({
+    get: protectedProcedure.query(({ ctx }) => getPlanningReview(ctx.user.id)),
   }),
 
   opportunities: router({
