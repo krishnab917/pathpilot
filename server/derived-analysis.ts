@@ -1,7 +1,6 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { buildBehaviorEvolution, type CompletedSimulationBehavior } from "./simulation/evolution";
-import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
+import { createHash } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { currentSupabaseClient } from "./supabase";
 
 export const DERIVED_ANALYSIS_TYPE = "simulation_evolution" as const;
 export type DerivedAnalysisStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -17,30 +16,10 @@ function sourceHash(rows: SourceRow[]) {
   return createHash("sha256").update(JSON.stringify(source)).digest("hex");
 }
 
-function toEvolutionSources(rows: SourceRow[]): CompletedSimulationBehavior[] {
-  return rows.map(row => ({ id: row.id, career: row.career, completedAt: row.completed_at ? new Date(row.completed_at) : null, behavioralProfile: row.behavioral_profile as CompletedSimulationBehavior["behavioralProfile"] }));
-}
-
 async function completedSources(db: SupabaseClient, userId: string) {
   const { data, error } = await db.from("simulations").select("id, career, completed_at, updated_at, behavioral_profile").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").order("completed_at", { ascending: false }).limit(5);
   if (error) throw new Error("Could not load the bounded simulation source set.");
   return (data ?? []) as SourceRow[];
-}
-
-function workerClient() {
-  const { url } = getSupabaseConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY;
-  if (!serviceRoleKey) throw new Error("The background worker is not configured.");
-  return createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
-}
-
-export async function isValidDerivedAnalysisWorkerToken(value: unknown) {
-  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) return false;
-  const { data, error } = await workerClient().from("background_worker_credentials").select("token_hash").eq("worker_name", "derived_analysis").maybeSingle();
-  if (error || !data?.token_hash) return false;
-  const expected = Buffer.from(data.token_hash, "hex");
-  const received = Buffer.from(createHash("sha256").update(value).digest("hex"), "hex");
-  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
 export async function getDerivedAnalysisStatus(userId: string) {
@@ -80,24 +59,9 @@ export async function cancelDerivedAnalysis(userId: string, jobId: string) {
   return statusRow(data);
 }
 
-export async function processNextDerivedAnalysis() {
-  const db = workerClient();
-  const { data: next, error: nextError } = await db.from("derived_analysis_jobs").select("*").eq("analysis_type", DERIVED_ANALYSIS_TYPE).eq("status", "queued").order("requested_at", { ascending: true }).limit(1).maybeSingle();
-  if (nextError) throw new Error("Could not find queued analysis.");
-  if (!next) return { processed: false as const, reason: "empty" as const };
-  const { data: claimed, error: claimError } = await db.from("derived_analysis_jobs").update({ status: "running", attempt_count: Number((next as any).attempt_count) + 1, started_at: new Date().toISOString() }).eq("id", (next as any).id).eq("status", "queued").select("*").maybeSingle();
-  if (claimError) throw new Error("Could not claim queued analysis.");
-  if (!claimed) return { processed: false as const, reason: "claimed_elsewhere" as const };
-  try {
-    const sources = await completedSources(db, (claimed as any).user_id);
-    const evolution = buildBehaviorEvolution(toEvolutionSources(sources));
-    const snapshot: Snapshot = { version: "simulation-evolution-v1", completedSimulationCount: evolution?.completedSimulationCount ?? 0, includedSimulationCount: evolution?.includedSimulationCount ?? 0, mostRecentCompletedAt: evolution?.mostRecentCompletedAt?.toISOString() ?? null, hasEvolvingFocus: Boolean(evolution?.evolvingFocus) };
-    const { error: completeError } = await db.from("derived_analysis_jobs").update({ status: "completed", source_hash: sourceHash(sources), snapshot, error_code: null, completed_at: new Date().toISOString() }).eq("id", (claimed as any).id).eq("status", "running");
-    if (completeError) throw new Error("Could not complete analysis.");
-    return { processed: true as const, jobId: (claimed as any).id as string, status: "completed" as const };
-  } catch (error) {
-    await db.from("derived_analysis_jobs").update({ status: "failed", error_code: "processing_failed", completed_at: new Date().toISOString() }).eq("id", (claimed as any).id).eq("status", "running");
-    console.error("[PathPilot] derived analysis failed", error);
-    return { processed: true as const, jobId: (claimed as any).id as string, status: "failed" as const };
-  }
+export async function processNextDerivedAnalysis(workerToken: unknown) {
+  if (typeof workerToken !== "string" || !/^[a-f0-9]{64}$/.test(workerToken)) return { authorized: false as const };
+  const { data, error } = await currentSupabaseClient().rpc("process_next_derived_analysis", { worker_token: workerToken });
+  if (error || !data) throw new Error("Could not process queued analysis.");
+  return data as { authorized: boolean; processed?: boolean; reason?: string; jobId?: string; status?: "completed" | "failed" };
 }
