@@ -11,9 +11,12 @@ describe("curated career simulation catalog", () => {
   it("defines exactly fifteen supported career simulations with complete selection metadata", () => {
     expect(simulationCareerCatalog).toHaveLength(15);
     expect(new Set(simulationCareerCatalog.map(career => career.id)).size).toBe(15);
+    expect(new Set(simulationCareerCatalog.map(career => career.icon)).size).toBe(15);
     for (const career of simulationCareerCatalog) {
       expect(career.name).not.toBe("");
+      expect(career.icon).not.toBe("");
       expect(career.description).not.toBe("");
+      expect(career.description.length).toBeLessThanOrEqual(120);
       expect(career.simulationIntro).not.toBe("");
       expect(career.durationLabel).not.toBe("");
       expect(career.relatedCareerIds.length).toBeGreaterThan(0);

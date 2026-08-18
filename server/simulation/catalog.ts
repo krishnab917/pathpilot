@@ -11,10 +11,17 @@ export const simulationCareerCategories = [
 
 export type SimulationCareerCategory = (typeof simulationCareerCategories)[number];
 
+export const simulationCareerIcons = [
+  "code", "brain", "stethoscope", "scale", "rocket", "workflow", "shield", "chart", "plane", "cog", "building", "palette", "landmark", "leaf", "flask",
+] as const;
+
+export type SimulationCareerIcon = (typeof simulationCareerIcons)[number];
+
 export type SimulationCareerDefinition = {
   id: string;
   name: string;
   category: SimulationCareerCategory;
+  icon: SimulationCareerIcon;
   description: string;
   simulationIntro: string;
   durationLabel: string;
@@ -27,6 +34,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "software-engineer",
     name: "Software Engineer",
     category: "Technology",
+    icon: "code",
     description: "Design, debug, and ship reliable software with a development team.",
     simulationIntro: "Respond to incidents, architecture tradeoffs, reviews, and delivery decisions in a software team.",
     durationLabel: "About 10 decisions",
@@ -37,6 +45,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "ai-machine-learning-engineer",
     name: "AI / Machine Learning Engineer",
     category: "Technology",
+    icon: "brain",
     description: "Train, evaluate, and deploy intelligent systems responsibly.",
     simulationIntro: "Work through data quality, model performance, explainability, and deployment tradeoffs.",
     durationLabel: "About 10 decisions",
@@ -47,6 +56,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "doctor-physician",
     name: "Doctor / Physician",
     category: "Health & Law",
+    icon: "stethoscope",
     description: "Make clinical decisions under uncertainty, pressure, and ethical responsibility.",
     simulationIntro: "Work through triage, patient communication, limited information, and care coordination.",
     durationLabel: "About 10 decisions",
@@ -57,6 +67,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "lawyer",
     name: "Lawyer",
     category: "Health & Law",
+    icon: "scale",
     description: "Evaluate evidence, advise clients, and navigate legal and ethical tradeoffs.",
     simulationIntro: "Work through testimony, negotiation, legal strategy, and professional responsibility.",
     durationLabel: "About 10 decisions",
@@ -67,6 +78,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "entrepreneur-startup-founder",
     name: "Entrepreneur / Startup Founder",
     category: "Business & Finance",
+    icon: "rocket",
     description: "Build a company through difficult customer, team, and resource tradeoffs.",
     simulationIntro: "Work through product-market fit, hiring, runway, customer feedback, and growth decisions.",
     durationLabel: "About 10 decisions",
@@ -77,6 +89,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "product-manager",
     name: "Product Manager",
     category: "Business & Finance",
+    icon: "workflow",
     description: "Align customer needs, business goals, and delivery constraints.",
     simulationIntro: "Work through prioritization, research, launches, roadmap conflict, and stakeholder decisions.",
     durationLabel: "About 10 decisions",
@@ -87,6 +100,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "cybersecurity-analyst",
     name: "Cybersecurity Analyst",
     category: "Technology",
+    icon: "shield",
     description: "Protect systems and people by investigating and responding to security incidents.",
     simulationIntro: "Work through suspicious activity, containment, evidence, communication, and recovery decisions.",
     durationLabel: "About 10 decisions",
@@ -97,6 +111,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "data-scientist",
     name: "Data Scientist",
     category: "Technology",
+    icon: "chart",
     description: "Investigate evidence and communicate careful conclusions from data.",
     simulationIntro: "Work through data quality, experimentation, uncertainty, stakeholder questions, and recommendations.",
     durationLabel: "About 10 decisions",
@@ -107,6 +122,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "aerospace-engineer-astronaut",
     name: "Aerospace Engineer / Astronaut Pathway",
     category: "Engineering & Built Environment",
+    icon: "plane",
     description: "Plan and protect complex missions under systems, safety, and resource constraints.",
     simulationIntro: "Work through telemetry, mission planning, hardware faults, crew coordination, and risk tradeoffs.",
     durationLabel: "About 10 decisions",
@@ -117,6 +133,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "mechanical-engineer",
     name: "Mechanical Engineer",
     category: "Engineering & Built Environment",
+    icon: "cog",
     description: "Design and test physical systems that balance reliability, safety, and cost.",
     simulationIntro: "Work through prototypes, materials, manufacturing constraints, and reliability testing.",
     durationLabel: "About 10 decisions",
@@ -127,6 +144,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "architect",
     name: "Architect",
     category: "Engineering & Built Environment",
+    icon: "building",
     description: "Shape buildings around people, constraints, safety, and long-term impact.",
     simulationIntro: "Work through client needs, accessibility, zoning, sustainability, and construction decisions.",
     durationLabel: "About 10 decisions",
@@ -137,6 +155,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "ux-product-designer",
     name: "UX / Product Designer",
     category: "Design & Research",
+    icon: "palette",
     description: "Research, design, and improve experiences around real human needs.",
     simulationIntro: "Work through usability evidence, accessibility, conflicting feedback, and design tradeoffs.",
     durationLabel: "About 10 decisions",
@@ -147,6 +166,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "financial-analyst",
     name: "Financial Analyst",
     category: "Business & Finance",
+    icon: "landmark",
     description: "Assess financial evidence, uncertainty, risk, and recommendations.",
     simulationIntro: "Work through earnings, forecasting, market volatility, risk signals, and client communication.",
     durationLabel: "About 10 decisions",
@@ -157,6 +177,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "environmental-scientist",
     name: "Environmental Scientist",
     category: "Science & Environment",
+    icon: "leaf",
     description: "Study environmental systems and recommend responsible action with incomplete evidence.",
     simulationIntro: "Work through field data, ecosystem risk, mitigation planning, and public communication.",
     durationLabel: "About 10 decisions",
@@ -167,6 +188,7 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
     id: "research-scientist",
     name: "Research Scientist",
     category: "Science & Environment",
+    icon: "flask",
     description: "Plan, test, and interpret research with integrity and curiosity.",
     simulationIntro: "Work through experiments, reproducibility, funding limits, ethics, and publication decisions.",
     durationLabel: "About 10 decisions",

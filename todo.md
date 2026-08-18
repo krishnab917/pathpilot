@@ -187,3 +187,4 @@
 - [x] Checkpoint 44 graph set C: implement dedicated ten-plus-node graph libraries for Architect, UX / Product Designer, Financial Analyst, Environmental Scientist, and Research Scientist.
 - [x] Checkpoint 45 integration: register the fifteen dedicated graphs, preserve saved-session replay, and replace freeform simulation launch with the accessible curated career selector and unsupported-career behavior.
 - [ ] Checkpoint 46 verification: run final catalog, branching, all-career recommendation, persistence, privacy, RLS, accessibility, mobile, type, build, and full regression acceptance checks.
+- [x] Checkpoint 47 selector enhancement: add concise student-facing descriptions and accessible meaningful icons for all 15 curated career simulations without changing catalog controls or launch behavior.
