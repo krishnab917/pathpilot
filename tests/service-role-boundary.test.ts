@@ -17,11 +17,14 @@ describe("service-role career catalog boundary", () => {
     expect(() => validateCareerCatalogWrite(userId, [...matches.slice(0, 4), validRecommendation("One")])).toThrow("failed validation");
   });
 
-  it("keeps the service-role credential out of all browser modules and removes the public-key fallback", () => {
+  it("keeps the service-role credential out of browser modules and requires it explicitly for every privileged path", () => {
     const clientSource = ["client/src/lib/supabase.ts", "client/src/pages/Auth.tsx", "client/src/main.tsx"].map(path => readFileSync(resolve(process.cwd(), path), "utf8")).join("\n");
     const repositorySource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+    const workerSource = readFileSync(resolve(process.cwd(), "server/derived-analysis.ts"), "utf8");
     expect(clientSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(repositorySource).toContain("const key = process.env.SUPABASE_SERVICE_ROLE_KEY;");
     expect(repositorySource).not.toContain("SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY");
+    expect(workerSource).toContain("const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;");
+    expect(workerSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY");
   });
 });

@@ -188,3 +188,7 @@
 - [x] Checkpoint 45 integration: register the fifteen dedicated graphs, preserve saved-session replay, and replace freeform simulation launch with the accessible curated career selector and unsupported-career behavior.
 - [ ] Checkpoint 46 verification: run final catalog, branching, all-career recommendation, persistence, privacy, RLS, accessibility, mobile, type, build, and full regression acceptance checks.
 - [x] Checkpoint 47 selector enhancement: add concise student-facing descriptions and accessible meaningful icons for all 15 curated career simulations without changing catalog controls or launch behavior.
+- [x] Checkpoint 48 uploaded requirements: review pasted_content_3.txt, map its compatible requirements to the existing architecture, and implement the highest-priority independently testable changes.
+- [x] Checkpoint 48 security inventory: document the live public-schema foreign keys, indexes, RLS policies, functions, triggers, advisor findings, and post-Checkpoint-38 migrations without duplicating existing database objects.
+- [x] Checkpoint 48 server-role boundary: remove any non-explicit privileged credential fallback from the derived-analysis worker and retain only the required server-only service-role path with regression coverage.
+- [x] Checkpoint 48 security verification: re-run live advisor and RLS checks, source secret-boundary audit, full regression, type check, and production build; document the unavailable leaked-password protection setting and its plan prerequisite.

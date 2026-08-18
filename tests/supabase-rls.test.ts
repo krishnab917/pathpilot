@@ -13,6 +13,9 @@ let userA = "";
 let userB = "";
 let careerId = "";
 let opportunityId = "";
+let privatePortfolioProjectId = "";
+let publicPortfolioProjectId = "";
+let ownerProjectId = "";
 let aClient: ReturnType<typeof createClient>;
 let bClient: ReturnType<typeof createClient>;
 
@@ -51,8 +54,17 @@ describe("Supabase row-level security", () => {
     if (conversation.error) throw conversation.error;
     const message = await aClient.from("ai_messages").insert({ user_id: userA, conversation_id: conversation.data.id, role: "user", content: "Private context" });
     if (message.error) throw message.error;
-    const project = await aClient.from("projects").insert({ user_id: userA, name: "Private test project", description: "Private test description", skills: [], status: "idea", progress: 0 });
-    if (project.error) throw project.error;
+    const project = await aClient.from("projects").insert({ user_id: userA, name: "Private test project", description: "Private test description", skills: [], status: "idea", progress: 0 }).select("id").single();
+    if (project.error || !project.data) throw project.error ?? new Error("Unable to create temporary project.");
+    ownerProjectId = project.data.id;
+    const publicProject = await aClient.from("projects").insert({ user_id: userA, name: "Public test project", description: "Public test description", skills: [], status: "idea", progress: 0 }).select("id").single();
+    if (publicProject.error || !publicProject.data) throw publicProject.error ?? new Error("Unable to create temporary public project.");
+    const privatePortfolio = await aClient.from("portfolio_projects").insert({ user_id: userA, project_id: ownerProjectId, title: "Private portfolio entry", summary: "Private student portfolio work.", technologies: [] }).select("id").single();
+    if (privatePortfolio.error || !privatePortfolio.data) throw privatePortfolio.error ?? new Error("Unable to create private portfolio entry.");
+    privatePortfolioProjectId = privatePortfolio.data.id;
+    const publicPortfolio = await aClient.from("portfolio_projects").insert({ user_id: userA, project_id: publicProject.data.id, title: "Public portfolio entry", summary: "Published student portfolio work.", technologies: [], is_published: true, published_at: new Date().toISOString() }).select("id").single();
+    if (publicPortfolio.error || !publicPortfolio.data) throw publicPortfolio.error ?? new Error("Unable to create public portfolio entry.");
+    publicPortfolioProjectId = publicPortfolio.data.id;
     const recommendation = await aClient.from("roadmap_recommendations").insert({ user_id: userA, source_simulation_id: simulation.data.id, roadmap_id: roadmap.data.id, target_career: "Private test career", country_snapshot: "US", education_system_snapshot: "US high school and institution-specific admissions context", phase: "Foundation", title: "Private test recommendation", description: "Private recommendation description", rationale: "Private recommendation rationale", category: "skill", priority: "medium", estimated_hours: 4, sort_order: 0 });
     if (recommendation.error) throw recommendation.error;
     const opportunity = await aClient.from("opportunities").select("id").eq("status", "active").limit(1).single();
@@ -73,6 +85,7 @@ describe("Supabase row-level security", () => {
       bClient.from("projects").select("id").eq("user_id", userA),
       bClient.from("roadmap_recommendations").select("id").eq("user_id", userA),
       bClient.from("student_opportunity_states").select("opportunity_id").eq("user_id", userA),
+      bClient.from("portfolio_projects").select("id").eq("id", privatePortfolioProjectId),
     ]);
     for (const result of checks) { expect(result.error).toBeNull(); expect(result.data).toEqual([]); }
   });
@@ -88,6 +101,28 @@ describe("Supabase row-level security", () => {
     expect(otherStudentState.data).toEqual([]);
   });
 
+  it("limits anonymous portfolio reads to published records and prevents cross-user portfolio writes", async () => {
+    const anonymous = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const [publicRead, privateRead, ownerRead, crossUserUpdate, crossUserDelete, crossUserInsert] = await Promise.all([
+      anonymous.from("portfolio_projects").select("id").eq("id", publicPortfolioProjectId),
+      anonymous.from("portfolio_projects").select("id").eq("id", privatePortfolioProjectId),
+      aClient.from("portfolio_projects").select("id").eq("id", privatePortfolioProjectId),
+      bClient.from("portfolio_projects").update({ title: "Cross-user change" }).eq("id", privatePortfolioProjectId).select("id"),
+      bClient.from("portfolio_projects").delete().eq("id", privatePortfolioProjectId).select("id"),
+      bClient.from("portfolio_projects").insert({ user_id: userB, project_id: ownerProjectId, title: "Cross-user source project", summary: "This must be rejected.", technologies: [] }).select("id"),
+    ]);
+    expect(publicRead.error).toBeNull();
+    expect(publicRead.data).toHaveLength(1);
+    expect(privateRead.error).toBeNull();
+    expect(privateRead.data).toEqual([]);
+    expect(ownerRead.error).toBeNull();
+    expect(ownerRead.data).toHaveLength(1);
+    expect(crossUserUpdate.data).toEqual([]);
+    expect(crossUserDelete.data).toEqual([]);
+    expect(crossUserInsert.data).toBeNull();
+    expect(crossUserInsert.error).not.toBeNull();
+  });
+
   it("restores persisted student workspace records in a fresh authenticated session", async () => {
     const resumedClient = await signIn(accountA);
     const records = await Promise.all([
@@ -99,7 +134,7 @@ describe("Supabase row-level security", () => {
       resumedClient.from("simulations").select("title, engine_version, current_node_id, decision_history, behavioral_profile, compatibility_results, result_summary").eq("user_id", userA).single(),
       resumedClient.from("ai_conversations").select("title").eq("user_id", userA).single(),
       resumedClient.from("ai_messages").select("content").eq("user_id", userA).single(),
-      resumedClient.from("projects").select("name, description").eq("user_id", userA).single(),
+      resumedClient.from("projects").select("name, description").eq("id", ownerProjectId).single(),
       resumedClient.from("roadmap_recommendations").select("title, country_snapshot, status, source_simulation_id").eq("user_id", userA).single(),
       resumedClient.from("student_opportunity_states").select("opportunity_id, status").eq("opportunity_id", opportunityId).single(),
     ]);
