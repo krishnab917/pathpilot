@@ -124,7 +124,7 @@
 - [x] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
 - [x] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
 - [x] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
-- [ ] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
+- [x] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
 - [ ] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
 - [x] Checkpoint 25 implementation: audit source-backed opportunity fields and define safe semantics for search, pagination, country, grade, and deadline filters.
 - [x] Checkpoint 25 implementation: add server-scoped discovery query controls with stable paging and no inferred eligibility or urgency.
@@ -164,7 +164,7 @@
 - [x] Checkpoint 36 implementation: audit all existing AI-result operations and define versioned cache keys, source-input scopes, expiry, and explicit invalidation boundaries.
 - [x] Checkpoint 36 implementation: add user-scoped, versioned AI-result caching for eligible operations while retaining deterministic calculations outside cached AI calls.
 - [x] Checkpoint 36 verification: add cache-hit, cache-miss, version, owner-scope, and material-input-invalidation tests; run TypeScript/tests/build; and confirm stale results are never reused.
-- [ ] Checkpoint 37 implementation: define the deterministic derived-analysis input, snapshot, queue, retry, cancellation, and worker-authentication boundaries without using AI or expanding behavioral inference.
-- [ ] Checkpoint 37 implementation: add a user-scoped derived-analysis job and snapshot model, protected status/request/retry/cancel controls, and an authenticated non-blocking worker that processes one bounded job at a time.
-- [ ] Checkpoint 37 scheduling: deploy the authenticated worker endpoint, create and verify its managed project-level schedule, and confirm no in-process timer or always-on worker is required.
-- [ ] Checkpoint 37 verification: add worker claim, owner scope, stale-input, cancellation, retry, and status presentation tests; run TypeScript/tests/build; and confirm failures expose recoverable generic messages only.
+- [x] Checkpoint 37 implementation: define the deterministic derived-analysis input, snapshot, queue, retry, cancellation, and worker-authentication boundaries without using AI or expanding behavioral inference.
+- [x] Checkpoint 37 implementation: add a user-scoped derived-analysis job and snapshot model, protected status/request/retry/cancel controls, and an authenticated non-blocking worker that processes one bounded job at a time.
+- [x] Checkpoint 37 scheduling: deploy the authenticated worker endpoint, create and verify its managed project-level schedule, and confirm no in-process timer or always-on worker is required.
+- [x] Checkpoint 37 verification: add worker claim, owner scope, stale-input, cancellation, retry, and status presentation tests; run TypeScript/tests/build; and confirm failures expose recoverable generic messages only.
