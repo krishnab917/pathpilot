@@ -52,9 +52,9 @@ export function chooseSimulationDecision(graph: SimulationGraph, state: Simulati
   const events = [...existingEvents, ...(decision.consequences ?? [{ id: "decision-recorded", message: "Your decision changed the team’s next situation and added another learning signal.", kind: "learning" as const }]).map(item => ({ id: `${node.id}:${decision.id}:${item.id}:${existingEvents.length}`, nodeId: node.id, decisionId: decision.id, message: item.message, kind: item.kind, contexts: node.contexts, occurredAt }))];
   return { state: nextState, evidence, history, events, consequence: events.at(-1) ?? null, completed: Boolean(nextNode.terminal) };
 }
-export function buildAdaptiveResults(evidence: BehavioralEvidence[], careers: Array<{ name: string; matchScore: number }>): AdaptiveResults {
+export function buildAdaptiveResults(evidence: BehavioralEvidence[], discoveryMatches: Array<{ name: string; matchScore: number }> = []): AdaptiveResults {
   const behavioralProfile = buildBehavioralProfile(evidence);
-  const compatibility = calculateCareerCompatibility(careers, behavioralProfile);
+  const compatibility = calculateCareerCompatibility(behavioralProfile, discoveryMatches);
   const strongest = behavioralProfile.strongestTraits.map(item => item.replaceAll("_", " "));
   const summary = strongest.length ? `Based on your decisions in this simulation, PathPilot observed consistent evidence of ${strongest.join(", ")}. This is a learning signal, not a prediction of career success.` : "PathPilot gathered an initial set of decision observations. Additional simulations will make the patterns more informative.";
   const recommendedNextSteps = Array.from(new Set([...(compatibility[0]?.growthTraits.map(item => `Practice ${item.replaceAll("_", " ")} in a small project or team activity.`) ?? []), "Reflect on one decision where you balanced speed, uncertainty, and impact."])).slice(0, 3);

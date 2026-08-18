@@ -177,6 +177,7 @@
 - [ ] Checkpoint 39 status: paused at the user's request while the completed work through Checkpoint 38 and the subsequent uncheckpointed database changes are reviewed.
 - [x] Checkpoint 40 planning: audit pasted_content_2.txt against the current adaptive simulation catalog, engine, persistence, selection, and UI contracts; document an independently testable implementation sequence.
 - [x] Checkpoint 40 foundation: add a source-controlled catalog of exactly 15 dedicated career definitions, stable IDs, metadata, category search, related-career references, unsupported-ID rejection, and focused contract tests without changing the generic engine or remapping saved sessions.
+- [x] Checkpoint 41 compatibility contract: ensure the selected simulation controls only scenarios and environment, while completion recommendations evaluate observed behavioral evidence against all 15 supported career profiles independently.
 - [ ] Checkpoint 40 implementation: define a controlled, searchable catalog of exactly 15 dedicated career simulations with supported-career metadata and safe unsupported-career handling.
 - [ ] Checkpoint 41 implementation: create distinct data-driven career graph libraries with at least ten meaningful nodes per career while retaining the generic branching engine and current persistence contracts.
 - [ ] Checkpoint 42 implementation: integrate the curated career selector and non-substitution behavior into the existing simulation experience with accessible search, descriptions, related options, and Explore Career fallback.

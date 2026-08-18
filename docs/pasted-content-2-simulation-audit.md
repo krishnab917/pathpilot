@@ -33,3 +33,7 @@ The catalog will use stable IDs rather than career-name regexes. New adaptive se
 The generic engine will remain deterministic. The catalog configuration—not React components or LLM output—will control career description, category, scenario graph, state labels, decision categories, behavioral dimensions, compatibility requirements, and scenario pressure presentation. AI remains outside next-node selection, validity, scoring, and completion decisions.
 
 Every new result will continue to use non-diagnostic language such as **observed decision patterns**, **simulation evidence**, and **preliminary career fit**. Timing remains opt-in, private, bounded, and excluded from score, behavioral evidence, compatibility, roadmap recommendations, public projections, and automatic outcomes.
+
+## Compatibility independence contract
+
+The selected career is the **simulation environment variable** only: it determines the graph, scenarios, work context, decisions, and logical consequences used for that session. It does not limit, preselect, or otherwise constrain the careers evaluated at completion. The compatibility calculation receives only the completed session’s observed behavioral profile plus optional existing discovery baselines, then evaluates that profile against all fifteen supported catalog career requirements. The result therefore may rank a career other than the environment the student simulated, and its explanation states that the comparison is preliminary rather than predictive.

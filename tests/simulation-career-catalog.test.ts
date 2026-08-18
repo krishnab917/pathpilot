@@ -5,6 +5,7 @@ import {
   searchSimulationCareers,
   simulationCareerCatalog,
 } from "../server/simulation/catalog";
+import { buildAdaptiveResults } from "../server/simulation/engine";
 
 describe("curated career simulation catalog", () => {
   it("defines exactly fifteen supported career simulations with complete selection metadata", () => {
@@ -33,5 +34,19 @@ describe("curated career simulation catalog", () => {
       "financial-analyst",
     ]);
     expect(relatedSimulationCareers("aerospace-engineer-astronaut").map(career => career.id)).toContain("mechanical-engineer");
+  });
+
+  it("compares evidence against all supported careers rather than the simulated career alone", () => {
+    const result = buildAdaptiveResults([
+      { trait: "analytical_thinking", direction: 1, weight: 3, context: "technical", nodeId: "software-outage", decisionId: "investigate", difficulty: 3 },
+      { trait: "problem_solving", direction: 1, weight: 3, context: "technical", nodeId: "software-outage", decisionId: "investigate", difficulty: 3 },
+      { trait: "systems_thinking", direction: 1, weight: 3, context: "planning", nodeId: "software-architecture", decisionId: "model", difficulty: 3 },
+      { trait: "attention_to_detail", direction: 1, weight: 3, context: "technical", nodeId: "software-review", decisionId: "test", difficulty: 3 },
+    ]);
+
+    expect(result.compatibility).toHaveLength(15);
+    expect(result.compatibility.map(item => item.careerName)).toContain("Software Engineer");
+    expect(result.compatibility.map(item => item.careerName)).toContain("Doctor / Physician");
+    expect(result.compatibility[0]?.careerName).not.toBe("Doctor / Physician");
   });
 });

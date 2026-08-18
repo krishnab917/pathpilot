@@ -98,10 +98,10 @@ describe("adaptive simulation engine", () => {
       { trait: trait as BehavioralEvidence["trait"], direction: 1 as const, weight: 2 as const, context: "interpersonal" as const, difficulty: 2, nodeId: `c${index}`, decisionId: `c${index}` },
       { trait: trait as BehavioralEvidence["trait"], direction: 1 as const, weight: 1 as const, context: "planning" as const, difficulty: 2, nodeId: `d${index}`, decisionId: `d${index}` },
     ]);
-    const careers = [{ name: "Software Engineer", matchScore: 80 }, { name: "IT Project Manager", matchScore: 80 }];
+    const careers = [{ name: "Software Engineer", matchScore: 80 }, { name: "Product Manager", matchScore: 80 }];
     const analytical = buildAdaptiveResults(analyticalEvidence, careers).compatibility;
     const collaborative = buildAdaptiveResults(collaborativeEvidence, careers).compatibility;
     expect(analytical[0]?.careerName).toBe("Software Engineer");
-    expect(collaborative[0]?.careerName).toBe("IT Project Manager");
+    expect(collaborative[0]?.careerName).toBe("Product Manager");
   });
 });
