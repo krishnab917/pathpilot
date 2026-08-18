@@ -125,7 +125,7 @@
 - [x] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
 - [x] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
 - [x] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
-- [ ] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
+- [x] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
 - [x] Checkpoint 25 implementation: audit source-backed opportunity fields and define safe semantics for search, pagination, country, grade, and deadline filters.
 - [x] Checkpoint 25 implementation: add server-scoped discovery query controls with stable paging and no inferred eligibility or urgency.
 - [x] Checkpoint 25 implementation: add responsive Opportunities controls, results summary, pagination, and explicit unknown-data states.
@@ -168,3 +168,6 @@
 - [x] Checkpoint 37 implementation: add a user-scoped derived-analysis job and snapshot model, protected status/request/retry/cancel controls, and an authenticated non-blocking worker that processes one bounded job at a time.
 - [x] Checkpoint 37 scheduling: deploy the authenticated worker endpoint, create and verify its managed project-level schedule, and confirm no in-process timer or always-on worker is required.
 - [x] Checkpoint 37 verification: add worker claim, owner scope, stale-input, cancellation, retry, and status presentation tests; run TypeScript/tests/build; and confirm failures expose recoverable generic messages only.
+- [x] Checkpoint 38 implementation: audit the expanded end-to-end workflow for remaining accessibility, responsive, privacy, persistence, performance, and recovery gaps.
+- [x] Checkpoint 38 hardening: resolve any verified final gaps without expanding product scope or weakening student ownership, data minimization, and RLS boundaries.
+- [x] Checkpoint 38 verification: run desktop/mobile visual checks, runtime-log review, security/RLS checks, full regression/type/build validation, and document remaining manual acceptance checks.

@@ -1,7 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AdaptiveSimulation } from "@/components/AdaptiveSimulation";
 import { Brand } from "@/components/Brand";
-import { CompactDiscover, CompactGoals, CompactMentor } from "@/components/UtilityWorkspaceSections";
+import {
+  CompactDiscover,
+  CompactGoals,
+  CompactMentor,
+} from "@/components/UtilityWorkspaceSections";
 import { CrossProductEvidencePolicyPanel } from "@/components/CrossProductEvidencePolicyPanel";
 import { BehaviorConfidenceDetailPanel } from "@/components/BehaviorConfidenceDetailPanel";
 import { PlanningReportShareControls } from "@/components/PlanningReportShareControls";
@@ -9,7 +13,16 @@ import { DerivedAnalysisStatusPanel } from "@/components/DerivedAnalysisStatusPa
 import { RoadmapExperience } from "@/components/RoadmapExperience";
 import { WorkspaceSectionSkeleton } from "@/components/WorkspaceSkeletons";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { startLogin } from "@/const";
 import { trpc } from "@/lib/trpc";
@@ -20,35 +33,222 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import Portfolio from "./Portfolio";
 import Opportunities from "./Opportunities";
-import { ArrowRight, Bot, CalendarDays, Check, ChevronRight, Circle, Compass, Download, FolderKanban, LayoutDashboard, Loader2, LogOut, Map, Menu, MessageCircle, Moon, Plus, Printer, Rocket, SearchCheck, Sparkles, Sun, Target, Trophy, Waypoints, X, Zap } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Bot,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Circle,
+  Compass,
+  Download,
+  FolderKanban,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  Map,
+  Menu,
+  MessageCircle,
+  Moon,
+  Plus,
+  Printer,
+  Rocket,
+  SearchCheck,
+  Sparkles,
+  Sun,
+  Target,
+  Trophy,
+  Waypoints,
+  X,
+  Zap,
+} from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { signOutAndNavigate } from "@/lib/sign-out";
 import { notify } from "@/lib/notifications";
 import { buildPlanningPrintReport } from "@/lib/planning-report";
 import { requiresWorkspaceDashboard } from "@/lib/workspace-data-scope";
 import { buildPlanningActivityCsv } from "@/lib/planning-activity-export";
+import {
+  shouldCloseWorkspaceMobileNavigation,
+  shouldWrapWorkspaceMobileNavigationFocus,
+} from "@/lib/mobile-navigation";
 
-type Section = "overview" | "discover" | "roadmap" | "simulate" | "portfolio" | "opportunities" | "mentor" | "goals";
+type Section =
+  | "overview"
+  | "discover"
+  | "roadmap"
+  | "simulate"
+  | "portfolio"
+  | "opportunities"
+  | "mentor"
+  | "goals";
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 const AIChatBox = lazy(() => import("@/components/AIChatBox"));
 type DashboardData = RouterOutputs["pathpilot"]["dashboard"]["get"];
 type CareerMatches = DashboardData["matches"];
 type ActiveRoadmap = DashboardData["roadmap"];
-type Scenario = { id: string; title: string; prompt: string; choices: { id: string; label: string; technicalImpact: number; leadershipImpact: number; compatibilityImpact: number }[] };
-const nav: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "discover", label: "Discover", icon: Compass }, { id: "roadmap", label: "Roadmap", icon: Map }, { id: "simulate", label: "Simulate", icon: Rocket }, { id: "portfolio", label: "Portfolio", icon: FolderKanban }, { id: "opportunities", label: "Opportunities", icon: SearchCheck }, { id: "mentor", label: "Career mentor", icon: MessageCircle }, { id: "goals", label: "Goals", icon: Target }];
-const formatDate = (value: Date | null) => value ? new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No deadline";
-const readSection = (path: string): Section => { const match = path.match(/^\/app(?:\/([^/?#]+))?/); return nav.some(item => item.id === match?.[1]) ? match?.[1] as Section : "overview"; };
+type Scenario = {
+  id: string;
+  title: string;
+  prompt: string;
+  choices: {
+    id: string;
+    label: string;
+    technicalImpact: number;
+    leadershipImpact: number;
+    compatibilityImpact: number;
+  }[];
+};
+const nav: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "discover", label: "Discover", icon: Compass },
+  { id: "roadmap", label: "Roadmap", icon: Map },
+  { id: "simulate", label: "Simulate", icon: Rocket },
+  { id: "portfolio", label: "Portfolio", icon: FolderKanban },
+  { id: "opportunities", label: "Opportunities", icon: SearchCheck },
+  { id: "mentor", label: "Career mentor", icon: MessageCircle },
+  { id: "goals", label: "Goals", icon: Target },
+];
+const formatDate = (value: Date | null) =>
+  value
+    ? new Date(value).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : "No deadline";
+const readSection = (path: string): Section => {
+  const match = path.match(/^\/app(?:\/([^/?#]+))?/);
+  return nav.some(item => item.id === match?.[1])
+    ? (match?.[1] as Section)
+    : "overview";
+};
 
-function LoadingWorkspace() { return <WorkspaceSectionSkeleton section="overview" />; }
-
-function WorkspaceStartupFrame({ section, studentName }: { section: Section; studentName?: string | null }) {
-  const activeLabel = nav.find(item => item.id === section)?.label ?? "Overview";
-  return <div className="workspace-shell min-h-screen text-foreground"><aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex"><Brand /><div className="mt-8"><p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Workspace</p><nav className="mt-2 space-y-1">{nav.map(item => { const Icon = item.icon; return <div key={item.id} className={cn("flex h-9 items-center gap-3 px-2.5 text-sm font-medium", item.id === section ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-muted-foreground")}><Icon className="size-4" /><span>{item.label}</span></div>; })}</nav></div><div className="mt-auto border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"><p className="truncate text-xs font-semibold">{studentName || "PathPilot student"}</p><p className="mt-1 text-[11px] text-muted-foreground">Restoring workspace</p></div></aside><header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden"><Brand compact /><span className="text-xs text-muted-foreground">Loading</span></header><main className="min-h-screen lg:ml-[232px]"><div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8"><WorkspaceSectionSkeleton section={section} /></div></main></div>;
+function LoadingWorkspace() {
+  return <WorkspaceSectionSkeleton section="overview" />;
 }
-function EmptyWorkspace({ onStart }: { onStart: () => void }) { return <div className="workspace-shell grid min-h-screen place-items-center px-5"><div className="surface-panel max-w-lg p-7"><div className="flex items-center gap-3"><span className="grid size-9 place-items-center border border-slate-200 bg-slate-50 text-primary dark:border-slate-700 dark:bg-slate-800"><Compass className="size-4" /></span><div><p className="text-sm font-semibold">Workspace setup</p><p className="text-xs text-muted-foreground">Five short prompts to establish your baseline.</p></div></div><h1 className="mt-7 text-2xl font-semibold tracking-[-0.04em]">Start with your career direction.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">PathPilot will use your responses to prepare your exploration workspace, roadmap, and next steps.</p><Button className="mt-6 gap-2" onClick={onStart}>Begin onboarding <ArrowRight className="size-4" /></Button></div></div>; }
-function NavItem({ item, active, onClick }: { item: typeof nav[number]; active: boolean; onClick: () => void }) { const Icon = item.icon; return <button onClick={onClick} className={cn("flex h-9 w-full items-center gap-3 rounded-sm px-2.5 text-sm font-medium", active ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-800")}><Icon className="size-4" /><span>{item.label}</span></button>; }
-function SignOutButton({ signOut, onSignedOut }: { signOut: () => Promise<void>; onSignedOut: () => void }) {
+
+function WorkspaceStartupFrame({
+  section,
+  studentName,
+}: {
+  section: Section;
+  studentName?: string | null;
+}) {
+  const activeLabel =
+    nav.find(item => item.id === section)?.label ?? "Overview";
+  return (
+    <div className="workspace-shell min-h-screen text-foreground">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
+        <Brand />
+        <div className="mt-8">
+          <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Workspace
+          </p>
+          <nav className="mt-2 space-y-1">
+            {nav.map(item => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex h-9 items-center gap-3 px-2.5 text-sm font-medium",
+                    item.id === section
+                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Icon className="size-4" />
+                  <span>{item.label}</span>
+                </div>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="mt-auto border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+          <p className="truncate text-xs font-semibold">
+            {studentName || "PathPilot student"}
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Restoring workspace
+          </p>
+        </div>
+      </aside>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden">
+        <Brand compact />
+        <span className="text-xs text-muted-foreground">Loading</span>
+      </header>
+      <main className="min-h-screen lg:ml-[232px]">
+        <div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+          <WorkspaceSectionSkeleton section={section} />
+        </div>
+      </main>
+    </div>
+  );
+}
+function EmptyWorkspace({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="workspace-shell grid min-h-screen place-items-center px-5">
+      <div className="surface-panel max-w-lg p-7">
+        <div className="flex items-center gap-3">
+          <span className="grid size-9 place-items-center border border-slate-200 bg-slate-50 text-primary dark:border-slate-700 dark:bg-slate-800">
+            <Compass className="size-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Workspace setup</p>
+            <p className="text-xs text-muted-foreground">
+              Five short prompts to establish your baseline.
+            </p>
+          </div>
+        </div>
+        <h1 className="mt-7 text-2xl font-semibold tracking-[-0.04em]">
+          Start with your career direction.
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          PathPilot will use your responses to prepare your exploration
+          workspace, roadmap, and next steps.
+        </p>
+        <Button className="mt-6 gap-2" onClick={onStart}>
+          Begin onboarding <ArrowRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+function NavItem({
+  item,
+  active,
+  onClick,
+}: {
+  item: (typeof nav)[number];
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex h-9 w-full items-center gap-3 rounded-sm px-2.5 text-sm font-medium",
+        active
+          ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+          : "text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-800"
+      )}
+    >
+      <Icon className="size-4" />
+      <span>{item.label}</span>
+    </button>
+  );
+}
+function SignOutButton({
+  signOut,
+  onSignedOut,
+}: {
+  signOut: () => Promise<void>;
+  onSignedOut: () => void;
+}) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const handleSignOut = async () => {
@@ -57,61 +257,1681 @@ function SignOutButton({ signOut, onSignedOut }: { signOut: () => Promise<void>;
     try {
       await signOutAndNavigate(signOut, onSignedOut);
     } catch (signOutError) {
-      setError(signOutError instanceof Error ? signOutError.message : "We could not sign you out. Please try again.");
+      setError(
+        signOutError instanceof Error
+          ? signOutError.message
+          : "We could not sign you out. Please try again."
+      );
     } finally {
       setIsSigningOut(false);
     }
   };
-  return <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" onClick={handleSignOut} disabled={isSigningOut} className="flex h-9 w-full items-center gap-3 px-2.5 text-sm font-medium text-muted-foreground hover:bg-slate-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"><LogOut className="size-4" />{isSigningOut ? "Signing out…" : "Sign out"}</button>{error ? <p role="alert" className="mt-2 px-2.5 text-xs leading-5 text-destructive">{error}</p> : null}</div>;
+  return (
+    <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={isSigningOut}
+        className="flex h-9 w-full items-center gap-3 px-2.5 text-sm font-medium text-muted-foreground hover:bg-slate-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"
+      >
+        <LogOut className="size-4" />
+        {isSigningOut ? "Signing out…" : "Sign out"}
+      </button>
+      {error ? (
+        <p
+          role="alert"
+          className="mt-2 px-2.5 text-xs leading-5 text-destructive"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
-function SectionHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) { return <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><div className="eyebrow">{eyebrow}</div><h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p></div>{action}</div>; }
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
+          {title}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      {action}
+    </div>
+  );
+}
 
 export default function Workspace() {
   const { isAuthenticated, loading, user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [path, setLocation] = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const wasMobileNavOpen = useRef(false);
   const section = readSection(path);
   const needsDashboard = requiresWorkspaceDashboard(section);
-  const dashboard = trpc.pathpilot.dashboard.get.useQuery(undefined, { enabled: isAuthenticated && needsDashboard });
-  const profile = trpc.pathpilot.profile.get.useQuery(undefined, { enabled: isAuthenticated && !needsDashboard });
-  const sectionLoading = needsDashboard ? dashboard.isLoading : profile.isLoading;
+  const dashboard = trpc.pathpilot.dashboard.get.useQuery(undefined, {
+    enabled: isAuthenticated && needsDashboard,
+  });
+  const profile = trpc.pathpilot.profile.get.useQuery(undefined, {
+    enabled: isAuthenticated && !needsDashboard,
+  });
+  const sectionLoading = needsDashboard
+    ? dashboard.isLoading
+    : profile.isLoading;
   const sectionError = needsDashboard ? dashboard.error : profile.error;
+  useEffect(() => {
+    const openedPreviously = wasMobileNavOpen.current;
+    wasMobileNavOpen.current = mobileNavOpen;
+    const frame = requestAnimationFrame(() => {
+      if (mobileNavOpen)
+        document
+          .querySelector<HTMLButtonElement>("[data-workspace-mobile-nav-close]")
+          ?.focus();
+      else if (openedPreviously) mobileMenuButtonRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mobileNavOpen]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (shouldCloseWorkspaceMobileNavigation(event.key))
+        setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen]);
   const profileValue = needsDashboard ? dashboard.data?.profile : profile.data;
-  if (shouldShowWorkspaceStartupFrame({ authLoading: loading, isAuthenticated, dashboardLoading: sectionLoading })) return <WorkspaceStartupFrame section={section} studentName={user?.name} />;
-  if (!isAuthenticated) return <main className="workspace-shell grid min-h-screen place-items-center px-5"><div className="surface-panel w-full max-w-md p-7"><Brand /><h1 className="mt-8 text-2xl font-semibold tracking-[-0.04em]">PathPilot workspace</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in to securely save your career direction, goals, and mentor conversations.</p><Button className="mt-6 w-full" onClick={() => startLogin()}>Sign in</Button></div></main>;
-  if (sectionError) return <main className="workspace-shell grid min-h-screen place-items-center px-5"><div className="surface-panel max-w-md p-7"><p className="font-medium">We could not load your workspace.</p><p className="mt-2 text-sm text-muted-foreground">{sectionError.message}</p><Button className="mt-6" onClick={() => needsDashboard ? dashboard.refetch() : profile.refetch()}>Try again</Button></div></main>;
-  if (!profileValue) return <EmptyWorkspace onStart={() => setLocation("/onboarding")} />;
-  const go = (next: Section) => { setLocation(next === "overview" ? "/app" : `/app/${next}`); setMobileNavOpen(false); };
-  const content = section === "portfolio" ? <Portfolio /> : section === "opportunities" ? <Opportunities /> : section === "mentor" ? <CompactMentor /> : dashboard.data ? { overview: <><Overview data={dashboard.data} onNavigate={go} /><DerivedAnalysisStatusPanel /><BehaviorConfidenceDetailPanel /><CrossProductEvidencePolicyPanel /><PlanningReportShareControls /><SimulationInsight simulation={dashboard.data.recentSimulation} onNavigate={go} /></>, discover: <CompactDiscover matches={dashboard.data.matches} />, roadmap: <RoadmapExperience matches={dashboard.data.matches} roadmap={dashboard.data.roadmap} />, simulate: <AdaptiveSimulation matches={dashboard.data.matches} />, goals: <CompactGoals goals={dashboard.data.goals} /> }[section] : null;
-  const sidebar = <nav className="space-y-1">{nav.map(item => <NavItem key={item.id} item={item} active={item.id === section} onClick={() => go(item.id)} />)}<SignOutButton signOut={logout} onSignedOut={() => { setMobileNavOpen(false); setLocation("/auth"); }} /></nav>;
-  const themeControl = <button onClick={() => toggleTheme?.()} className="grid size-8 place-items-center border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300" aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}>{theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</button>;
-  return <div className="workspace-shell min-h-screen text-foreground"><aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex"><div className="flex items-center justify-between"><Brand />{themeControl}</div><div className="mt-8"><p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Workspace</p><div className="mt-2">{sidebar}</div></div><div className="mt-auto border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"><div className="flex items-center gap-2"><span className="grid size-7 place-items-center bg-slate-900 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">{user?.name?.slice(0, 1).toUpperCase() || "P"}</span><div className="min-w-0"><p className="truncate text-xs font-semibold">{user?.name || "PathPilot student"}</p><p className="truncate text-[11px] text-muted-foreground">{profileValue.grade}</p></div></div></div></aside><header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden"><Brand compact /><div className="flex items-center gap-2">{themeControl}<button onClick={() => setMobileNavOpen(true)} className="grid size-9 place-items-center border border-slate-200 bg-card dark:border-slate-700" aria-label="Open navigation"><Menu className="size-4" /></button></div></header>{mobileNavOpen && <div className="fixed inset-0 z-50 bg-black/35 lg:hidden"><div className="flex h-full w-[272px] flex-col bg-card p-4 shadow-2xl"><div className="flex items-center justify-between"><Brand /><button className="grid size-9 place-items-center border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation"><X className="size-4" /></button></div><div className="mt-8">{sidebar}</div></div></div>}<main className="min-h-screen lg:ml-[232px]"><div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{content}</div></main></div>;
+  if (
+    shouldShowWorkspaceStartupFrame({
+      authLoading: loading,
+      isAuthenticated,
+      dashboardLoading: sectionLoading,
+    })
+  )
+    return <WorkspaceStartupFrame section={section} studentName={user?.name} />;
+  if (!isAuthenticated)
+    return (
+      <main className="workspace-shell grid min-h-screen place-items-center px-5">
+        <div className="surface-panel w-full max-w-md p-7">
+          <Brand />
+          <h1 className="mt-8 text-2xl font-semibold tracking-[-0.04em]">
+            PathPilot workspace
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Sign in to securely save your career direction, goals, and mentor
+            conversations.
+          </p>
+          <Button className="mt-6 w-full" onClick={() => startLogin()}>
+            Sign in
+          </Button>
+        </div>
+      </main>
+    );
+  if (sectionError)
+    return (
+      <main className="workspace-shell grid min-h-screen place-items-center px-5">
+        <div className="surface-panel max-w-md p-7">
+          <p className="font-medium">We could not load your workspace.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {sectionError.message}
+          </p>
+          <Button
+            className="mt-6"
+            onClick={() =>
+              needsDashboard ? dashboard.refetch() : profile.refetch()
+            }
+          >
+            Try again
+          </Button>
+        </div>
+      </main>
+    );
+  if (!profileValue)
+    return <EmptyWorkspace onStart={() => setLocation("/onboarding")} />;
+  const go = (next: Section) => {
+    setLocation(next === "overview" ? "/app" : `/app/${next}`);
+    setMobileNavOpen(false);
+  };
+  const content =
+    section === "portfolio" ? (
+      <Portfolio />
+    ) : section === "opportunities" ? (
+      <Opportunities />
+    ) : section === "mentor" ? (
+      <CompactMentor />
+    ) : dashboard.data ? (
+      {
+        overview: (
+          <>
+            <Overview data={dashboard.data} onNavigate={go} />
+            <DerivedAnalysisStatusPanel />
+            <BehaviorConfidenceDetailPanel />
+            <CrossProductEvidencePolicyPanel />
+            <PlanningReportShareControls />
+            <SimulationInsight
+              simulation={dashboard.data.recentSimulation}
+              onNavigate={go}
+            />
+          </>
+        ),
+        discover: <CompactDiscover matches={dashboard.data.matches} />,
+        roadmap: (
+          <RoadmapExperience
+            matches={dashboard.data.matches}
+            roadmap={dashboard.data.roadmap}
+          />
+        ),
+        simulate: <AdaptiveSimulation matches={dashboard.data.matches} />,
+        goals: <CompactGoals goals={dashboard.data.goals} />,
+      }[section]
+    ) : null;
+  const sidebar = (
+    <nav className="space-y-1" aria-label="Workspace navigation">
+      {nav.map(item => (
+        <NavItem
+          key={item.id}
+          item={item}
+          active={item.id === section}
+          onClick={() => go(item.id)}
+        />
+      ))}
+      <SignOutButton
+        signOut={logout}
+        onSignedOut={() => {
+          setMobileNavOpen(false);
+          setLocation("/auth");
+        }}
+      />
+    </nav>
+  );
+  const themeControl = (
+    <button
+      type="button"
+      onClick={() => toggleTheme?.()}
+      className="grid size-8 place-items-center border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
+    >
+      {theme === "dark" ? (
+        <Sun className="size-3.5" />
+      ) : (
+        <Moon className="size-3.5" />
+      )}
+    </button>
+  );
+  return (
+    <div className="workspace-shell min-h-screen text-foreground">
+      <a
+        href="#workspace-content"
+        className="sr-only z-[60] rounded-sm bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to workspace content
+      </a>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
+        <div className="flex items-center justify-between">
+          <Brand />
+          {themeControl}
+        </div>
+        <div className="mt-8">
+          <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Workspace
+          </p>
+          <div className="mt-2">{sidebar}</div>
+        </div>
+        <div className="mt-auto border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center bg-slate-900 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
+              {user?.name?.slice(0, 1).toUpperCase() || "P"}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold">
+                {user?.name || "PathPilot student"}
+              </p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {profileValue.grade}
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden">
+        <Brand compact />
+        <div className="flex items-center gap-2">
+          {themeControl}
+          <button
+            ref={mobileMenuButtonRef}
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="grid size-9 place-items-center border border-slate-200 bg-card dark:border-slate-700"
+            aria-label="Open navigation"
+            aria-expanded={mobileNavOpen}
+            aria-controls="workspace-mobile-navigation"
+          >
+            <Menu className="size-4" />
+          </button>
+        </div>
+      </header>
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/35 lg:hidden"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setMobileNavOpen(false);
+          }}
+        >
+          <div
+            id="workspace-mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Workspace navigation"
+            className="flex h-full w-[272px] flex-col bg-card p-4 shadow-2xl"
+            onKeyDown={event => {
+              if (event.key !== "Tab") return;
+              const focusable = Array.from(
+                event.currentTarget.querySelectorAll<HTMLElement>(
+                  'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                )
+              );
+              const first = focusable[0];
+              const last = focusable.at(-1);
+              if (!first || !last) return;
+              if (
+                shouldWrapWorkspaceMobileNavigationFocus({
+                  isShiftKey: event.shiftKey,
+                  isFirstFocused: document.activeElement === first,
+                  isLastFocused: document.activeElement === last,
+                })
+              ) {
+                event.preventDefault();
+                (event.shiftKey ? last : first).focus();
+              }
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <Brand />
+              <button
+                type="button"
+                data-workspace-mobile-nav-close
+                className="grid size-9 place-items-center border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
+                onClick={() => setMobileNavOpen(false)}
+                aria-label="Close navigation"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="mt-8">{sidebar}</div>
+          </div>
+        </div>
+      )}
+      <main
+        id="workspace-content"
+        tabIndex={-1}
+        className="min-h-screen lg:ml-[232px]"
+      >
+        <div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+          {content}
+        </div>
+      </main>
+    </div>
+  );
 }
 
-function Overview({ data, onNavigate }: { data: DashboardData; onNavigate: (section: Section) => void }) {
-  const upcoming = data.goals.filter(goal => goal.deadline && goal.status !== "completed").sort((a, b) => Number(a.deadline) - Number(b.deadline)).slice(0, 4);
-  const firstMatch = data.matches[0]; const nextMilestone = data.roadmap?.milestones.find(milestone => milestone.progress < 100);
-  const behaviorSummary = trpc.pathpilot.simulations.adaptive.behaviorSummary.useQuery(undefined, { enabled: Boolean(data.recentSimulation) }); const action = data.intelligence.nextAction;
-  return <><SectionHeader eyebrow="PathPilot overview" title="Workspace" description="A compact view of the signals, commitments, and actions shaping your career direction." action={<div className="border border-slate-200 bg-card px-3 py-2 text-right dark:border-slate-700"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">PathPilot readiness</p><p className="data-value mt-0.5 text-xl font-semibold">{data.readiness}%</p></div>} /><div className="grid border border-slate-200 bg-card md:grid-cols-3 dark:border-slate-700"><MetricCard icon={Target} label="Readiness" value={`${data.readiness}%`} note={data.intelligence.currentDirection?.career || "No direction selected"} onClick={() => onNavigate("roadmap")} /><MetricCard icon={Circle} label="Active goals" value={String(data.activeGoals.length).padStart(2, "0")} note={data.activeGoals.length ? "Open commitments" : "No open commitments"} onClick={() => onNavigate("goals")} /><MetricCard icon={Compass} label="Career matches" value={String(data.matches.length).padStart(2, "0")} note={data.matches.length ? "Profile analysis available" : "Analysis not started"} onClick={() => onNavigate("discover")} /></div><PlanningReview onNavigate={onNavigate} /><section className="surface-panel mt-4 overflow-hidden"><div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center dark:border-slate-700"><div className="flex items-center gap-2"><Zap className="size-4 text-primary" /><div><p className="text-sm font-semibold">Next best action</p><p className="text-xs text-muted-foreground">One deterministic priority from the state you have saved.</p></div></div><Button size="sm" className="gap-2" onClick={() => onNavigate(action.section)}>{action.cta}<ArrowRight className="size-3.5" /></Button></div><div className="p-4"><p className="eyebrow">Recommended now</p><h2 className="mt-2 text-lg font-semibold">{action.title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{action.description}</p><details className="mt-3"><summary className="cursor-pointer text-xs font-medium text-primary">Why this now?</summary><p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">{action.rationale}</p></details></div></section><div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_0.9fr]"><section className="surface-panel overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700"><div><p className="text-sm font-semibold">Priority queue</p><p className="text-xs text-muted-foreground">The next actions currently attached to your plan.</p></div><button className="utility-link" onClick={() => onNavigate("goals")}>View all goals</button></div>{data.activeGoals.length ? <div className="divide-y divide-slate-200 dark:divide-slate-700">{data.activeGoals.slice(0, 4).map(goal => <button key={goal.id} onClick={() => onNavigate("goals")} className="grid w-full grid-cols-[16px_1fr_auto] items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"><span className="size-3.5 border border-slate-300 dark:border-slate-600" /><div className="min-w-0"><p className="truncate text-sm font-medium">{goal.title}</p><p className="mt-0.5 text-xs text-muted-foreground">{goal.category} · {goal.estimatedHours}h · {formatDate(goal.deadline)}</p></div><div className="text-right"><span className="status-tag">{goal.priority}</span><p className="data-value mt-1 text-xs text-muted-foreground">{goal.progress}%</p></div></button>)}</div> : <EmptyRow text="No active goals. Add the next concrete action to your plan." action="Create goal" onClick={() => onNavigate("goals")} />}</section><section className="surface-panel overflow-hidden"><div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700"><div className="flex items-center gap-2"><CalendarDays className="size-4 text-primary" /><p className="text-sm font-semibold">Deadlines</p></div></div>{upcoming.length ? <table className="w-full text-left text-xs"><tbody>{upcoming.map(goal => <tr key={goal.id} className="border-b border-slate-200 last:border-0 dark:border-slate-700"><td className="data-value px-4 py-3 text-muted-foreground">{formatDate(goal.deadline)}</td><td className="px-4 py-3 font-medium">{goal.title}</td></tr>)}</tbody></table> : <div className="p-4 text-xs leading-5 text-muted-foreground">Goal deadlines will appear here when you add them.</div>}</section></div><div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]"><section className="surface-panel p-4"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><Bot className="size-4 text-primary" /><p className="text-sm font-semibold">Mentor context</p></div><p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{data.matches.length ? `Your strongest current direction is ${firstMatch?.career.name}. Use the mentor to compare next actions against your existing plan.` : "Use the mentor to turn an early career question into a practical next action."}</p></div><Button size="sm" variant="outline" onClick={() => onNavigate("mentor")}>Open mentor</Button></div></section><section className="surface-panel p-4"><div className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /><p className="text-sm font-semibold">Observed decision patterns</p></div>{behaviorSummary.isLoading ? <p className="mt-3 text-xs text-muted-foreground">Loading your simulation learning signals…</p> : behaviorSummary.data ? <><p className="mt-3 text-sm font-medium">{behaviorSummary.data.includedSimulationCount > 1 ? `Across your last ${behaviorSummary.data.includedSimulationCount} simulations` : "From your latest completed simulation"}</p><div className="mt-2 flex flex-wrap gap-1">{behaviorSummary.data.traits.slice(0, 3).map(trait => <span key={trait.trait} className="status-tag">{trait.label} · {trait.consistency}</span>)}</div><p className="mt-3 text-xs leading-5 text-muted-foreground">Learning signals from decision patterns, not a personality assessment or career prediction.</p></> : <p className="mt-3 text-xs leading-5 text-muted-foreground">Complete a simulation to add decision-pattern learning signals here.</p>}</section></div><PlanningActivityTimeline /></>;
+function Overview({
+  data,
+  onNavigate,
+}: {
+  data: DashboardData;
+  onNavigate: (section: Section) => void;
+}) {
+  const upcoming = data.goals
+    .filter(goal => goal.deadline && goal.status !== "completed")
+    .sort((a, b) => Number(a.deadline) - Number(b.deadline))
+    .slice(0, 4);
+  const firstMatch = data.matches[0];
+  const nextMilestone = data.roadmap?.milestones.find(
+    milestone => milestone.progress < 100
+  );
+  const behaviorSummary =
+    trpc.pathpilot.simulations.adaptive.behaviorSummary.useQuery(undefined, {
+      enabled: Boolean(data.recentSimulation),
+    });
+  const action = data.intelligence.nextAction;
+  return (
+    <>
+      <SectionHeader
+        eyebrow="PathPilot overview"
+        title="Workspace"
+        description="A compact view of the signals, commitments, and actions shaping your career direction."
+        action={
+          <div className="border border-slate-200 bg-card px-3 py-2 text-right dark:border-slate-700">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              PathPilot readiness
+            </p>
+            <p className="data-value mt-0.5 text-xl font-semibold">
+              {data.readiness}%
+            </p>
+          </div>
+        }
+      />
+      <div className="grid border border-slate-200 bg-card md:grid-cols-3 dark:border-slate-700">
+        <MetricCard
+          icon={Target}
+          label="Readiness"
+          value={`${data.readiness}%`}
+          note={
+            data.intelligence.currentDirection?.career ||
+            "No direction selected"
+          }
+          onClick={() => onNavigate("roadmap")}
+        />
+        <MetricCard
+          icon={Circle}
+          label="Active goals"
+          value={String(data.activeGoals.length).padStart(2, "0")}
+          note={
+            data.activeGoals.length ? "Open commitments" : "No open commitments"
+          }
+          onClick={() => onNavigate("goals")}
+        />
+        <MetricCard
+          icon={Compass}
+          label="Career matches"
+          value={String(data.matches.length).padStart(2, "0")}
+          note={
+            data.matches.length
+              ? "Profile analysis available"
+              : "Analysis not started"
+          }
+          onClick={() => onNavigate("discover")}
+        />
+      </div>
+      <PlanningReview onNavigate={onNavigate} />
+      <section className="surface-panel mt-4 overflow-hidden">
+        <div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center dark:border-slate-700">
+          <div className="flex items-center gap-2">
+            <Zap className="size-4 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">Next best action</p>
+              <p className="text-xs text-muted-foreground">
+                One deterministic priority from the state you have saved.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={() => onNavigate(action.section)}
+          >
+            {action.cta}
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
+        <div className="p-4">
+          <p className="eyebrow">Recommended now</p>
+          <h2 className="mt-2 text-lg font-semibold">{action.title}</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {action.description}
+          </p>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs font-medium text-primary">
+              Why this now?
+            </summary>
+            <p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">
+              {action.rationale}
+            </p>
+          </details>
+        </div>
+      </section>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+        <section className="surface-panel overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+            <div>
+              <p className="text-sm font-semibold">Priority queue</p>
+              <p className="text-xs text-muted-foreground">
+                The next actions currently attached to your plan.
+              </p>
+            </div>
+            <button
+              className="utility-link"
+              onClick={() => onNavigate("goals")}
+            >
+              View all goals
+            </button>
+          </div>
+          {data.activeGoals.length ? (
+            <div className="divide-y divide-slate-200 dark:divide-slate-700">
+              {data.activeGoals.slice(0, 4).map(goal => (
+                <button
+                  key={goal.id}
+                  onClick={() => onNavigate("goals")}
+                  className="grid w-full grid-cols-[16px_1fr_auto] items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <span className="size-3.5 border border-slate-300 dark:border-slate-600" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{goal.title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {goal.category} · {goal.estimatedHours}h ·{" "}
+                      {formatDate(goal.deadline)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="status-tag">{goal.priority}</span>
+                    <p className="data-value mt-1 text-xs text-muted-foreground">
+                      {goal.progress}%
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <EmptyRow
+              text="No active goals. Add the next concrete action to your plan."
+              action="Create goal"
+              onClick={() => onNavigate("goals")}
+            />
+          )}
+        </section>
+        <section className="surface-panel overflow-hidden">
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-primary" />
+              <p className="text-sm font-semibold">Deadlines</p>
+            </div>
+          </div>
+          {upcoming.length ? (
+            <table className="w-full text-left text-xs">
+              <tbody>
+                {upcoming.map(goal => (
+                  <tr
+                    key={goal.id}
+                    className="border-b border-slate-200 last:border-0 dark:border-slate-700"
+                  >
+                    <td className="data-value px-4 py-3 text-muted-foreground">
+                      {formatDate(goal.deadline)}
+                    </td>
+                    <td className="px-4 py-3 font-medium">{goal.title}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-4 text-xs leading-5 text-muted-foreground">
+              Goal deadlines will appear here when you add them.
+            </div>
+          )}
+        </section>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="surface-panel p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Bot className="size-4 text-primary" />
+                <p className="text-sm font-semibold">Mentor context</p>
+              </div>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                {data.matches.length
+                  ? `Your strongest current direction is ${firstMatch?.career.name}. Use the mentor to compare next actions against your existing plan.`
+                  : "Use the mentor to turn an early career question into a practical next action."}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onNavigate("mentor")}
+            >
+              Open mentor
+            </Button>
+          </div>
+        </section>
+        <section className="surface-panel p-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <p className="text-sm font-semibold">Observed decision patterns</p>
+          </div>
+          {behaviorSummary.isLoading ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Loading your simulation learning signals…
+            </p>
+          ) : behaviorSummary.data ? (
+            <>
+              <p className="mt-3 text-sm font-medium">
+                {behaviorSummary.data.includedSimulationCount > 1
+                  ? `Across your last ${behaviorSummary.data.includedSimulationCount} simulations`
+                  : "From your latest completed simulation"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {behaviorSummary.data.traits.slice(0, 3).map(trait => (
+                  <span key={trait.trait} className="status-tag">
+                    {trait.label} · {trait.consistency}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                Learning signals from decision patterns, not a personality
+                assessment or career prediction.
+              </p>
+            </>
+          ) : (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Complete a simulation to add decision-pattern learning signals
+              here.
+            </p>
+          )}
+        </section>
+      </div>
+      <PlanningActivityTimeline />
+    </>
+  );
 }
-function PlanningReview({ onNavigate }: { onNavigate: (section: Section) => void }) { const review = trpc.pathpilot.review.get.useQuery(); if (review.isLoading) return <section className="surface-panel mt-4 p-4"><p className="text-xs text-muted-foreground">Preparing your saved planning review…</p></section>; if (review.error || !review.data) return <section className="surface-panel mt-4 p-4"><p className="text-xs text-muted-foreground">Your saved planning review will appear here when it is available.</p></section>; const value = review.data; const report = buildPlanningPrintReport(value); return <><section className="surface-panel mt-4 overflow-hidden"><div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center dark:border-slate-700"><div><p className="text-sm font-semibold">Your planning review</p><p className="text-xs text-muted-foreground">A read-only summary of records you have chosen to save.</p></div><div className="flex gap-2"><Button size="sm" variant="outline" className="gap-2" onClick={() => window.print()}><Printer className="size-3.5" />Print report</Button><Button size="sm" variant="outline" onClick={() => onNavigate(value.focus.section)}>Review focus</Button></div></div><div className="grid divide-y divide-slate-200 sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-slate-700"><div className="p-4"><p className="text-xs text-muted-foreground">Goals</p><p className="data-value mt-1 text-lg font-semibold">{value.goals.completed}/{value.goals.total}</p><p className="mt-1 text-xs text-muted-foreground">completed · {value.goals.active} active</p></div><div className="p-4"><p className="text-xs text-muted-foreground">Projects</p><p className="data-value mt-1 text-lg font-semibold">{value.projects.completed}/{value.projects.total}</p><p className="mt-1 text-xs text-muted-foreground">completed · {value.projects.active} active</p></div><div className="p-4"><p className="text-xs text-muted-foreground">Roadmap</p><p className="data-value mt-1 text-lg font-semibold">{value.roadmap.exists ? `${value.roadmap.completionPercentage}%` : "—"}</p><p className="mt-1 text-xs text-muted-foreground">{value.roadmap.exists ? `${value.roadmap.completed}/${value.roadmap.total} milestones` : "Not started"}</p></div><div className="p-4"><p className="text-xs text-muted-foreground">Visible activity</p><p className="data-value mt-1 text-lg font-semibold">{value.visibleActivityCount}</p><p className="mt-1 text-xs text-muted-foreground">recent planning actions</p></div></div><div className="border-t border-slate-200 px-4 py-3 dark:border-slate-700"><p className="text-sm font-medium">{value.focus.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{value.focus.detail}</p><p className="mt-2 text-[11px] leading-5 text-muted-foreground">{value.method}</p></div></section><article className="planning-print-report" aria-hidden="true"><p className="planning-print-eyebrow">Private student planning snapshot</p><h1>{report.title}</h1><p className="planning-print-subtitle">{report.subtitle}</p><div className="planning-print-metrics">{report.metrics.map(metric => <section key={metric.label}><p>{metric.label}</p><strong>{metric.value}</strong><span>{metric.detail}</span></section>)}</div><section className="planning-print-focus"><p>Current focus</p><h2>{report.focus.title}</h2><span>{report.focus.detail}</span></section><p className="planning-print-note">{report.privacyNote}</p></article></>; }
-function PlanningActivityTimeline() { const utils = trpc.useUtils(); const [clearOpen, setClearOpen] = useState(false); const [exporting, setExporting] = useState(false); const activity = trpc.pathpilot.activity.list.useQuery(); const activityExport = trpc.pathpilot.activity.export.useQuery(undefined, { enabled: false }); const clear = trpc.pathpilot.activity.clear.useMutation({ onSuccess: () => { setClearOpen(false); utils.pathpilot.activity.list.invalidate(); notify.success("Your planning activity history was cleared."); } }); const hasActivity = Boolean(activity.data?.length); const download = async () => { setExporting(true); const result = await activityExport.refetch(); setExporting(false); if (!result.data?.length) { notify.error("There is no planning activity to export yet."); return; } const blob = new Blob([buildPlanningActivityCsv(result.data)], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "pathpilot-planning-activity.csv"; anchor.click(); URL.revokeObjectURL(url); notify.success("Your private planning activity export is ready."); }; return <section className="surface-panel mt-4 overflow-hidden"><div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-700"><div className="flex items-center gap-2"><CalendarDays className="size-4 text-primary" /><div><p className="text-sm font-semibold">Your planning activity</p><p className="text-xs text-muted-foreground">Recent goal and opportunity actions you chose to take.</p></div></div>{hasActivity && <div className="flex shrink-0 gap-2"><Button size="sm" variant="outline" disabled={exporting} onClick={download}>{exporting ? <Loader2 className="size-3.5" /> : <Download className="size-3.5" />}Export</Button><AlertDialog open={clearOpen} onOpenChange={setClearOpen}><AlertDialogTrigger asChild><Button size="sm" variant="outline">Clear history</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Clear planning activity history?</AlertDialogTitle><AlertDialogDescription>This permanently removes only this private activity timeline. Your goals, opportunities, simulations, roadmap, and recommendations will remain unchanged.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={clear.isPending}>Cancel</AlertDialogCancel><Button variant="destructive" disabled={clear.isPending} onClick={() => clear.mutate({ confirmed: true })}>{clear.isPending ? "Clearing…" : "Clear history"}</Button></AlertDialogFooter>{clear.error && <p role="alert" className="text-xs text-destructive">{clear.error.message}</p>}</AlertDialogContent></AlertDialog></div>}</div>{activity.isLoading ? <p className="p-4 text-xs text-muted-foreground">Loading your private activity history…</p> : activity.error ? <p role="alert" className="p-4 text-xs text-destructive">We could not load your activity history.</p> : activity.data?.length ? <div className="divide-y divide-slate-200 dark:divide-slate-700">{activity.data.slice(0, 5).map(item => <div key={item.id} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div><p className="text-sm font-medium">{item.title}</p><p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p></div><time className="data-value text-right text-xs text-muted-foreground" dateTime={item.createdAt.toISOString()}>{item.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time></div>)}</div> : <p className="p-4 text-xs leading-5 text-muted-foreground">Goal and opportunity actions will appear here as a private planning history. This is not a personality assessment or career prediction.</p>}<p className="border-t border-slate-200 px-4 py-3 text-[11px] leading-5 text-muted-foreground dark:border-slate-700">Export contains only neutral activity labels, subject categories, and timestamps. It excludes event metadata, simulation evidence, mentor content, and recommendations.</p></section>; }
-function SimulationInsight({ simulation, onNavigate }: { simulation: DashboardData["recentSimulation"]; onNavigate: (section: Section) => void }) { return <section className="surface-panel mt-4 p-4"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><Sparkles className="size-4 text-primary" /><p className="text-sm font-semibold">Latest simulation signal</p></div>{simulation ? <><p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{simulation.resultSummary}</p><div className="mt-3 flex flex-wrap gap-2">{(simulation.strongestTraits as string[]).slice(0, 4).map((trait: string) => <span key={trait} className="status-tag">{trait.replaceAll("_", " ")}</span>)}</div></> : <p className="mt-2 text-sm leading-6 text-muted-foreground">Run a branching work scenario to add a decision-based learning signal to this workspace.</p>}</div><Button size="sm" variant="outline" className="shrink-0 gap-2" onClick={() => onNavigate("simulate")}>{simulation ? "Review results" : "Start simulation"}<ArrowRight className="size-4" /></Button></div></section>; }
-function MetricCard({ icon: Icon, label, value, note, onClick }: { icon: typeof Sparkles; label: string; value: string; note: string; onClick: () => void }) { return <button onClick={onClick} className="group border-b border-slate-200 p-4 text-left last:border-b-0 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 md:border-b-0 md:border-r md:last:border-r-0"><div className="flex items-center justify-between"><p className="text-xs font-medium text-muted-foreground">{label}</p><Icon className="size-4 text-slate-400" /></div><p className="data-value mt-4 text-2xl font-semibold">{value}</p><p className="mt-1 truncate text-xs text-muted-foreground">{note}</p></button>; }
-function EmptyRow({ text, action, onClick }: { text: string; action: string; onClick: () => void }) { return <div className="p-5 text-sm text-muted-foreground"><p>{text}</p><button onClick={onClick} className="utility-link mt-2 inline-flex items-center gap-1">{action} <ArrowRight className="size-3.5" /></button></div>; }
-function Discover({ matches }: { matches: CareerMatches }) { const utils = trpc.useUtils(); const analyze = trpc.pathpilot.discovery.analyze.useMutation({ onSuccess: () => utils.pathpilot.dashboard.get.invalidate() }); return <><SectionHeader eyebrow="Career discovery" title="Find directions worth exploring." description="An AI-assisted analysis of your interests, strengths, activities, and preferred work—not a label for your future." action={<Button className="gap-2" disabled={analyze.isPending} onClick={() => analyze.mutate()}>{analyze.isPending ? <Loader2 className="size-4" /> : <Sparkles className="size-4" />}{matches.length ? "Refresh analysis" : "Analyze my profile"}</Button>} />{analyze.error && <p className="mb-5 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{analyze.error.message}</p>}{!matches.length ? <section className="surface-panel grid min-h-[340px] place-items-center p-8 text-center"><div><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary"><Compass className="size-6" /></span><h2 className="mt-5 text-xl font-semibold">Your first five directions are waiting.</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Use the profile you just built to surface five career paths, plus practical next steps for each one.</p><Button className="mt-6" onClick={() => analyze.mutate()} disabled={analyze.isPending}>{analyze.isPending ? "Analyzing your profile…" : "Discover five paths"}</Button></div></section> : <div className="grid gap-4 xl:grid-cols-2">{matches.map(match => <article key={match.id} className="surface-panel p-5 sm:p-6"><div className="flex items-start justify-between gap-5"><div><div className="eyebrow">Match {String(match.rank).padStart(2, "0")}</div><h2 className="mt-2 text-xl font-semibold tracking-[-0.04em]">{match.career.name}</h2><p className="mt-1 text-sm text-muted-foreground">{match.career.salaryRange}</p></div><span className="data-value grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">{match.matchScore}%</span></div><p className="mt-5 text-sm leading-6 text-muted-foreground">{match.reasoning}</p><div className="mt-5 grid gap-4 border-t border-border/70 pt-5 sm:grid-cols-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">Current strengths</p><div className="mt-2 flex flex-wrap gap-1.5">{match.strengths.map(item => <span key={item} className="rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">{item}</span>)}</div></div><div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Skills to build</p><div className="mt-2 flex flex-wrap gap-1.5">{match.missingSkills.map(item => <span key={item} className="rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">{item}</span>)}</div></div></div><div className="mt-5 rounded-xl bg-muted/60 p-3.5"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Reality check</p><p className="mt-1.5 text-xs leading-5 text-muted-foreground">{match.realityCheck}</p></div><div className="mt-5 flex items-center justify-between"><span className="text-xs font-semibold">Next: {match.nextSteps[0]}</span><ChevronRight className="size-4 text-primary" /></div></article>)}</div>}</>;
+function PlanningReview({
+  onNavigate,
+}: {
+  onNavigate: (section: Section) => void;
+}) {
+  const review = trpc.pathpilot.review.get.useQuery();
+  if (review.isLoading)
+    return (
+      <section className="surface-panel mt-4 p-4">
+        <p className="text-xs text-muted-foreground">
+          Preparing your saved planning review…
+        </p>
+      </section>
+    );
+  if (review.error || !review.data)
+    return (
+      <section className="surface-panel mt-4 p-4">
+        <p className="text-xs text-muted-foreground">
+          Your saved planning review will appear here when it is available.
+        </p>
+      </section>
+    );
+  const value = review.data;
+  const report = buildPlanningPrintReport(value);
+  return (
+    <>
+      <section className="surface-panel mt-4 overflow-hidden">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center dark:border-slate-700">
+          <div>
+            <p className="text-sm font-semibold">Your planning review</p>
+            <p className="text-xs text-muted-foreground">
+              A read-only summary of records you have chosen to save.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => window.print()}
+            >
+              <Printer className="size-3.5" />
+              Print report
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onNavigate(value.focus.section)}
+            >
+              Review focus
+            </Button>
+          </div>
+        </div>
+        <div className="grid divide-y divide-slate-200 sm:grid-cols-4 sm:divide-x sm:divide-y-0 dark:divide-slate-700">
+          <div className="p-4">
+            <p className="text-xs text-muted-foreground">Goals</p>
+            <p className="data-value mt-1 text-lg font-semibold">
+              {value.goals.completed}/{value.goals.total}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              completed · {value.goals.active} active
+            </p>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-muted-foreground">Projects</p>
+            <p className="data-value mt-1 text-lg font-semibold">
+              {value.projects.completed}/{value.projects.total}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              completed · {value.projects.active} active
+            </p>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-muted-foreground">Roadmap</p>
+            <p className="data-value mt-1 text-lg font-semibold">
+              {value.roadmap.exists
+                ? `${value.roadmap.completionPercentage}%`
+                : "—"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {value.roadmap.exists
+                ? `${value.roadmap.completed}/${value.roadmap.total} milestones`
+                : "Not started"}
+            </p>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-muted-foreground">Visible activity</p>
+            <p className="data-value mt-1 text-lg font-semibold">
+              {value.visibleActivityCount}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              recent planning actions
+            </p>
+          </div>
+        </div>
+        <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+          <p className="text-sm font-medium">{value.focus.title}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {value.focus.detail}
+          </p>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+            {value.method}
+          </p>
+        </div>
+      </section>
+      <article className="planning-print-report" aria-hidden="true">
+        <p className="planning-print-eyebrow">
+          Private student planning snapshot
+        </p>
+        <h1>{report.title}</h1>
+        <p className="planning-print-subtitle">{report.subtitle}</p>
+        <div className="planning-print-metrics">
+          {report.metrics.map(metric => (
+            <section key={metric.label}>
+              <p>{metric.label}</p>
+              <strong>{metric.value}</strong>
+              <span>{metric.detail}</span>
+            </section>
+          ))}
+        </div>
+        <section className="planning-print-focus">
+          <p>Current focus</p>
+          <h2>{report.focus.title}</h2>
+          <span>{report.focus.detail}</span>
+        </section>
+        <p className="planning-print-note">{report.privacyNote}</p>
+      </article>
+    </>
+  );
 }
-function Roadmap({ matches, roadmap }: { matches: CareerMatches; roadmap: ActiveRoadmap }) { const utils = trpc.useUtils(); const [target, setTarget] = useState(""); useEffect(() => { if (!target && matches[0]?.career.name) setTarget(matches[0].career.name); }, [matches, target]); const generate = trpc.pathpilot.roadmap.generate.useMutation({ onSuccess: () => utils.pathpilot.dashboard.get.invalidate() }); const updateProgress = trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({ onSuccess: () => utils.pathpilot.dashboard.get.invalidate() }); const groups = useMemo(() => roadmap?.milestones.reduce<Record<number, NonNullable<ActiveRoadmap>["milestones"]>>((acc, milestone) => { (acc[milestone.year] ||= []).push(milestone); return acc; }, {}) ?? {}, [roadmap]); return <><SectionHeader eyebrow="Personal roadmap" title={roadmap ? roadmap.targetCareer : "Turn direction into momentum."} description={roadmap ? `${roadmap.completionPercentage}% complete · Every milestone is designed to create visible evidence of progress.` : "Create a three-year plan across skills, projects, and experience—built around a direction you choose."} />{!roadmap ? <section className="surface-panel max-w-2xl p-6 sm:p-8"><span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary"><Waypoints className="size-5" /></span><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">What would you like to work toward?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Start with one path. Your plan will include three skill, project, and experience milestones per year, and you can update it later.</p><div className="mt-6 flex flex-col gap-3 sm:flex-row"><Input className="h-11 rounded-xl" value={target} onChange={event => setTarget(event.target.value)} placeholder="e.g., Environmental engineer" /><Button className="h-11 shrink-0 gap-2" disabled={target.trim().length < 2 || generate.isPending} onClick={() => generate.mutate({ targetCareer: target })}>{generate.isPending ? <Loader2 className="size-4" /> : <Sparkles className="size-4" />}Generate roadmap</Button></div>{generate.error && <p className="mt-4 text-sm text-destructive">{generate.error.message}</p>}</section> : <div className="space-y-8">{Object.entries(groups).map(([year, milestones]) => <section key={year}><div className="mb-4 flex items-center gap-3"><span className="grid size-8 place-items-center rounded-xl bg-foreground text-xs font-semibold text-background">{year}</span><div><p className="text-sm font-semibold">Year {year}</p><p className="text-xs text-muted-foreground">Build deliberately, then show your work.</p></div></div><div className="grid gap-3 lg:grid-cols-3">{milestones.map(milestone => <article key={milestone.id} className="surface-panel p-5"><div className="flex items-start justify-between gap-3"><span className="rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">{milestone.category}</span><span className="text-xs font-semibold text-muted-foreground">{milestone.progress}%</span></div><h3 className="mt-4 text-base font-semibold">{milestone.title}</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">{milestone.description}</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${milestone.progress}%` }} /></div><div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground"><span>{milestone.estimatedHours}h · {formatDate(milestone.deadline)}</span><button disabled={updateProgress.isPending || milestone.progress >= 100} onClick={() => updateProgress.mutate({ id: milestone.id, progress: Math.min(100, milestone.progress + 20) })} className="font-semibold text-primary disabled:text-muted-foreground">+20%</button></div>{milestone.resources.length > 0 && <a href={milestone.resources[0].url} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-[11px] font-semibold text-primary hover:underline">{milestone.resources[0].label} <ArrowRight className="ml-1 size-3" /></a>}</article>)}</div></section>)}</div>}</>;
+function PlanningActivityTimeline() {
+  const utils = trpc.useUtils();
+  const [clearOpen, setClearOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const activity = trpc.pathpilot.activity.list.useQuery();
+  const activityExport = trpc.pathpilot.activity.export.useQuery(undefined, {
+    enabled: false,
+  });
+  const clear = trpc.pathpilot.activity.clear.useMutation({
+    onSuccess: () => {
+      setClearOpen(false);
+      utils.pathpilot.activity.list.invalidate();
+      notify.success("Your planning activity history was cleared.");
+    },
+  });
+  const hasActivity = Boolean(activity.data?.length);
+  const download = async () => {
+    setExporting(true);
+    const result = await activityExport.refetch();
+    setExporting(false);
+    if (!result.data?.length) {
+      notify.error("There is no planning activity to export yet.");
+      return;
+    }
+    const blob = new Blob([buildPlanningActivityCsv(result.data)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "pathpilot-planning-activity.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    notify.success("Your private planning activity export is ready.");
+  };
+  return (
+    <section className="surface-panel mt-4 overflow-hidden">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-4 text-primary" />
+          <div>
+            <p className="text-sm font-semibold">Your planning activity</p>
+            <p className="text-xs text-muted-foreground">
+              Recent goal and opportunity actions you chose to take.
+            </p>
+          </div>
+        </div>
+        {hasActivity && (
+          <div className="flex shrink-0 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exporting}
+              onClick={download}
+            >
+              {exporting ? (
+                <Loader2 className="size-3.5" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              Export
+            </Button>
+            <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  Clear history
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Clear planning activity history?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently removes only this private activity
+                    timeline. Your goals, opportunities, simulations, roadmap,
+                    and recommendations will remain unchanged.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={clear.isPending}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <Button
+                    variant="destructive"
+                    disabled={clear.isPending}
+                    onClick={() => clear.mutate({ confirmed: true })}
+                  >
+                    {clear.isPending ? "Clearing…" : "Clear history"}
+                  </Button>
+                </AlertDialogFooter>
+                {clear.error && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {clear.error.message}
+                  </p>
+                )}
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </div>
+      {activity.isLoading ? (
+        <p className="p-4 text-xs text-muted-foreground">
+          Loading your private activity history…
+        </p>
+      ) : activity.error ? (
+        <p role="alert" className="p-4 text-xs text-destructive">
+          We could not load your activity history.
+        </p>
+      ) : activity.data?.length ? (
+        <div className="divide-y divide-slate-200 dark:divide-slate-700">
+          {activity.data.slice(0, 5).map(item => (
+            <div
+              key={item.id}
+              className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"
+            >
+              <div>
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.detail}
+                </p>
+              </div>
+              <time
+                className="data-value text-right text-xs text-muted-foreground"
+                dateTime={item.createdAt.toISOString()}
+              >
+                {item.createdAt.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </time>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="p-4 text-xs leading-5 text-muted-foreground">
+          Goal and opportunity actions will appear here as a private planning
+          history. This is not a personality assessment or career prediction.
+        </p>
+      )}
+      <p className="border-t border-slate-200 px-4 py-3 text-[11px] leading-5 text-muted-foreground dark:border-slate-700">
+        Export contains only neutral activity labels, subject categories, and
+        timestamps. It excludes event metadata, simulation evidence, mentor
+        content, and recommendations.
+      </p>
+    </section>
+  );
 }
-function Simulation({ matches }: { matches: CareerMatches }) { const [career, setCareer] = useState(""); const [simulationId, setSimulationId] = useState<string | null>(null); const [index, setIndex] = useState(0); const [choices, setChoices] = useState<Record<string, string>>({}); useEffect(() => { if (!career && matches[0]?.career.name) setCareer(matches[0].career.name); }, [career, matches]); const start = trpc.pathpilot.simulations.start.useMutation({ onSuccess: simulation => { setSimulationId(simulation.id); setChoices({}); setIndex(0); } }); const simulation = trpc.pathpilot.simulations.get.useQuery({ id: simulationId ?? "00000000-0000-0000-0000-000000000000" }, { enabled: simulationId !== null }); const complete = trpc.pathpilot.simulations.complete.useMutation({ onSuccess: () => simulation?.refetch() }); const scenarios = (simulation.data?.scenarios ?? []) as Scenario[]; const current = scenarios[index]; const choose = (scenario: Scenario, choiceId: string) => { const next = { ...choices, [scenario.id]: choiceId }; setChoices(next); if (index < scenarios.length - 1) setIndex(index + 1); else complete.mutate({ id: simulationId!, choices: scenarios.map(item => ({ scenarioId: item.id, choiceId: next[item.id] })) }); }; return <><SectionHeader eyebrow="Career simulations" title="Try the work before you choose it." description="Explore how your decisions could play out in a career context. Your fit analysis reflects judgment patterns in this simulation—not a prediction." />{!simulationId ? <section className="surface-panel max-w-2xl p-6 sm:p-8"><span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary"><Rocket className="size-5" /></span><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">Enter a working day.</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">PathPilot will create a short, three-decision simulation for the career you want to explore.</p><div className="mt-6 flex flex-col gap-3 sm:flex-row"><Input className="h-11 rounded-xl" value={career} onChange={event => setCareer(event.target.value)} placeholder="Career to explore" /><Button className="h-11 shrink-0 gap-2" disabled={career.trim().length < 2 || start.isPending} onClick={() => start.mutate({ career })}>{start.isPending ? <Loader2 className="size-4" /> : <Rocket className="size-4" />}Start simulation</Button></div>{start.error && <p className="mt-4 text-sm text-destructive">{start.error.message}</p>}</section> : simulation.isLoading ? <LoadingWorkspace /> : simulation.data?.status === "completed" ? <section className="surface-panel max-w-3xl p-6 sm:p-8"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground"><Trophy className="size-5" /></span><div><div className="eyebrow">Simulation complete</div><h2 className="mt-1 text-2xl font-semibold">{simulation.data.career} fit analysis</h2></div></div><div className="mt-7 grid gap-3 sm:grid-cols-3">{[["Technical", simulation.data.technicalScore], ["Leadership", simulation.data.leadershipScore], ["Career fit", simulation.data.careerCompatibilityScore]].map(([label, score]) => <div key={String(label)} className="rounded-2xl bg-muted/60 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-semibold">{score}%</p></div>)}</div><p className="mt-7 text-sm leading-6 text-muted-foreground">{simulation.data.feedback}</p><Button className="mt-6" variant="outline" onClick={() => setSimulationId(null)}>Try another career</Button></section> : current ? <section className="surface-panel max-w-3xl p-6 sm:p-8"><div className="flex items-center justify-between"><span className="eyebrow">Decision {index + 1} of {scenarios.length}</span><span className="text-xs font-semibold text-muted-foreground">{career}</span></div><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${((index + 1) / scenarios.length) * 100}%` }} /></div><h2 className="mt-8 text-2xl font-semibold">{current.title}</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">{current.prompt}</p><div className="mt-7 grid gap-3">{current.choices.map((choice, choiceIndex) => <button key={choice.id} disabled={complete.isPending} onClick={() => choose(current, choice.id)} className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/35"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-xs font-semibold text-muted-foreground">{String.fromCharCode(65 + choiceIndex)}</span><span className="flex-1 text-sm font-medium">{choice.label}</span><ChevronRight className="size-4 text-muted-foreground" /></button>)}</div>{complete.error && <p className="mt-4 text-sm text-destructive">{complete.error.message}</p>}</section> : null}</>;
+function SimulationInsight({
+  simulation,
+  onNavigate,
+}: {
+  simulation: DashboardData["recentSimulation"];
+  onNavigate: (section: Section) => void;
+}) {
+  return (
+    <section className="surface-panel mt-4 p-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <p className="text-sm font-semibold">Latest simulation signal</p>
+          </div>
+          {simulation ? (
+            <>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {simulation.resultSummary}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(simulation.strongestTraits as string[])
+                  .slice(0, 4)
+                  .map((trait: string) => (
+                    <span key={trait} className="status-tag">
+                      {trait.replaceAll("_", " ")}
+                    </span>
+                  ))}
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Run a branching work scenario to add a decision-based learning
+              signal to this workspace.
+            </p>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-2"
+          onClick={() => onNavigate("simulate")}
+        >
+          {simulation ? "Review results" : "Start simulation"}
+          <ArrowRight className="size-4" />
+        </Button>
+      </div>
+    </section>
+  );
+}
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  note,
+  onClick,
+}: {
+  icon: typeof Sparkles;
+  label: string;
+  value: string;
+  note: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group border-b border-slate-200 p-4 text-left last:border-b-0 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 md:border-b-0 md:border-r md:last:border-r-0"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <Icon className="size-4 text-slate-400" />
+      </div>
+      <p className="data-value mt-4 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 truncate text-xs text-muted-foreground">{note}</p>
+    </button>
+  );
+}
+function EmptyRow({
+  text,
+  action,
+  onClick,
+}: {
+  text: string;
+  action: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="p-5 text-sm text-muted-foreground">
+      <p>{text}</p>
+      <button
+        onClick={onClick}
+        className="utility-link mt-2 inline-flex items-center gap-1"
+      >
+        {action} <ArrowRight className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+function Discover({ matches }: { matches: CareerMatches }) {
+  const utils = trpc.useUtils();
+  const analyze = trpc.pathpilot.discovery.analyze.useMutation({
+    onSuccess: () => utils.pathpilot.dashboard.get.invalidate(),
+  });
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Career discovery"
+        title="Find directions worth exploring."
+        description="An AI-assisted analysis of your interests, strengths, activities, and preferred work—not a label for your future."
+        action={
+          <Button
+            className="gap-2"
+            disabled={analyze.isPending}
+            onClick={() => analyze.mutate()}
+          >
+            {analyze.isPending ? (
+              <Loader2 className="size-4" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+            {matches.length ? "Refresh analysis" : "Analyze my profile"}
+          </Button>
+        }
+      />
+      {analyze.error && (
+        <p className="mb-5 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {analyze.error.message}
+        </p>
+      )}
+      {!matches.length ? (
+        <section className="surface-panel grid min-h-[340px] place-items-center p-8 text-center">
+          <div>
+            <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Compass className="size-6" />
+            </span>
+            <h2 className="mt-5 text-xl font-semibold">
+              Your first five directions are waiting.
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+              Use the profile you just built to surface five career paths, plus
+              practical next steps for each one.
+            </p>
+            <Button
+              className="mt-6"
+              onClick={() => analyze.mutate()}
+              disabled={analyze.isPending}
+            >
+              {analyze.isPending
+                ? "Analyzing your profile…"
+                : "Discover five paths"}
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {matches.map(match => (
+            <article key={match.id} className="surface-panel p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <div className="eyebrow">
+                    Match {String(match.rank).padStart(2, "0")}
+                  </div>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em]">
+                    {match.career.name}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {match.career.salaryRange}
+                  </p>
+                </div>
+                <span className="data-value grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
+                  {match.matchScore}%
+                </span>
+              </div>
+              <p className="mt-5 text-sm leading-6 text-muted-foreground">
+                {match.reasoning}
+              </p>
+              <div className="mt-5 grid gap-4 border-t border-border/70 pt-5 sm:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+                    Current strengths
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {match.strengths.map(item => (
+                      <span
+                        key={item}
+                        className="rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Skills to build
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {match.missingSkills.map(item => (
+                      <span
+                        key={item}
+                        className="rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 rounded-xl bg-muted/60 p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Reality check
+                </p>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  {match.realityCheck}
+                </p>
+              </div>
+              <div className="mt-5 flex items-center justify-between">
+                <span className="text-xs font-semibold">
+                  Next: {match.nextSteps[0]}
+                </span>
+                <ChevronRight className="size-4 text-primary" />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+function Roadmap({
+  matches,
+  roadmap,
+}: {
+  matches: CareerMatches;
+  roadmap: ActiveRoadmap;
+}) {
+  const utils = trpc.useUtils();
+  const [target, setTarget] = useState("");
+  useEffect(() => {
+    if (!target && matches[0]?.career.name) setTarget(matches[0].career.name);
+  }, [matches, target]);
+  const generate = trpc.pathpilot.roadmap.generate.useMutation({
+    onSuccess: () => utils.pathpilot.dashboard.get.invalidate(),
+  });
+  const updateProgress =
+    trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({
+      onSuccess: () => utils.pathpilot.dashboard.get.invalidate(),
+    });
+  const groups = useMemo(
+    () =>
+      roadmap?.milestones.reduce<
+        Record<number, NonNullable<ActiveRoadmap>["milestones"]>
+      >((acc, milestone) => {
+        (acc[milestone.year] ||= []).push(milestone);
+        return acc;
+      }, {}) ?? {},
+    [roadmap]
+  );
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Personal roadmap"
+        title={roadmap ? roadmap.targetCareer : "Turn direction into momentum."}
+        description={
+          roadmap
+            ? `${roadmap.completionPercentage}% complete · Every milestone is designed to create visible evidence of progress.`
+            : "Create a three-year plan across skills, projects, and experience—built around a direction you choose."
+        }
+      />
+      {!roadmap ? (
+        <section className="surface-panel max-w-2xl p-6 sm:p-8">
+          <span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Waypoints className="size-5" />
+          </span>
+          <h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">
+            What would you like to work toward?
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Start with one path. Your plan will include three skill, project,
+            and experience milestones per year, and you can update it later.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Input
+              className="h-11 rounded-xl"
+              value={target}
+              onChange={event => setTarget(event.target.value)}
+              placeholder="e.g., Environmental engineer"
+            />
+            <Button
+              className="h-11 shrink-0 gap-2"
+              disabled={target.trim().length < 2 || generate.isPending}
+              onClick={() => generate.mutate({ targetCareer: target })}
+            >
+              {generate.isPending ? (
+                <Loader2 className="size-4" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              Generate roadmap
+            </Button>
+          </div>
+          {generate.error && (
+            <p className="mt-4 text-sm text-destructive">
+              {generate.error.message}
+            </p>
+          )}
+        </section>
+      ) : (
+        <div className="space-y-8">
+          {Object.entries(groups).map(([year, milestones]) => (
+            <section key={year}>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="grid size-8 place-items-center rounded-xl bg-foreground text-xs font-semibold text-background">
+                  {year}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">Year {year}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Build deliberately, then show your work.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-3">
+                {milestones.map(milestone => (
+                  <article key={milestone.id} className="surface-panel p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
+                        {milestone.category}
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {milestone.progress}%
+                      </span>
+                    </div>
+                    <h3 className="mt-4 text-base font-semibold">
+                      {milestone.title}
+                    </h3>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      {milestone.description}
+                    </p>
+                    <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${milestone.progress}%` }}
+                      />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        {milestone.estimatedHours}h ·{" "}
+                        {formatDate(milestone.deadline)}
+                      </span>
+                      <button
+                        disabled={
+                          updateProgress.isPending || milestone.progress >= 100
+                        }
+                        onClick={() =>
+                          updateProgress.mutate({
+                            id: milestone.id,
+                            progress: Math.min(100, milestone.progress + 20),
+                          })
+                        }
+                        className="font-semibold text-primary disabled:text-muted-foreground"
+                      >
+                        +20%
+                      </button>
+                    </div>
+                    {milestone.resources.length > 0 && (
+                      <a
+                        href={milestone.resources[0].url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        {milestone.resources[0].label}{" "}
+                        <ArrowRight className="ml-1 size-3" />
+                      </a>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+function Simulation({ matches }: { matches: CareerMatches }) {
+  const [career, setCareer] = useState("");
+  const [simulationId, setSimulationId] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const [choices, setChoices] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!career && matches[0]?.career.name) setCareer(matches[0].career.name);
+  }, [career, matches]);
+  const start = trpc.pathpilot.simulations.start.useMutation({
+    onSuccess: simulation => {
+      setSimulationId(simulation.id);
+      setChoices({});
+      setIndex(0);
+    },
+  });
+  const simulation = trpc.pathpilot.simulations.get.useQuery(
+    { id: simulationId ?? "00000000-0000-0000-0000-000000000000" },
+    { enabled: simulationId !== null }
+  );
+  const complete = trpc.pathpilot.simulations.complete.useMutation({
+    onSuccess: () => simulation?.refetch(),
+  });
+  const scenarios = (simulation.data?.scenarios ?? []) as Scenario[];
+  const current = scenarios[index];
+  const choose = (scenario: Scenario, choiceId: string) => {
+    const next = { ...choices, [scenario.id]: choiceId };
+    setChoices(next);
+    if (index < scenarios.length - 1) setIndex(index + 1);
+    else
+      complete.mutate({
+        id: simulationId!,
+        choices: scenarios.map(item => ({
+          scenarioId: item.id,
+          choiceId: next[item.id],
+        })),
+      });
+  };
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Career simulations"
+        title="Try the work before you choose it."
+        description="Explore how your decisions could play out in a career context. Your fit analysis reflects judgment patterns in this simulation—not a prediction."
+      />
+      {!simulationId ? (
+        <section className="surface-panel max-w-2xl p-6 sm:p-8">
+          <span className="grid size-11 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Rocket className="size-5" />
+          </span>
+          <h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">
+            Enter a working day.
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            PathPilot will create a short, three-decision simulation for the
+            career you want to explore.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Input
+              className="h-11 rounded-xl"
+              value={career}
+              onChange={event => setCareer(event.target.value)}
+              placeholder="Career to explore"
+            />
+            <Button
+              className="h-11 shrink-0 gap-2"
+              disabled={career.trim().length < 2 || start.isPending}
+              onClick={() => start.mutate({ career })}
+            >
+              {start.isPending ? (
+                <Loader2 className="size-4" />
+              ) : (
+                <Rocket className="size-4" />
+              )}
+              Start simulation
+            </Button>
+          </div>
+          {start.error && (
+            <p className="mt-4 text-sm text-destructive">
+              {start.error.message}
+            </p>
+          )}
+        </section>
+      ) : simulation.isLoading ? (
+        <LoadingWorkspace />
+      ) : simulation.data?.status === "completed" ? (
+        <section className="surface-panel max-w-3xl p-6 sm:p-8">
+          <div className="flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground">
+              <Trophy className="size-5" />
+            </span>
+            <div>
+              <div className="eyebrow">Simulation complete</div>
+              <h2 className="mt-1 text-2xl font-semibold">
+                {simulation.data.career} fit analysis
+              </h2>
+            </div>
+          </div>
+          <div className="mt-7 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Technical", simulation.data.technicalScore],
+              ["Leadership", simulation.data.leadershipScore],
+              ["Career fit", simulation.data.careerCompatibilityScore],
+            ].map(([label, score]) => (
+              <div key={String(label)} className="rounded-2xl bg-muted/60 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {label}
+                </p>
+                <p className="mt-2 text-3xl font-semibold">{score}%</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-7 text-sm leading-6 text-muted-foreground">
+            {simulation.data.feedback}
+          </p>
+          <Button
+            className="mt-6"
+            variant="outline"
+            onClick={() => setSimulationId(null)}
+          >
+            Try another career
+          </Button>
+        </section>
+      ) : current ? (
+        <section className="surface-panel max-w-3xl p-6 sm:p-8">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow">
+              Decision {index + 1} of {scenarios.length}
+            </span>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {career}
+            </span>
+          </div>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${((index + 1) / scenarios.length) * 100}%` }}
+            />
+          </div>
+          <h2 className="mt-8 text-2xl font-semibold">{current.title}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
+            {current.prompt}
+          </p>
+          <div className="mt-7 grid gap-3">
+            {current.choices.map((choice, choiceIndex) => (
+              <button
+                key={choice.id}
+                disabled={complete.isPending}
+                onClick={() => choose(current, choice.id)}
+                className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/35"
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-muted text-xs font-semibold text-muted-foreground">
+                  {String.fromCharCode(65 + choiceIndex)}
+                </span>
+                <span className="flex-1 text-sm font-medium">
+                  {choice.label}
+                </span>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+          {complete.error && (
+            <p className="mt-4 text-sm text-destructive">
+              {complete.error.message}
+            </p>
+          )}
+        </section>
+      ) : null}
+    </>
+  );
 }
 function Mentor() {
-  const utils = trpc.useUtils(); const mentor = trpc.pathpilot.mentor.get.useQuery();
-  const [proposal, setProposal] = useState<{ title: string; description: string; category: string; priority: "low" | "medium" | "high"; estimatedHours: number; deadline: string | null } | null>(null);
-  const send = trpc.pathpilot.mentor.send.useMutation({ onSuccess: response => { setProposal(response.suggestedGoal); utils.pathpilot.mentor.get.invalidate(); utils.pathpilot.dashboard.get.invalidate(); } });
-  const accept = trpc.pathpilot.mentor.acceptSuggestedGoal.useMutation({ onSuccess: () => { setProposal(null); utils.pathpilot.dashboard.get.invalidate(); } });
-  return <><SectionHeader eyebrow="PathPilot mentor" title="A thinking partner for your next move." description="Ask about careers, planning, project ideas, workload, or a decision you are weighing. Your mentor uses your workspace context to stay useful." />{mentor.isLoading ? <LoadingWorkspace /> : <section className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]"><aside className="space-y-4"><div className="surface-panel p-5"><span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground"><Bot className="size-5" /></span><h2 className="mt-5 text-lg font-semibold">Your guidance, in context.</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Your profile, active roadmap, goals, recent simulation insights, and conversation help the mentor respond with continuity.</p></div>{proposal && <div className="surface-panel p-5"><p className="eyebrow">Suggested goal</p><h3 className="mt-2 text-sm font-semibold">{proposal.title}</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">{proposal.description}</p><p className="mt-3 text-xs text-muted-foreground">{proposal.priority} priority · {proposal.estimatedHours}h{proposal.deadline ? ` · due ${formatDate(new Date(proposal.deadline))}` : ""}</p><div className="mt-4 flex gap-2"><Button size="sm" disabled={accept.isPending} onClick={() => accept.mutate(proposal)}>{accept.isPending ? <Loader2 className="size-3.5" /> : "Accept goal"}</Button><Button size="sm" variant="outline" onClick={() => setProposal(null)}>Dismiss</Button></div></div>}</aside><Suspense fallback={<div className="surface-panel grid min-h-80 place-items-center text-sm text-muted-foreground"><Loader2 className="mr-2 size-4" />Loading mentor</div>}><AIChatBox className="shadow-[0_18px_50px_rgba(19,27,54,0.08)]" height="min(620px, calc(100vh - 255px))" messages={(mentor.data?.messages ?? []).map(message => ({ role: message.role, content: message.content }))} onSendMessage={content => send.mutate({ content })} isLoading={send.isPending} placeholder="Ask your career mentor…" suggestedPrompts={["What should I focus on this month?", "Help me compare two career paths", "Create a goal for my next project"]} /></Suspense></section>}</>;
+  const utils = trpc.useUtils();
+  const mentor = trpc.pathpilot.mentor.get.useQuery();
+  const [proposal, setProposal] = useState<{
+    title: string;
+    description: string;
+    category: string;
+    priority: "low" | "medium" | "high";
+    estimatedHours: number;
+    deadline: string | null;
+  } | null>(null);
+  const send = trpc.pathpilot.mentor.send.useMutation({
+    onSuccess: response => {
+      setProposal(response.suggestedGoal);
+      utils.pathpilot.mentor.get.invalidate();
+      utils.pathpilot.dashboard.get.invalidate();
+    },
+  });
+  const accept = trpc.pathpilot.mentor.acceptSuggestedGoal.useMutation({
+    onSuccess: () => {
+      setProposal(null);
+      utils.pathpilot.dashboard.get.invalidate();
+    },
+  });
+  return (
+    <>
+      <SectionHeader
+        eyebrow="PathPilot mentor"
+        title="A thinking partner for your next move."
+        description="Ask about careers, planning, project ideas, workload, or a decision you are weighing. Your mentor uses your workspace context to stay useful."
+      />
+      {mentor.isLoading ? (
+        <LoadingWorkspace />
+      ) : (
+        <section className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
+          <aside className="space-y-4">
+            <div className="surface-panel p-5">
+              <span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground">
+                <Bot className="size-5" />
+              </span>
+              <h2 className="mt-5 text-lg font-semibold">
+                Your guidance, in context.
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Your profile, active roadmap, goals, recent simulation insights,
+                and conversation help the mentor respond with continuity.
+              </p>
+            </div>
+            {proposal && (
+              <div className="surface-panel p-5">
+                <p className="eyebrow">Suggested goal</p>
+                <h3 className="mt-2 text-sm font-semibold">{proposal.title}</h3>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {proposal.description}
+                </p>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {proposal.priority} priority · {proposal.estimatedHours}h
+                  {proposal.deadline
+                    ? ` · due ${formatDate(new Date(proposal.deadline))}`
+                    : ""}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={accept.isPending}
+                    onClick={() => accept.mutate(proposal)}
+                  >
+                    {accept.isPending ? (
+                      <Loader2 className="size-3.5" />
+                    ) : (
+                      "Accept goal"
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setProposal(null)}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            )}
+          </aside>
+          <Suspense
+            fallback={
+              <div className="surface-panel grid min-h-80 place-items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 size-4" />
+                Loading mentor
+              </div>
+            }
+          >
+            <AIChatBox
+              className="shadow-[0_18px_50px_rgba(19,27,54,0.08)]"
+              height="min(620px, calc(100vh - 255px))"
+              messages={(mentor.data?.messages ?? []).map(message => ({
+                role: message.role,
+                content: message.content,
+              }))}
+              onSendMessage={content => send.mutate({ content })}
+              isLoading={send.isPending}
+              placeholder="Ask your career mentor…"
+              suggestedPrompts={[
+                "What should I focus on this month?",
+                "Help me compare two career paths",
+                "Create a goal for my next project",
+              ]}
+            />
+          </Suspense>
+        </section>
+      )}
+    </>
+  );
 }
-function Goals({ goals }: { goals: DashboardData["goals"] }) { const utils = trpc.useUtils(); const [open, setOpen] = useState(false); const [title, setTitle] = useState(""); const [hours, setHours] = useState("2"); const create = trpc.pathpilot.goals.create.useMutation({ onSuccess: () => { setOpen(false); setTitle(""); utils.pathpilot.dashboard.get.invalidate(); } }); const update = trpc.pathpilot.goals.update.useMutation({ onSuccess: () => utils.pathpilot.dashboard.get.invalidate() }); return <><SectionHeader eyebrow="Goal tracking" title="Keep the next step clear." description="Goals turn exploration into evidence. Keep them small enough to begin and meaningful enough to matter." action={<Button className="gap-2" onClick={() => setOpen(!open)}><Plus className="size-4" />New goal</Button>} />{open && <section className="surface-panel mb-5 p-5"><div className="flex flex-col gap-3 sm:flex-row"><Input className="h-11 rounded-xl" value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g., Build a small data visualization" /><Input className="h-11 rounded-xl sm:max-w-32" type="number" min="1" value={hours} onChange={event => setHours(event.target.value)} placeholder="Hours" /><Button className="h-11" disabled={title.trim().length < 2 || create.isPending} onClick={() => create.mutate({ title, category: "career exploration", priority: "medium", estimatedHours: Math.max(1, Number(hours) || 1), resources: [] })}>{create.isPending ? <Loader2 className="size-4" /> : "Add goal"}</Button></div>{create.error && <p className="mt-3 text-sm text-destructive">{create.error.message}</p>}</section>}<section className="surface-panel overflow-hidden">{goals.length ? <div className="divide-y divide-border/70">{goals.map(goal => <article key={goal.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6"><button disabled={update.isPending} onClick={() => update.mutate({ id: goal.id, progress: goal.progress >= 100 ? 0 : Math.min(100, goal.progress + 25), status: goal.progress + 25 >= 100 ? "completed" : "in_progress" })} className={cn("grid size-8 shrink-0 place-items-center rounded-full border", goal.progress >= 100 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary hover:text-primary")}>{goal.progress >= 100 ? <Check className="size-4" /> : <Circle className="size-3" />}</button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className={cn("text-sm font-semibold", goal.progress >= 100 && "text-muted-foreground line-through")}>{goal.title}</h2><span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">{goal.priority}</span></div><p className="mt-1 text-xs text-muted-foreground">{goal.category} · {goal.estimatedHours}h · {formatDate(goal.deadline)}</p></div><div className="flex items-center gap-3 sm:w-40"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${goal.progress}%` }} /></div><span className="text-xs font-semibold text-muted-foreground">{goal.progress}%</span></div></article>)}</div> : <div className="p-12 text-center"><Target className="mx-auto size-5 text-primary" /><p className="mt-3 text-sm font-semibold">No goals yet</p><p className="mt-1 text-xs text-muted-foreground">Add a focused next step, or ask your mentor to create one with you.</p></div>}</section></>;
+function Goals({ goals }: { goals: DashboardData["goals"] }) {
+  const utils = trpc.useUtils();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [hours, setHours] = useState("2");
+  const create = trpc.pathpilot.goals.create.useMutation({
+    onSuccess: () => {
+      setOpen(false);
+      setTitle("");
+      utils.pathpilot.dashboard.get.invalidate();
+    },
+  });
+  const update = trpc.pathpilot.goals.update.useMutation({
+    onSuccess: () => utils.pathpilot.dashboard.get.invalidate(),
+  });
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Goal tracking"
+        title="Keep the next step clear."
+        description="Goals turn exploration into evidence. Keep them small enough to begin and meaningful enough to matter."
+        action={
+          <Button className="gap-2" onClick={() => setOpen(!open)}>
+            <Plus className="size-4" />
+            New goal
+          </Button>
+        }
+      />
+      {open && (
+        <section className="surface-panel mb-5 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Input
+              className="h-11 rounded-xl"
+              value={title}
+              onChange={event => setTitle(event.target.value)}
+              placeholder="e.g., Build a small data visualization"
+            />
+            <Input
+              className="h-11 rounded-xl sm:max-w-32"
+              type="number"
+              min="1"
+              value={hours}
+              onChange={event => setHours(event.target.value)}
+              placeholder="Hours"
+            />
+            <Button
+              className="h-11"
+              disabled={title.trim().length < 2 || create.isPending}
+              onClick={() =>
+                create.mutate({
+                  title,
+                  category: "career exploration",
+                  priority: "medium",
+                  estimatedHours: Math.max(1, Number(hours) || 1),
+                  resources: [],
+                })
+              }
+            >
+              {create.isPending ? <Loader2 className="size-4" /> : "Add goal"}
+            </Button>
+          </div>
+          {create.error && (
+            <p className="mt-3 text-sm text-destructive">
+              {create.error.message}
+            </p>
+          )}
+        </section>
+      )}
+      <section className="surface-panel overflow-hidden">
+        {goals.length ? (
+          <div className="divide-y divide-border/70">
+            {goals.map(goal => (
+              <article
+                key={goal.id}
+                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6"
+              >
+                <button
+                  disabled={update.isPending}
+                  onClick={() =>
+                    update.mutate({
+                      id: goal.id,
+                      progress:
+                        goal.progress >= 100
+                          ? 0
+                          : Math.min(100, goal.progress + 25),
+                      status:
+                        goal.progress + 25 >= 100 ? "completed" : "in_progress",
+                    })
+                  }
+                  className={cn(
+                    "grid size-8 shrink-0 place-items-center rounded-full border",
+                    goal.progress >= 100
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-primary hover:text-primary"
+                  )}
+                >
+                  {goal.progress >= 100 ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Circle className="size-3" />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2
+                      className={cn(
+                        "text-sm font-semibold",
+                        goal.progress >= 100 &&
+                          "text-muted-foreground line-through"
+                      )}
+                    >
+                      {goal.title}
+                    </h2>
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                      {goal.priority}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {goal.category} · {goal.estimatedHours}h ·{" "}
+                    {formatDate(goal.deadline)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 sm:w-40">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${goal.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {goal.progress}%
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center">
+            <Target className="mx-auto size-5 text-primary" />
+            <p className="mt-3 text-sm font-semibold">No goals yet</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a focused next step, or ask your mentor to create one with
+              you.
+            </p>
+          </div>
+        )}
+      </section>
+    </>
+  );
 }
