@@ -2,6 +2,7 @@ import { currentSupabaseClient } from "../supabase";
 import { createGoal, createRoadmap, getActiveRoadmap, getBehaviorEvolution, getLatestCompletedAdaptiveSimulation, getStudentProfile, listGoals, listProjects, type RoadmapMilestoneInput } from "../db";
 import { buildCountryAwareRecommendations } from "./recommendations";
 import { getNationalEducationContext } from "./national-context";
+import { buildRecommendationEvolutionPreview, EVOLUTION_CONTEXT_VERSION } from "./recommendation-evolution";
 
 type RecommendationStatus = "pending" | "accepted" | "skipped" | "dismissed";
 type RecommendationInput = { title?: string; description?: string; priority?: "low" | "medium" | "high"; suggestedDeadline?: Date | null };
@@ -39,6 +40,59 @@ export async function getRoadmapRecommendationContext(userId: string, simulation
   return { profile, simulation, goals, projects, roadmap, national, behaviorEvolution };
 }
 
+function recommendationDrafts(context: Awaited<ReturnType<typeof getRoadmapRecommendationContext>>, useEvolution: boolean) {
+  const existingTitles = [
+    ...context.goals.filter(goal => goal.status !== "completed").map(goal => goal.title),
+    ...context.projects.filter(project => project.status !== "archived").map(project => project.name),
+    ...(context.roadmap?.milestones ?? []).map(milestone => milestone.title),
+  ];
+  return buildCountryAwareRecommendations({
+    career: context.simulation.career, countryCode: context.profile.countryCode, grade: context.profile.grade,
+    skills: context.profile.skills, activities: context.profile.activities, existingTitles,
+    strongestTraits: context.simulation.behavioralProfile?.strongestTraits ?? [],
+    evolvingFocus: useEvolution ? context.behaviorEvolution?.evolvingFocus ?? undefined : undefined,
+  });
+}
+
+export async function getRoadmapRecommendationEvolutionPreview(userId: string, simulationId?: string) {
+  const context = await getRoadmapRecommendationContext(userId, simulationId);
+  const existing = await listRoadmapRecommendations(userId, context.simulation.id);
+  const drafts = recommendationDrafts(context, true);
+  return buildRecommendationEvolutionPreview({
+    includedSimulationCount: context.behaviorEvolution?.includedSimulationCount ?? 0,
+    completedSimulationCount: context.behaviorEvolution?.completedSimulationCount ?? 0,
+    mostRecentCompletedAt: context.behaviorEvolution?.mostRecentCompletedAt ?? null,
+    evolvingFocus: context.behaviorEvolution?.evolvingFocus ?? null,
+    evolvedRecommendationCount: drafts.length,
+    hasPendingEvolutionRecommendations: existing.some(item => item.status === "pending" && item.contextVersion === EVOLUTION_CONTEXT_VERSION),
+  });
+}
+
+export async function addEvolvedRoadmapRecommendations(userId: string, simulationId?: string) {
+  const context = await getRoadmapRecommendationContext(userId, simulationId);
+  const existing = await listRoadmapRecommendations(userId, context.simulation.id);
+  const existingEvolved = existing.filter(item => item.status === "pending" && item.contextVersion === EVOLUTION_CONTEXT_VERSION);
+  if (existingEvolved.length) return { preview: await getRoadmapRecommendationEvolutionPreview(userId, context.simulation.id), recommendations: existingEvolved };
+  const drafts = recommendationDrafts(context, true);
+  const preview = buildRecommendationEvolutionPreview({
+    includedSimulationCount: context.behaviorEvolution?.includedSimulationCount ?? 0,
+    completedSimulationCount: context.behaviorEvolution?.completedSimulationCount ?? 0,
+    mostRecentCompletedAt: context.behaviorEvolution?.mostRecentCompletedAt ?? null,
+    evolvingFocus: context.behaviorEvolution?.evolvingFocus ?? null,
+    evolvedRecommendationCount: drafts.length,
+    hasPendingEvolutionRecommendations: false,
+  });
+  if (preview.state !== "ready") throw new Error("Complete at least two simulations before adding an evolved recommendation set.");
+  const { data, error } = await client().from("roadmap_recommendations").insert(drafts.map(item => ({
+    user_id: userId, source_simulation_id: context.simulation.id, target_career: context.simulation.career,
+    country_snapshot: context.profile.countryCode ?? "ZZ", education_system_snapshot: context.national.educationSystem,
+    phase: item.phase, title: item.title, description: item.description, rationale: item.rationale, category: item.category,
+    priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder, context_version: EVOLUTION_CONTEXT_VERSION,
+  }))).select("*");
+  check(error);
+  return { preview, recommendations: (data ?? []).map(recommendation) };
+}
+
 async function getLatestCompletedSimulationById(userId: string, simulationId: string) {
   const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").maybeSingle();
   check(error);
@@ -53,25 +107,15 @@ export async function generateRoadmapRecommendations(userId: string, simulationI
   const pending = existingRecommendations.filter(item => item.status === "pending");
   if (pending.length && !force) return { context, recommendations: existingRecommendations };
   if (pending.length && force) {
-    const { error: dismissError } = await client().from("roadmap_recommendations").update({ status: "dismissed", updated_at: new Date().toISOString() }).eq("user_id", userId).eq("source_simulation_id", context.simulation.id).eq("status", "pending");
+    const { error: dismissError } = await client().from("roadmap_recommendations").update({ status: "dismissed", updated_at: new Date().toISOString() }).eq("user_id", userId).eq("source_simulation_id", context.simulation.id).eq("status", "pending").neq("context_version", EVOLUTION_CONTEXT_VERSION);
     check(dismissError);
   }
-  const existingTitles = [
-    ...context.goals.filter(goal => goal.status !== "completed").map(goal => goal.title),
-    ...context.projects.filter(project => project.status !== "archived").map(project => project.name),
-    ...(context.roadmap?.milestones ?? []).map(milestone => milestone.title),
-  ];
-  const drafts = buildCountryAwareRecommendations({
-    career: context.simulation.career, countryCode: context.profile.countryCode, grade: context.profile.grade,
-    skills: context.profile.skills, activities: context.profile.activities, existingTitles,
-    strongestTraits: context.behaviorEvolution?.strongestTraits ?? context.simulation.behavioralProfile?.strongestTraits ?? [],
-    evolvingFocus: context.behaviorEvolution?.evolvingFocus ?? undefined,
-  });
+  const drafts = recommendationDrafts(context, false);
   const { data, error } = await client().from("roadmap_recommendations").insert(drafts.map(item => ({
     user_id: userId, source_simulation_id: context.simulation.id, target_career: context.simulation.career,
     country_snapshot: context.profile.countryCode ?? "ZZ", education_system_snapshot: context.national.educationSystem,
     phase: item.phase, title: item.title, description: item.description, rationale: item.rationale, category: item.category,
-    priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder,
+    priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder, context_version: "baseline-v1",
   }))).select("*");
   check(error);
   return { context, recommendations: (data ?? []).map(recommendation) };

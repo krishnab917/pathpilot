@@ -65,7 +65,7 @@ import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
-import { acceptRoadmapRecommendation, generateRoadmapRecommendations, getRoadmapRecommendationContext, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
+import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
 import { buildMentorPlanningContext } from "../mentor-context";
 import { buildDecisionReview, presentTerminalOutcome } from "../simulation/presentation";
@@ -459,6 +459,8 @@ export const pathpilotRouter = router({
     recommendations: router({
       list: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional() })).query(({ ctx, input }) => listRoadmapRecommendations(ctx.user.id, input.simulationId)),
       generate: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional(), force: z.boolean().default(false) })).mutation(({ ctx, input }) => generateRoadmapRecommendations(ctx.user.id, input.simulationId, input.force)),
+      evolutionPreview: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional() })).query(({ ctx, input }) => getRoadmapRecommendationEvolutionPreview(ctx.user.id, input.simulationId)),
+      addEvolved: protectedProcedure.input(z.object({ simulationId: z.string().uuid().optional(), confirmed: z.literal(true) })).mutation(({ ctx, input }) => addEvolvedRoadmapRecommendations(ctx.user.id, input.simulationId)),
       update: protectedProcedure.input(z.object({ id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(1200).optional(), priority: prioritySchema.optional(), suggestedDeadline: z.date().nullable().optional() })).mutation(({ ctx, input }) => updateRoadmapRecommendation(ctx.user.id, input.id, input)),
       accept: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => acceptRoadmapRecommendation(ctx.user.id, input.id)),
       skip: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => skipRoadmapRecommendation(ctx.user.id, input.id)),
