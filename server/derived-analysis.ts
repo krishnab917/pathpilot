@@ -29,7 +29,7 @@ async function completedSources(db: SupabaseClient, userId: string) {
 
 function workerClient() {
   const { url } = getSupabaseConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY;
   if (!serviceRoleKey) throw new Error("The background worker is not configured.");
   return createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
 }
