@@ -4,11 +4,20 @@ import type { AdaptiveResults, BehavioralEvent, BehavioralEvidence, DecisionReco
 import { softwareV1Graph } from "./graphs/software-v1";
 import { businessV1Graph, designV1Graph, healthV1Graph } from "./graphs/career-graphs";
 import { communicationsV1Graph, educationV1Graph, engineeringV1Graph, environmentV1Graph, policyV1Graph, researchV1Graph } from "./graphs/expanded-career-graphs";
+import { aerospaceEngineerAstronautV1Graph, doctorPhysicianV1Graph, entrepreneurStartupFounderV1Graph, lawyerV1Graph } from "./graphs/dedicated-set-a";
+import { aiMachineLearningEngineerV1Graph, cybersecurityAnalystV1Graph, dataScientistV1Graph, mechanicalEngineerV1Graph, productManagerV1Graph } from "./graphs/dedicated-set-b";
+import { architectV1Graph, environmentalScientistV1Graph, financialAnalystV1Graph, researchScientistV1Graph, uxProductDesignerV1Graph } from "./graphs/dedicated-set-c";
 
 const clamp = (value: number) => Math.max(0, Math.min(10, value));
-export const simulationGraphCatalog: SimulationGraph[] = [softwareV1Graph, healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
+const dedicatedGraphsByCareerId: Record<string, SimulationGraph> = {
+  "software-engineer": softwareV1Graph, "doctor-physician": doctorPhysicianV1Graph, lawyer: lawyerV1Graph, "entrepreneur-startup-founder": entrepreneurStartupFounderV1Graph, "aerospace-engineer-astronaut": aerospaceEngineerAstronautV1Graph,
+  "ai-machine-learning-engineer": aiMachineLearningEngineerV1Graph, "product-manager": productManagerV1Graph, "cybersecurity-analyst": cybersecurityAnalystV1Graph, "data-scientist": dataScientistV1Graph, "mechanical-engineer": mechanicalEngineerV1Graph,
+  architect: architectV1Graph, "ux-product-designer": uxProductDesignerV1Graph, "financial-analyst": financialAnalystV1Graph, "environmental-scientist": environmentalScientistV1Graph, "research-scientist": researchScientistV1Graph,
+};
+export const simulationGraphCatalog: SimulationGraph[] = [...Object.values(dedicatedGraphsByCareerId), healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
 export const getSimulationGraphById = (graphId: string | null | undefined): SimulationGraph | null => simulationGraphCatalog.find(graph => graph.id === graphId) ?? null;
 export const getSimulationGraph = (career: string): SimulationGraph => {
+  if (dedicatedGraphsByCareerId[career]) return dedicatedGraphsByCareerId[career];
   const value = career.toLowerCase();
   if (/software|data|computer|web developer|cyber|machine learning|artificial intelligence|it specialist/.test(value)) return softwareV1Graph;
   if (/journal|report|communications|public relations|newsroom|broadcast|copywriter/.test(value)) return communicationsV1Graph;

@@ -35,7 +35,7 @@ describe("expanded adaptive simulation catalog", () => {
   });
 
   it("provides an eight-decision path for each new career-family graph without changing the common engine", () => {
-    for (const graph of simulationGraphCatalog.filter(item => item.id.endsWith("-v1") && !["software-systems-v1", "health-care-team-v1", "design-feedback-v1", "business-decision-v1"].includes(item.id))) {
+    for (const graph of simulationGraphCatalog.filter(item => ["engineering-design-v1", "scientific-research-v1", "public-policy-v1", "education-learning-v1", "environmental-systems-v1", "communications-newsroom-v1"].includes(item.id))) {
       let state = initialSimulationState(graph); let evidence: any[] = []; let history: any[] = [];
       for (const decisionId of ["inspect-evidence", "test-small", "recommend-evidence", "assign-checkpoint", "capture-learning", "name-pattern", "set-measure", "practice-skill"]) {
         const result = chooseSimulationDecision(graph, state, decisionId, evidence, history);

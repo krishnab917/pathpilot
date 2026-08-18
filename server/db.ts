@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
 import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState } from "./simulation/engine";
+import { getSimulationCareer } from "./simulation/catalog";
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchBnlHighSchoolResearchRecord } from "./opportunities/bnl-high-school-research-source";
@@ -189,9 +190,10 @@ export async function createSimulation(userId: string, value: { career: string; 
 export async function getSimulation(userId: string, simulationId: string) { const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).maybeSingle(); check(error); return simulation(data); }
 export async function completeSimulation(userId: string, simulationId: string, value: { userChoices: { scenarioId: string; choiceId: string }[]; technicalScore: number; leadershipScore: number; careerCompatibilityScore: number; score: number; feedback: string }) { const { error } = await client().from("simulations").update({ user_choices: value.userChoices, technical_score: value.technicalScore, leadership_score: value.leadershipScore, career_compatibility_score: value.careerCompatibilityScore, score: value.score, feedback: value.feedback, status: "completed", completed_at: new Date().toISOString() }).eq("id", simulationId).eq("user_id", userId); check(error); return getSimulation(userId, simulationId); }
 
-export async function createAdaptiveSimulation(userId: string, career: string, responseTimingOptIn = false) {
-  const graph = getSimulationGraph(career); const state = initialSimulationState(graph);
-  const { data, error } = await client().from("simulations").insert({ user_id: userId, career, title: graph.title, scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: graph.id, current_node_id: state.currentNodeId, node_history: [], decision_history: [], simulation_state: state, behavioral_evidence: [], behavioral_events: [], response_timing_opt_in: responseTimingOptIn, response_timing_events: [] }).select().single();
+export async function createAdaptiveSimulation(userId: string, careerId: string, responseTimingOptIn = false) {
+  const career = getSimulationCareer(careerId); if (!career) throw new Error("That career simulation is not currently available.");
+  const graph = getSimulationGraph(career.id); const state = initialSimulationState(graph);
+  const { data, error } = await client().from("simulations").insert({ user_id: userId, career: career.name, title: graph.title, scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: graph.id, current_node_id: state.currentNodeId, node_history: [], decision_history: [], simulation_state: state, behavioral_evidence: [], behavioral_events: [], response_timing_opt_in: responseTimingOptIn, response_timing_events: [] }).select().single();
   check(error); const saved = simulation(data); if (!saved) throw new Error("Simulation could not be created."); return saved;
 }
 export async function getAdaptiveSimulation(userId: string, simulationId: string) { const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).eq("engine_version", "adaptive-v2").maybeSingle(); check(error); return simulation(data); }

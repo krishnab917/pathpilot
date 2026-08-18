@@ -185,5 +185,5 @@
 - [x] Checkpoint 42 graph set A: implement dedicated ten-plus-node graph libraries for Software Engineer, Doctor / Physician, Lawyer, Entrepreneur / Startup Founder, and Aerospace Engineer / Astronaut Pathway.
 - [x] Checkpoint 43 graph set B: implement dedicated ten-plus-node graph libraries for AI / Machine Learning Engineer, Product Manager, Cybersecurity Analyst, Data Scientist, and Mechanical Engineer.
 - [x] Checkpoint 44 graph set C: implement dedicated ten-plus-node graph libraries for Architect, UX / Product Designer, Financial Analyst, Environmental Scientist, and Research Scientist.
-- [ ] Checkpoint 45 integration: register the fifteen dedicated graphs, preserve saved-session replay, and replace freeform simulation launch with the accessible curated career selector and unsupported-career behavior.
+- [x] Checkpoint 45 integration: register the fifteen dedicated graphs, preserve saved-session replay, and replace freeform simulation launch with the accessible curated career selector and unsupported-career behavior.
 - [ ] Checkpoint 46 verification: run final catalog, branching, all-career recommendation, persistence, privacy, RLS, accessibility, mobile, type, build, and full regression acceptance checks.

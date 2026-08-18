@@ -35,11 +35,11 @@ describe("optional simulation response timing", () => {
   });
 
   it("defaults timing consent off and forwards opt-in only when the student selects it", async () => {
-    await appRouter.createCaller(context).pathpilot.simulations.adaptive.start({ career: "Software Engineer" });
-    expect(mocks.createAdaptiveSimulation).toHaveBeenLastCalledWith(userId, "Software Engineer", false);
+    await appRouter.createCaller(context).pathpilot.simulations.adaptive.start({ careerId: "software-engineer" });
+    expect(mocks.createAdaptiveSimulation).toHaveBeenLastCalledWith(userId, "software-engineer", false);
 
-    await appRouter.createCaller(context).pathpilot.simulations.adaptive.start({ career: "Software Engineer", responseTimingOptIn: true });
-    expect(mocks.createAdaptiveSimulation).toHaveBeenLastCalledWith(userId, "Software Engineer", true);
+    await appRouter.createCaller(context).pathpilot.simulations.adaptive.start({ careerId: "software-engineer", responseTimingOptIn: true });
+    expect(mocks.createAdaptiveSimulation).toHaveBeenLastCalledWith(userId, "software-engineer", true);
   });
 
   it("uses the authenticated student identity for consent changes and optional response-time forwarding", async () => {

@@ -67,6 +67,7 @@ import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqu
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
+import { getSimulationCareer, simulationCareerCatalog } from "../simulation/catalog";
 import { buildMentorPlanningContext } from "../mentor-context";
 import { buildDecisionReview, presentTerminalOutcome } from "../simulation/presentation";
 import { cacheProjectGuidance, getCachedProjectGuidance, invalidateProjectGuidanceCache, PROJECT_GUIDANCE_CACHE_VERSION, projectGuidanceInputHash } from "../ai-result-cache";
@@ -483,6 +484,7 @@ export const pathpilotRouter = router({
 
   simulations: router({
     adaptive: router({
+      catalog: protectedProcedure.query(() => simulationCareerCatalog),
       behaviorSummary: protectedProcedure.query(({ ctx }) => getBehaviorEvolution(ctx.user.id)),
       resume: protectedProcedure.query(async ({ ctx }) => {
         const simulation = await getResumableAdaptiveSimulation(ctx.user.id) ?? await getLatestCompletedAdaptiveSimulation(ctx.user.id);
@@ -493,11 +495,12 @@ export const pathpilotRouter = router({
         if (!simulation) throw new TRPCError({ code: "NOT_FOUND", message: "Simulation not found." });
         return adaptiveSimulationResponse(simulation);
       }),
-      start: protectedProcedure.input(z.object({ career: z.string().trim().min(2).max(180), responseTimingOptIn: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
+      start: protectedProcedure.input(z.object({ careerId: z.string().trim().min(2).max(80), responseTimingOptIn: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
         const profile = await getStudentProfile(ctx.user.id);
         if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before starting a simulation." });
+        if (!getSimulationCareer(input.careerId)) throw new TRPCError({ code: "BAD_REQUEST", message: "That career simulation is not currently available. Choose one from the supported simulation catalog." });
         const resumable = await getResumableAdaptiveSimulation(ctx.user.id);
-        return adaptiveSimulationResponse(resumable ?? await createAdaptiveSimulation(ctx.user.id, input.career, input.responseTimingOptIn));
+        return adaptiveSimulationResponse(resumable ?? await createAdaptiveSimulation(ctx.user.id, input.careerId, input.responseTimingOptIn));
       }),
       setTimingOptIn: protectedProcedure.input(z.object({ id: z.string().uuid(), optIn: z.boolean() })).mutation(async ({ ctx, input }) => setSimulationTimingOptIn(ctx.user.id, input.id, input.optIn)),
       choose: protectedProcedure.input(z.object({ id: z.string().uuid(), decisionId: z.string().trim().min(2).max(80), responseTimeMs: z.number().int().min(0).max(1_800_000).optional() })).mutation(async ({ ctx, input }) => {
