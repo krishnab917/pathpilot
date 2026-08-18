@@ -1,9 +1,8 @@
 import type { Request, Response } from "express";
-import { isValidDerivedAnalysisWorkerSignature, processNextDerivedAnalysis } from "./derived-analysis";
+import { isValidDerivedAnalysisWorkerToken, processNextDerivedAnalysis } from "./derived-analysis";
 
 export async function handleDerivedAnalysisWorker(req: Request, res: Response) {
-  const signature = req.body?.signature;
-  if (!isValidDerivedAnalysisWorkerSignature(signature)) return res.status(403).json({ error: "worker-only" });
+  if (!(await isValidDerivedAnalysisWorkerToken(req.body?.token))) return res.status(403).json({ error: "worker-only" });
   try {
     const result = await processNextDerivedAnalysis();
     return res.json({ ok: true, result });

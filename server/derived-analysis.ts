@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildBehaviorEvolution, type CompletedSimulationBehavior } from "./simulation/evolution";
 import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
@@ -34,16 +34,12 @@ function workerClient() {
   return createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
 }
 
-export function derivedAnalysisWorkerSignature() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("The background worker is not configured.");
-  return createHmac("sha256", secret).update("pathpilot:derived-analysis-worker:v1").digest("hex");
-}
-
-export function isValidDerivedAnalysisWorkerSignature(value: unknown) {
+export async function isValidDerivedAnalysisWorkerToken(value: unknown) {
   if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) return false;
-  const expected = Buffer.from(derivedAnalysisWorkerSignature(), "hex");
-  const received = Buffer.from(value, "hex");
+  const { data, error } = await workerClient().from("background_worker_credentials").select("token_hash").eq("worker_name", "derived_analysis").maybeSingle();
+  if (error || !data?.token_hash) return false;
+  const expected = Buffer.from(data.token_hash, "hex");
+  const received = Buffer.from(createHash("sha256").update(value).digest("hex"), "hex");
   return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
