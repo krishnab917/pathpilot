@@ -62,7 +62,9 @@ export async function cancelDerivedAnalysis(userId: string, jobId: string) {
 export async function processNextDerivedAnalysis(workerToken: unknown) {
   if (typeof workerToken !== "string" || !/^[a-f0-9]{64}$/.test(workerToken)) return { authorized: false as const };
   const { url, key } = getSupabaseConfig();
-  const workerRpcClient = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY;
+  if (!serviceRoleKey) throw new Error("The background worker is not configured.");
+  const workerRpcClient = createClient(url, serviceRoleKey || key, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
   const { data, error } = await workerRpcClient.rpc("process_next_derived_analysis", { worker_token: workerToken });
   if (error || !data) throw new Error("Could not process queued analysis.");
   return data as { authorized: boolean; processed?: boolean; reason?: string; jobId?: string; status?: "completed" | "failed" };
