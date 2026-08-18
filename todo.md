@@ -164,3 +164,7 @@
 - [x] Checkpoint 36 implementation: audit all existing AI-result operations and define versioned cache keys, source-input scopes, expiry, and explicit invalidation boundaries.
 - [x] Checkpoint 36 implementation: add user-scoped, versioned AI-result caching for eligible operations while retaining deterministic calculations outside cached AI calls.
 - [x] Checkpoint 36 verification: add cache-hit, cache-miss, version, owner-scope, and material-input-invalidation tests; run TypeScript/tests/build; and confirm stale results are never reused.
+- [ ] Checkpoint 37 implementation: define the deterministic derived-analysis input, snapshot, queue, retry, cancellation, and worker-authentication boundaries without using AI or expanding behavioral inference.
+- [ ] Checkpoint 37 implementation: add a user-scoped derived-analysis job and snapshot model, protected status/request/retry/cancel controls, and an authenticated non-blocking worker that processes one bounded job at a time.
+- [ ] Checkpoint 37 scheduling: deploy the authenticated worker endpoint, create and verify its managed project-level schedule, and confirm no in-process timer or always-on worker is required.
+- [ ] Checkpoint 37 verification: add worker claim, owner scope, stale-input, cancellation, retry, and status presentation tests; run TypeScript/tests/build; and confirm failures expose recoverable generic messages only.

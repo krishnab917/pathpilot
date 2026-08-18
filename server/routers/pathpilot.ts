@@ -70,6 +70,7 @@ import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine
 import { buildMentorPlanningContext } from "../mentor-context";
 import { buildDecisionReview, presentTerminalOutcome } from "../simulation/presentation";
 import { cacheProjectGuidance, getCachedProjectGuidance, invalidateProjectGuidanceCache, PROJECT_GUIDANCE_CACHE_VERSION, projectGuidanceInputHash } from "../ai-result-cache";
+import { cancelDerivedAnalysis, getDerivedAnalysisStatus, requestDerivedAnalysis, retryDerivedAnalysis } from "../derived-analysis";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
 const prioritySchema = z.enum(["low", "medium", "high"]);
@@ -312,6 +313,13 @@ export const pathpilotRouter = router({
 
   dashboard: router({
     get: protectedProcedure.query(({ ctx }) => getDashboardData(ctx.user.id)),
+  }),
+
+  derivedAnalysis: router({
+    status: protectedProcedure.query(({ ctx }) => getDerivedAnalysisStatus(ctx.user.id)),
+    request: protectedProcedure.mutation(({ ctx }) => requestDerivedAnalysis(ctx.user.id)),
+    retry: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => retryDerivedAnalysis(ctx.user.id, input.id)),
+    cancel: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => cancelDerivedAnalysis(ctx.user.id, input.id)),
   }),
 
   discovery: router({
