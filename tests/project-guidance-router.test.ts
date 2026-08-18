@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 
-const mocks = vi.hoisted(() => ({ getProjectWorkspace: vi.fn(), invokeLLM: vi.fn(), listLLMModels: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getProjectWorkspace: vi.fn(), invokeLLM: vi.fn(), listLLMModels: vi.fn(), getCachedProjectGuidance: vi.fn(), cacheProjectGuidance: vi.fn(), invalidateProjectGuidanceCache: vi.fn() }));
 
 vi.mock("../server/db", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/db")>();
@@ -11,6 +11,7 @@ vi.mock("../server/_core/llm", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/_core/llm")>();
   return { ...actual, invokeLLM: mocks.invokeLLM, listLLMModels: mocks.listLLMModels };
 });
+vi.mock("../server/ai-result-cache", async importOriginal => ({ ...(await importOriginal<typeof import("../server/ai-result-cache")>()), getCachedProjectGuidance: mocks.getCachedProjectGuidance, cacheProjectGuidance: mocks.cacheProjectGuidance, invalidateProjectGuidanceCache: mocks.invalidateProjectGuidanceCache }));
 
 import { appRouter } from "../server/routers";
 
@@ -23,6 +24,7 @@ describe("project guidance router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getProjectWorkspace.mockResolvedValue(project);
+    mocks.getCachedProjectGuidance.mockResolvedValue(undefined);
     mocks.listLLMModels.mockResolvedValue({ data: [{ id: "gpt-5-mini" }] });
     mocks.invokeLLM.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ summary: "Start with one clear screen and a small observation form.", nextSteps: ["List the three fields.", "Sketch a compact screen."], watchouts: ["Keep the first version narrow."], questions: ["Which observation is most useful first?"] }) } }] });
   });
@@ -31,8 +33,10 @@ describe("project guidance router", () => {
     const result = await appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "What should I build first?" });
 
     expect(result.nextSteps).toEqual(["List the three fields.", "Sketch a compact screen."]);
+    expect(result.cacheStatus).toBe("fresh");
     expect(mocks.getProjectWorkspace).toHaveBeenCalledWith(userId, projectId);
     expect(mocks.invokeLLM).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-5-mini", response_format: expect.any(Object) }));
+    expect(mocks.cacheProjectGuidance).toHaveBeenCalledWith(userId, projectId, expect.stringMatching(/^[a-f0-9]{64}$/), expect.objectContaining({ summary: expect.any(String) }));
     const requestMessage = mocks.invokeLLM.mock.calls[0][0].messages[1].content as string;
     expect(requestMessage).toContain("Neighborhood garden tracker");
     expect(requestMessage).toContain("Track plants and watering");
@@ -44,5 +48,20 @@ describe("project guidance router", () => {
     mocks.invokeLLM.mockResolvedValue({ choices: [{ message: { content: "not json" } }] });
 
     await expect(appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "Help me sequence the work." })).rejects.toMatchObject({ code: "BAD_GATEWAY" });
+  });
+
+  it("returns a validated cache hit without calling the model when the project and request are unchanged", async () => {
+    mocks.getCachedProjectGuidance.mockResolvedValue({ summary: "Reuse the validated response.", nextSteps: ["Keep scope narrow.", "Test one field."], watchouts: [], questions: [] });
+    const result = await appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "What should I build first?" });
+    expect(result).toMatchObject({ summary: "Reuse the validated response.", cacheStatus: "cached", cacheVersion: "project-guidance-v1" });
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
+  });
+
+  it("bypasses and clears cached guidance only when the student explicitly refreshes", async () => {
+    mocks.getCachedProjectGuidance.mockResolvedValue({ summary: "Would be cached.", nextSteps: ["One", "Two"], watchouts: [], questions: [] });
+    await appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "What should I build first?", refresh: true });
+    expect(mocks.invalidateProjectGuidanceCache).toHaveBeenCalledWith(userId, projectId);
+    expect(mocks.getCachedProjectGuidance).not.toHaveBeenCalled();
+    expect(mocks.invokeLLM).toHaveBeenCalledTimes(1);
   });
 });

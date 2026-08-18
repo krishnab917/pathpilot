@@ -123,7 +123,7 @@
 - [x] Checkpoint 33: define and implement a privacy-bounded cross-product evidence policy and derived-signal model that preserves raw records and excludes diagnostic claims.
 - [x] Checkpoint 34: add student-visible behavioral confidence, evidence counts, recency, and trend presentation using transparent non-diagnostic language.
 - [x] Checkpoint 35: add opt-in, explainable career-recommendation evolution with user-visible change rationale and no automatic replacement of student-owned plans.
-- [ ] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
+- [x] Checkpoint 36: implement versioned AI-result caching and explicit invalidation for materially changed inputs while retaining deterministic calculations outside AI calls.
 - [ ] Checkpoint 37: add non-blocking background analysis infrastructure and status feedback for eligible derived work, with user control and failure recovery.
 - [ ] Checkpoint 38: complete end-to-end, mobile, accessibility, privacy, RLS, performance, and persistence acceptance testing across the expanded product flow.
 - [x] Checkpoint 25 implementation: audit source-backed opportunity fields and define safe semantics for search, pagination, country, grade, and deadline filters.
@@ -161,3 +161,6 @@
 - [x] Checkpoint 35 implementation: audit recommendation inputs, saved-plan ownership, and current acceptance flows; define explicit opt-in and non-replacement boundaries.
 - [x] Checkpoint 35 implementation: add explainable, student-visible recommendation evolution that requires a voluntary choice and never overwrites goals, roadmaps, projects, or saved recommendations.
 - [x] Checkpoint 35 verification: add opt-in, explanation, ownership, and no-automatic-change tests; run TypeScript/tests/build; and confirm recommendation evolution remains transparent and reversible.
+- [x] Checkpoint 36 implementation: audit all existing AI-result operations and define versioned cache keys, source-input scopes, expiry, and explicit invalidation boundaries.
+- [x] Checkpoint 36 implementation: add user-scoped, versioned AI-result caching for eligible operations while retaining deterministic calculations outside cached AI calls.
+- [x] Checkpoint 36 verification: add cache-hit, cache-miss, version, owner-scope, and material-input-invalidation tests; run TypeScript/tests/build; and confirm stale results are never reused.

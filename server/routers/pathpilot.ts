@@ -69,6 +69,7 @@ import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generate
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
 import { buildMentorPlanningContext } from "../mentor-context";
 import { buildDecisionReview, presentTerminalOutcome } from "../simulation/presentation";
+import { cacheProjectGuidance, getCachedProjectGuidance, invalidateProjectGuidanceCache, PROJECT_GUIDANCE_CACHE_VERSION, projectGuidanceInputHash } from "../ai-result-cache";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
 const prioritySchema = z.enum(["low", "medium", "high"]);
@@ -263,6 +264,11 @@ function projectWorkspaceContext(project: NonNullable<Awaited<ReturnType<typeof 
     `Student project notes: ${project.projectNotes ?? "None provided."}`,
     `Project milestones: ${milestones}`,
   ].join("\n");
+}
+
+async function clearProjectGuidanceCache(userId: string, projectId: string) {
+  try { await invalidateProjectGuidanceCache(userId, projectId); }
+  catch (error) { console.error("[PathPilot] project guidance cache invalidation failed", error); }
 }
 
 function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStudentProfile>>>) {
@@ -576,13 +582,22 @@ export const pathpilotRouter = router({
     list: protectedProcedure.query(({ ctx }) => listProjects(ctx.user.id)),
     create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
     createFromRoadmapMilestone: protectedProcedure.input(z.object({ milestoneId: z.string().uuid() })).mutation(({ ctx, input }) => createProjectFromRoadmapMilestone(ctx.user.id, input.milestoneId)),
-    update: protectedProcedure.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(4000).optional(), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), startDate: z.string().date().nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(({ ctx, input }) => updateProject(ctx.user.id, input.id, input)),
-    createMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().min(2).max(180), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).default("not_started"), progress: z.number().int().min(0).max(100).default(0), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).default(0) })).mutation(({ ctx, input }) => createProjectWorkspaceMilestone(ctx.user.id, input.projectId, input)),
-    updateMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).optional(), progress: z.number().int().min(0).max(100).optional(), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).optional() })).mutation(({ ctx, input }) => updateProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id, input)),
-    deleteMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid() })).mutation(({ ctx, input }) => deleteProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id)),
-    guidance: protectedProcedure.input(z.object({ projectId: z.string().uuid(), request: z.string().trim().min(3).max(1200) })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(4000).optional(), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), startDate: z.string().date().nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(async ({ ctx, input }) => { const project = await updateProject(ctx.user.id, input.id, input); await clearProjectGuidanceCache(ctx.user.id, input.id); return project; }),
+    createMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().min(2).max(180), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).default("not_started"), progress: z.number().int().min(0).max(100).default(0), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).default(0) })).mutation(async ({ ctx, input }) => { const milestone = await createProjectWorkspaceMilestone(ctx.user.id, input.projectId, input); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return milestone; }),
+    updateMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).optional(), progress: z.number().int().min(0).max(100).optional(), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).optional() })).mutation(async ({ ctx, input }) => { const milestone = await updateProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id, input); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return milestone; }),
+    deleteMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid() })).mutation(async ({ ctx, input }) => { const result = await deleteProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return result; }),
+    guidance: protectedProcedure.input(z.object({ projectId: z.string().uuid(), request: z.string().trim().min(3).max(1200), refresh: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       const project = await getProjectWorkspace(ctx.user.id, input.projectId);
       if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project workspace not found." });
+      const inputHash = projectGuidanceInputHash({ request: input.request, project: { name: project.name, description: project.description, scopeStatement: project.scopeStatement, projectNotes: project.projectNotes, skills: project.skills, status: project.status, progress: project.progress, startDate: project.startDate, completionDate: project.completionDate, githubLink: project.githubLink, liveUrl: project.liveUrl, milestones: project.milestones.map(item => ({ title: item.title, details: item.details, status: item.status, progress: item.progress, targetDate: item.targetDate, sortOrder: item.sortOrder })) } });
+      if (input.refresh) await invalidateProjectGuidanceCache(ctx.user.id, input.projectId);
+      if (!input.refresh) {
+        try {
+          const cached = await getCachedProjectGuidance(ctx.user.id, input.projectId, inputHash);
+          const parsedCached = projectGuidanceSchema.safeParse(cached);
+          if (parsedCached.success) return { ...parsedCached.data, cacheStatus: "cached" as const, cacheVersion: PROJECT_GUIDANCE_CACHE_VERSION };
+        } catch (error) { console.error("[PathPilot] project guidance cache read failed", error); }
+      }
       try {
         const response = await invokeLLM({
           model: await preferredModel(),
@@ -594,7 +609,8 @@ export const pathpilotRouter = router({
         });
         const parsed = projectGuidanceSchema.safeParse(JSON.parse(contentFrom(response)));
         if (!parsed.success) throw new Error("The project guidance response failed validation.");
-        return parsed.data;
+        try { await cacheProjectGuidance(ctx.user.id, input.projectId, inputHash, parsed.data); } catch (error) { console.error("[PathPilot] project guidance cache write failed", error); }
+        return { ...parsed.data, cacheStatus: "fresh" as const, cacheVersion: PROJECT_GUIDANCE_CACHE_VERSION };
       } catch (error) {
         console.error("[PathPilot] project guidance failed", error);
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Project guidance is temporarily unavailable. Please try again shortly." });
