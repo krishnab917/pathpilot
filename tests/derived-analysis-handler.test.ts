@@ -29,6 +29,14 @@ describe("derived analysis worker handler", () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, result: { authorized: true, processed: true, jobId: "job-1", status: "completed" } });
   });
 
+  it("accepts a text-encoded managed payload without widening the worker input contract", async () => {
+    mocks.processNextDerivedAnalysis.mockResolvedValue({ authorized: true, processed: false, reason: "empty" });
+    const res = response();
+    await handleDerivedAnalysisWorker({ body: JSON.stringify({ token: "valid-worker-token" }) } as any, res);
+    expect(mocks.processNextDerivedAnalysis).toHaveBeenCalledWith("valid-worker-token");
+    expect(res.json).toHaveBeenCalledWith({ ok: true, result: { authorized: true, processed: false, reason: "empty" } });
+  });
+
   it("returns a generic recoverable error when worker processing fails", async () => {
     mocks.processNextDerivedAnalysis.mockRejectedValue(new Error("database details must remain private"));
     const res = response();

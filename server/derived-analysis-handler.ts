@@ -3,7 +3,8 @@ import { processNextDerivedAnalysis } from "./derived-analysis";
 
 export async function handleDerivedAnalysisWorker(req: Request, res: Response) {
   try {
-    const result = await processNextDerivedAnalysis(req.body?.token);
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const result = await processNextDerivedAnalysis(body?.token);
     if (!result.authorized) return res.status(403).json({ error: "worker-only" });
     return res.json({ ok: true, result });
   } catch (error) {
