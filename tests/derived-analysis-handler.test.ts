@@ -34,6 +34,6 @@ describe("derived analysis worker handler", () => {
     const res = response();
     await handleDerivedAnalysisWorker({ body: { token: "valid-worker-token" } } as any, res);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "derived analysis worker failed", timestamp: expect.any(String) }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: "derived analysis worker failed", code: "worker_rpc_unavailable", timestamp: expect.any(String) }));
   });
 });

@@ -8,6 +8,6 @@ export async function handleDerivedAnalysisWorker(req: Request, res: Response) {
     return res.json({ ok: true, result });
   } catch (error) {
     console.error("[PathPilot] derived analysis worker failed", error);
-    return res.status(500).json({ error: "derived analysis worker failed", timestamp: new Date().toISOString() });
+    return res.status(500).json({ error: "derived analysis worker failed", code: "worker_rpc_unavailable", timestamp: new Date().toISOString() });
   }
 }
