@@ -171,3 +171,13 @@
 - [x] Checkpoint 38 implementation: audit the expanded end-to-end workflow for remaining accessibility, responsive, privacy, persistence, performance, and recovery gaps.
 - [x] Checkpoint 38 hardening: resolve any verified final gaps without expanding product scope or weakening student ownership, data minimization, and RLS boundaries.
 - [x] Checkpoint 38 verification: run desktop/mobile visual checks, runtime-log review, security/RLS checks, full regression/type/build validation, and document remaining manual acceptance checks.
+- [ ] Checkpoint 39 implementation: inspect and enable Supabase Auth leaked-password protection using the supported project configuration path.
+- [ ] Checkpoint 39 implementation: audit foreign-key indexes and RLS policy definitions, then define additive indexes and semantics-preserving policy rewrites for live performance advisories.
+- [ ] Checkpoint 39 verification: confirm the Auth security setting, eliminate addressed database performance findings, re-run RLS isolation and full application validation, and document any remaining advisory items.
+- [ ] Checkpoint 39 status: paused at the user's request while the completed work through Checkpoint 38 and the subsequent uncheckpointed database changes are reviewed.
+- [x] Checkpoint 40 planning: audit pasted_content_2.txt against the current adaptive simulation catalog, engine, persistence, selection, and UI contracts; document an independently testable implementation sequence.
+- [x] Checkpoint 40 foundation: add a source-controlled catalog of exactly 15 dedicated career definitions, stable IDs, metadata, category search, related-career references, unsupported-ID rejection, and focused contract tests without changing the generic engine or remapping saved sessions.
+- [ ] Checkpoint 40 implementation: define a controlled, searchable catalog of exactly 15 dedicated career simulations with supported-career metadata and safe unsupported-career handling.
+- [ ] Checkpoint 41 implementation: create distinct data-driven career graph libraries with at least ten meaningful nodes per career while retaining the generic branching engine and current persistence contracts.
+- [ ] Checkpoint 42 implementation: integrate the curated career selector and non-substitution behavior into the existing simulation experience with accessible search, descriptions, related options, and Explore Career fallback.
+- [ ] Checkpoint 43 verification: test catalog scope, graph distinctness, adaptive branching, behavioral-signal boundaries, accessibility, persistence, RLS, and regression safety before final acceptance.
