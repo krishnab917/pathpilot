@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { AdaptiveSimulation } from "@/components/AdaptiveSimulation";
 import { Brand } from "@/components/Brand";
+import { CurrentPlanFocus, DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
 import {
   CompactDiscover,
   CompactGoals,
@@ -69,6 +70,7 @@ import { notify } from "@/lib/notifications";
 import { buildPlanningPrintReport } from "@/lib/planning-report";
 import { requiresWorkspaceDashboard } from "@/lib/workspace-data-scope";
 import { buildPlanningActivityCsv } from "@/lib/planning-activity-export";
+import { buildDashboardJourney } from "@/lib/dashboard-journey";
 import {
   shouldCloseWorkspaceMobileNavigation,
   shouldWrapWorkspaceMobileNavigationFocus,
@@ -609,6 +611,11 @@ function Overview({
       enabled: Boolean(data.recentSimulation),
     });
   const action = data.intelligence.nextAction;
+  const journey = buildDashboardJourney({
+    hasResumableSimulation: Boolean(data.resumableSimulation),
+    hasCompletedSimulation: Boolean(data.recentSimulation),
+    hasRoadmap: Boolean(data.roadmap),
+  });
   return (
     <>
       <SectionHeader
@@ -626,6 +633,7 @@ function Overview({
           </div>
         }
       />
+      <DashboardJourneyPanel journey={journey} onNavigate={onNavigate} />
       <div className="grid border border-slate-200 bg-card md:grid-cols-3 dark:border-slate-700">
         <MetricCard
           icon={Target}
@@ -659,42 +667,6 @@ function Overview({
         />
       </div>
       <PlanningReview onNavigate={onNavigate} />
-      <section className="surface-panel mt-4 overflow-hidden">
-        <div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center dark:border-slate-700">
-          <div className="flex items-center gap-2">
-            <Zap className="size-4 text-primary" />
-            <div>
-              <p className="text-sm font-semibold">Next best action</p>
-              <p className="text-xs text-muted-foreground">
-                One deterministic priority from the state you have saved.
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            className="gap-2"
-            onClick={() => onNavigate(action.section)}
-          >
-            {action.cta}
-            <ArrowRight className="size-3.5" />
-          </Button>
-        </div>
-        <div className="p-4">
-          <p className="eyebrow">Recommended now</p>
-          <h2 className="mt-2 text-lg font-semibold">{action.title}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {action.description}
-          </p>
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-medium text-primary">
-              Why this now?
-            </summary>
-            <p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">
-              {action.rationale}
-            </p>
-          </details>
-        </div>
-      </section>
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
         <section className="surface-panel overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
@@ -774,6 +746,13 @@ function Overview({
           )}
         </section>
       </div>
+      <CurrentPlanFocus
+        title={action.title}
+        description={action.description}
+        rationale={action.rationale}
+        cta={action.cta}
+        onClick={() => onNavigate(action.section)}
+      />
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="surface-panel p-4">
           <div className="flex items-start justify-between gap-4">

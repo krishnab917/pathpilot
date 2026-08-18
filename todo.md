@@ -192,3 +192,6 @@
 - [x] Checkpoint 48 security inventory: document the live public-schema foreign keys, indexes, RLS policies, functions, triggers, advisor findings, and post-Checkpoint-38 migrations without duplicating existing database objects.
 - [x] Checkpoint 48 server-role boundary: remove any non-explicit privileged credential fallback from the derived-analysis worker and retain only the required server-only service-role path with regression coverage.
 - [x] Checkpoint 48 security verification: re-run live advisor and RLS checks, source secret-boundary audit, full regression, type check, and production build; document the unavailable leaked-password protection setting and its plan prerequisite.
+- [x] Checkpoint 49 uploaded tasks: review pasted_content_4.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
+- [x] Checkpoint 49 dashboard journey: reorganize the existing overview into a simulation-first, three-step guided progression with exactly one state-derived primary action while keeping all existing panels and navigation available below it.
+- [x] Checkpoint 49 dashboard verification: add pure progression-state coverage, retain existing dashboard data/query behavior, and validate desktop/mobile presentation, accessibility, TypeScript, full regression, and production build.
