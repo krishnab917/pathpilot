@@ -3,27 +3,27 @@ export const landingCopy = {
     titleLead: "Your future isn't a quiz result.",
     titleAccent: "Experience it.",
     description:
-      "Choosing a career should not mean picking a title from a list and hoping it fits. PathPilot helps you explore careers worth trying, step into realistic decisions, and build a personal plan from what you learn.",
+      "You don't need to have your whole future figured out. PathPilot helps you discover careers worth exploring, experience realistic decisions, understand what resonates, and find a clear next step.",
     cta: "Discover my career path",
   },
   story: {
-    eyebrow: "A better place to start",
-    title: "You do not need to have your whole future figured out today.",
+    eyebrow: "When the future feels unclear",
+    title: "Feeling stuck about your future?",
     description:
-      "When the questions pile up—what am I good at, what might I enjoy, and what should I do next?—a quiz can be a useful start, but it does not have to be the whole experience.",
-    workflowTitle: "From uncertainty to a next step.",
+      "Too many choices. Too little clarity. You might know what you like—but not what you should actually do with it. When the future feels uncertain, it can be hard to know where to start.",
+    workflowTitle: "Don't guess. Explore.",
     workflowDescription:
-      "Career exploration is a process: discover possibilities, experience realistic decisions, understand what resonates, then choose an action that feels useful now.",
+      "PathPilot gives you a structured way to move from uncertainty to clarity and action—while you remain the person who decides what comes next.",
     rows: [
-      { label: "What you may be asking", value: "What am I actually good at?" },
-      { label: "What a list alone can miss", value: "What the work could feel like" },
-      { label: "A more useful next step", value: "Discover → experience → plan" },
+      { label: "What you may be feeling", value: "Too many choices. Too little clarity." },
+      { label: "What is worth exploring", value: "What could fit your interests and values" },
+      { label: "A better place to start", value: "Discover → explore → experience → understand → act" },
     ],
   },
   closing: {
-    title: "You don't need your entire future figured out today.",
+    title: "You don't need all the answers.",
     description:
-      "You just need a clearer place to start. Explore possibilities, learn what resonates, and decide your next step at your own pace.",
+      "You don't have to choose your entire future today. Turn uncertainty into clarity. Turn curiosity into exploration. Turn exploration into action—at your own pace.",
   },
 } as const;
 
@@ -31,20 +31,32 @@ export const landingFeatureCards = [
   {
     step: "01",
     title: "Discover yourself",
-    copy: "Start with your interests, strengths, skills, subjects, activities, and preferences—then notice career directions worth exploring.",
-    result: "Directions",
+    copy: "Understand your interests, strengths, skills, preferences, and experiences.",
+    result: "Starting point",
   },
   {
     step: "02",
-    title: "Explore and experience",
-    copy: "See career directions, then step into realistic work situations and make the kinds of decisions the role can involve.",
-    result: "Perspective",
+    title: "Explore careers",
+    copy: "Find career directions worth investigating based on your profile.",
+    result: "Possibilities",
   },
   {
     step: "03",
-    title: "Build direction",
-    copy: "Turn what you learn into goals, projects, opportunities, skills, and milestones you can work on next.",
-    result: "Next steps",
+    title: "Experience them",
+    copy: "Use interactive simulations to see what different work situations can feel like.",
+    result: "Perspective",
+  },
+  {
+    step: "04",
+    title: "Understand your direction",
+    copy: "Reflect on what you enjoyed, how you responded, and what environments may be worth exploring further.",
+    result: "Clarity",
+  },
+  {
+    step: "05",
+    title: "Take your next step",
+    copy: "Turn what you learned into a personal roadmap with goals, projects, opportunities, skills, and milestones.",
+    result: "Action",
   },
 ] as const;
 
@@ -55,4 +67,9 @@ export const prohibitedLandingClaims = [
   "treats student anxiety",
   "mental-health solution",
   "perfect career",
+  "guaranteed career fit",
+  "pathpilot reduces anxiety",
+  "pathpilot improves mental health",
+  "pathpilot treats anxiety",
+  "pathpilot prevents mental-health problems",
 ] as const;

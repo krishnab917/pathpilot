@@ -12,18 +12,24 @@ describe("landing-page narrative", () => {
     expect(landingCopy.hero.titleLead).toContain("quiz result");
     expect(landingCopy.hero.titleAccent).toContain("Experience");
     expect(landingCopy.hero.cta).toBe("Discover my career path");
+    expect(landingCopy.hero.description).toContain("whole future figured out");
     expect(landingCopy.hero.description).toContain("realistic decisions");
   });
 
-  it("tells a discover, experience, and action-oriented product story", () => {
-    expect(landingCopy.story.workflowDescription).toContain("discover possibilities");
-    expect(landingCopy.story.workflowDescription).toContain("experience realistic decisions");
+  it("moves students from uncertainty through a five-stage exploration journey without taking away agency", () => {
+    expect(landingCopy.story.title).toBe("Feeling stuck about your future?");
+    expect(landingCopy.story.description).toContain("Too many choices. Too little clarity.");
+    expect(landingCopy.story.workflowTitle).toBe("Don't guess. Explore.");
+    expect(landingCopy.story.workflowDescription).toContain("you remain the person who decides");
     expect(landingFeatureCards.map(card => card.title)).toEqual([
       "Discover yourself",
-      "Explore and experience",
-      "Build direction",
+      "Explore careers",
+      "Experience them",
+      "Understand your direction",
+      "Take your next step",
     ]);
-    expect(landingCopy.closing.description).toContain("Explore possibilities");
+    expect(landingCopy.closing.title).toBe("You don't need all the answers.");
+    expect(landingCopy.closing.description).toContain("Turn uncertainty into clarity.");
   });
 
   it("does not make mental-health, deterministic, or fear-based claims", () => {

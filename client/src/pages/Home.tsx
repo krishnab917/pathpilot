@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { landingCopy, landingFeatureCards } from "@/lib/landing-copy";
 import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { startLogin } from "@/const";
-import { ArrowRight, Compass, Map, Rocket, Target } from "lucide-react";
+import { ArrowRight, Compass, Map, Rocket, SearchCheck, Sparkles, Target } from "lucide-react";
 import { Link } from "wouter";
 
-const featureIcons = [Compass, Rocket, Map] as const;
+const featureIcons = [Compass, SearchCheck, Rocket, Sparkles, Map] as const;
 
 export default function Home() {
   const { isAuthenticated } = useAuth();

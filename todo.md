@@ -199,3 +199,6 @@
 - [x] Checkpoint 50 landing narrative: strengthen the existing landing-page hero, product story, comparison, closing invitation, and CTA wording without altering layout, visual tokens, components, or responsive structure.
 - [x] Checkpoint 50 trust and verification: retain non-clinical, non-diagnostic copy; add landing-copy guardrail coverage; and validate the unchanged public landing-page structure, TypeScript, full regression, and production build.
 - [x] Checkpoint 51 smooth discovery transition: add reduced-motion-aware smooth scrolling from the public primary discovery CTA to the existing journey section, with focused behavior coverage and visual validation.
+- [x] Checkpoint 52 uploaded specification: review pasted_content_6.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
+- [x] Checkpoint 52 emotional journey copy: strengthen the existing problem-to-solution narrative with concise student uncertainty language, a five-part discover-to-act sequence, and a hopeful lower-page invitation without changing the landing-page visual system.
+- [x] Checkpoint 52 copy guardrails and verification: extend non-clinical, non-diagnostic marketing guardrails; verify the public landing page at desktop/mobile; and run TypeScript, full regression, and production build validation.
