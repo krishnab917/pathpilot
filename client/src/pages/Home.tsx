@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { landingCopy, landingFeatureCards } from "@/lib/landing-copy";
+import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { startLogin } from "@/const";
 import { ArrowRight, Compass, Map, Rocket, Target } from "lucide-react";
 import { Link } from "wouter";
@@ -11,6 +12,12 @@ const featureIcons = [Compass, Rocket, Map] as const;
 export default function Home() {
   const { isAuthenticated } = useAuth();
   const workspaceHref = isAuthenticated ? "/app" : undefined;
+  const scrollToJourney = () => {
+    scrollToLandingJourney({
+      target: document.getElementById("how-it-works"),
+      prefersReducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    });
+  };
   const primaryAction = workspaceHref ? (
     <Link href={workspaceHref}>
       {landingCopy.hero.cta} <ArrowRight className="ml-2 size-4" />
@@ -65,10 +72,9 @@ export default function Home() {
             <Button
               size="lg"
               className="h-12 rounded-xl px-6"
-              onClick={() => (workspaceHref ? undefined : startLogin())}
-              asChild={Boolean(workspaceHref)}
+              onClick={scrollToJourney}
             >
-              {primaryAction}
+              {landingCopy.hero.cta} <ArrowRight className="ml-2 size-4" />
             </Button>
             <a href="#how-it-works">
               <Button size="lg" variant="outline" className="h-12 rounded-xl px-6">
@@ -79,7 +85,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="how-it-works" className="border-y border-border/70 bg-white py-20 sm:py-28">
+      <section id="how-it-works" tabIndex={-1} className="border-y border-border/70 bg-white py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="max-w-xl">
             <div className="eyebrow">{landingCopy.story.eyebrow}</div>

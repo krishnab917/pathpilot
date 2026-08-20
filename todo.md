@@ -198,3 +198,4 @@
 - [x] Checkpoint 50 uploaded requirements: review pasted_content_5.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
 - [x] Checkpoint 50 landing narrative: strengthen the existing landing-page hero, product story, comparison, closing invitation, and CTA wording without altering layout, visual tokens, components, or responsive structure.
 - [x] Checkpoint 50 trust and verification: retain non-clinical, non-diagnostic copy; add landing-copy guardrail coverage; and validate the unchanged public landing-page structure, TypeScript, full regression, and production build.
+- [x] Checkpoint 51 smooth discovery transition: add reduced-motion-aware smooth scrolling from the public primary discovery CTA to the existing journey section, with focused behavior coverage and visual validation.
