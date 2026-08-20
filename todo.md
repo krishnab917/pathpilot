@@ -195,3 +195,6 @@
 - [x] Checkpoint 49 uploaded tasks: review pasted_content_4.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
 - [x] Checkpoint 49 dashboard journey: reorganize the existing overview into a simulation-first, three-step guided progression with exactly one state-derived primary action while keeping all existing panels and navigation available below it.
 - [x] Checkpoint 49 dashboard verification: add pure progression-state coverage, retain existing dashboard data/query behavior, and validate desktop/mobile presentation, accessibility, TypeScript, full regression, and production build.
+- [x] Checkpoint 50 uploaded requirements: review pasted_content_5.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
+- [x] Checkpoint 50 landing narrative: strengthen the existing landing-page hero, product story, comparison, closing invitation, and CTA wording without altering layout, visual tokens, components, or responsive structure.
+- [x] Checkpoint 50 trust and verification: retain non-clinical, non-diagnostic copy; add landing-copy guardrail coverage; and validate the unchanged public landing-page structure, TypeScript, full regression, and production build.
