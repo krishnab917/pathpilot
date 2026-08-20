@@ -158,6 +158,14 @@ export default function Home() {
                   })}
                 </tbody>
               </table>
+              <div className="border-t border-slate-200 px-3 py-4 sm:px-5">
+                <Button asChild className="h-10 rounded-xl px-4">
+                  <Link href="/auth">
+                    {landingCopy.story.stageCta}
+                    <ArrowRight className="ml-2 size-4" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>

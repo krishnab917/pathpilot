@@ -21,6 +21,7 @@ describe("landing-page narrative", () => {
     expect(landingCopy.story.description).toContain("Too many choices. Too little clarity.");
     expect(landingCopy.story.workflowTitle).toBe("Don't guess. Explore.");
     expect(landingCopy.story.workflowDescription).toContain("you remain the person who decides");
+    expect(landingCopy.story.stageCta).toBe("Start your journey");
     expect(landingFeatureCards.map(card => card.title)).toEqual([
       "Discover yourself",
       "Explore careers",

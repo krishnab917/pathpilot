@@ -202,3 +202,4 @@
 - [x] Checkpoint 52 uploaded specification: review pasted_content_6.txt, map compatible requirements to the current PathPilot implementation, and complete the highest-priority independently testable work.
 - [x] Checkpoint 52 emotional journey copy: strengthen the existing problem-to-solution narrative with concise student uncertainty language, a five-part discover-to-act sequence, and a hopeful lower-page invitation without changing the landing-page visual system.
 - [x] Checkpoint 52 copy guardrails and verification: extend non-clinical, non-diagnostic marketing guardrails; verify the public landing page at desktop/mobile; and run TypeScript, full regression, and production build validation.
+- [x] Checkpoint 53 Act-stage conversion CTA: add an accessible “Start Your Journey” call-to-action immediately after the Act stage using the existing landing-page button system, with focused coverage and responsive validation.

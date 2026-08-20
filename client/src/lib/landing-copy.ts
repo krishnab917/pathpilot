@@ -14,6 +14,7 @@ export const landingCopy = {
     workflowTitle: "Don't guess. Explore.",
     workflowDescription:
       "PathPilot gives you a structured way to move from uncertainty to clarity and action—while you remain the person who decides what comes next.",
+    stageCta: "Start your journey",
     rows: [
       { label: "What you may be feeling", value: "Too many choices. Too little clarity." },
       { label: "What is worth exploring", value: "What could fit your interests and values" },
