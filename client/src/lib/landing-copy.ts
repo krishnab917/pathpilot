@@ -2,30 +2,59 @@ export const landingCopy = {
   hero: {
     titleLead: "Your future isn't a quiz result.",
     titleAccent: "Experience it.",
+    proof: "4 in 5 students want more career exploration opportunities in high school.",
+    proofSource: "College Board / Morning Consult",
     description:
-      "You don't need to have your whole future figured out. PathPilot helps you discover careers worth exploring, experience realistic decisions, understand what resonates, and find a clear next step.",
+      "PathPilot helps you discover careers worth exploring, experience realistic decisions, and turn what you learn into a clear next step.",
     cta: "Discover my career path",
   },
   story: {
     eyebrow: "When the future feels unclear",
-    title: "Feeling stuck about your future?",
+    title: "You shouldn't have to figure out your whole future from a quiz.",
     description:
-      "Too many choices. Too little clarity. You might know what you like—but not what you should actually do with it. When the future feels uncertain, it can be hard to know where to start.",
-    workflowTitle: "Don't guess. Explore.",
+      "There are hundreds of career paths. You may know what interests you, but still not know where it could lead—or what you should do next. PathPilot gives you a way to explore before you commit.",
+    workflowTitle: "Don't just choose a career. Experience it.",
     workflowDescription:
-      "PathPilot gives you a structured way to move from uncertainty to clarity and action—while you remain the person who decides what comes next.",
+      "Discover directions, step into realistic scenarios, reflect on what you learn, and plan what to explore next—while you remain the person who decides what comes next.",
     stageCta: "Start your journey",
     rows: [
-      { label: "What you may be feeling", value: "Too many choices. Too little clarity." },
-      { label: "What is worth exploring", value: "What could fit your interests and values" },
-      { label: "A better place to start", value: "Discover → explore → experience → understand → act" },
+      { label: "Traditional approach", value: "Take a quiz → get a list → figure it out yourself" },
+      { label: "PathPilot", value: "Discover → explore → experience → understand → plan" },
+      { label: "What changes", value: "From “I have no idea” to “I know what to explore next.”" },
     ],
   },
   closing: {
-    title: "You don't need all the answers.",
+    title: "From “Maybe” to “What's next.”",
     description:
-      "You don't have to choose your entire future today. Turn uncertainty into clarity. Turn curiosity into exploration. Turn exploration into action—at your own pace.",
+      "You don't need all the answers or a final career decision today. Turn curiosity into exploration, and what you learn into skills to build, projects to try, opportunities to explore, and goals to work toward—at your own pace.",
   },
+} as const;
+
+export const landingProofPoints = [
+  {
+    value: "4 in 5",
+    label: "students want more career exploration opportunities in high school.",
+    source: "College Board / Morning Consult",
+    href: "https://research.collegeboard.org/reports/connecting-students-colleges-careers/postsecondary-pathways",
+  },
+  {
+    value: "66%",
+    label: "of surveyed young people ages 16–24 did not know exactly what career they wanted.",
+    source: "Jobs for the Future, reported by Inside Higher Ed",
+    href: "https://www.insidehighered.com/news/student-success/life-after-college/2024/09/23/career-learning-improves-high-schoolers-hope",
+  },
+  {
+    value: "49%",
+    label: "of surveyed youth ages 13–19 had little to no idea how to prepare for a career.",
+    source: "DeBruce Foundation / TeenVoice 2024",
+    href: "https://debruce.org/insights/2024-teenvoice-survey/",
+  },
+] as const;
+
+export const landingExperientialEvidence = {
+  text: "In a Gallup study of New Hampshire students, 57% of high school students who participated in an internship or externship said career-connected learning informed their plans after high school.",
+  source: "Gallup / New Hampshire Learning Initiative, reported by Inside Higher Ed",
+  href: "https://www.insidehighered.com/news/student-success/life-after-college/2024/09/23/career-learning-improves-high-schoolers-hope",
 } as const;
 
 export const landingFeatureCards = [
@@ -44,7 +73,7 @@ export const landingFeatureCards = [
   {
     step: "03",
     title: "Experience them",
-    copy: "Use interactive simulations to see what different work situations can feel like.",
+    copy: "Step into interactive career scenarios, make decisions, and reflect on what different work situations can feel like.",
     result: "Perspective",
   },
   {
@@ -69,6 +98,9 @@ export const prohibitedLandingClaims = [
   "mental-health solution",
   "perfect career",
   "guaranteed career fit",
+  "determine your perfect career",
+  "predict your career",
+  "career prediction",
   "pathpilot reduces anxiety",
   "pathpilot improves mental health",
   "pathpilot treats anxiety",

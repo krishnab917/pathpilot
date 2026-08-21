@@ -1,7 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
-import { landingCopy, landingFeatureCards } from "@/lib/landing-copy";
+import {
+  landingCopy,
+  landingExperientialEvidence,
+  landingFeatureCards,
+  landingProofPoints,
+} from "@/lib/landing-copy";
 import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { startLogin } from "@/const";
 import { ArrowRight, Compass, Map, Rocket, SearchCheck, Sparkles, Target } from "lucide-react";
@@ -65,6 +70,17 @@ export default function Home() {
             {landingCopy.hero.titleLead}{" "}
             <span className="text-primary">{landingCopy.hero.titleAccent}</span>
           </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-sm font-medium leading-6 text-foreground sm:text-base">
+            {landingCopy.hero.proof}{" "}
+            <a
+              href={landingProofPoints[0].href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              {landingCopy.hero.proofSource}
+            </a>
+          </p>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
             {landingCopy.hero.description}
           </p>
@@ -82,6 +98,26 @@ export default function Home() {
               </Button>
             </a>
           </div>
+          <dl className="mx-auto mt-10 grid max-w-3xl divide-y divide-slate-200 border border-slate-200 bg-white text-left sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {landingProofPoints.map(point => (
+              <div key={point.value} className="px-4 py-4 sm:px-5">
+                <dt className="data-value text-lg font-semibold tracking-[-0.04em] text-foreground">
+                  {point.value}
+                </dt>
+                <dd className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {point.label}
+                </dd>
+                <a
+                  href={point.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-[10px] font-medium uppercase tracking-[0.08em] text-primary underline-offset-4 hover:underline"
+                >
+                  {point.source}
+                </a>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
@@ -165,6 +201,17 @@ export default function Home() {
                     <ArrowRight className="ml-2 size-4" />
                   </Link>
                 </Button>
+                <p className="mt-4 max-w-3xl text-xs leading-5 text-muted-foreground">
+                  {landingExperientialEvidence.text}{" "}
+                  <a
+                    href={landingExperientialEvidence.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {landingExperientialEvidence.source}
+                  </a>
+                </p>
               </div>
             </div>
           </div>
