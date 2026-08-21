@@ -1,5 +1,5 @@
 import { validateCareerCatalogWrite, type CareerRecommendation } from "../server/db";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -26,5 +26,34 @@ describe("service-role career catalog boundary", () => {
     expect(repositorySource).not.toContain("SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY");
     expect(workerSource).toContain("const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;");
     expect(workerSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY");
+  });
+
+  it("does not reference privileged server credentials anywhere in browser source", () => {
+    const clientDirectory = resolve(process.cwd(), "client/src");
+    const collectSource = (directory: string): string[] =>
+      readdirSync(directory).flatMap(entry => {
+        const path = resolve(directory, entry);
+        return statSync(path).isDirectory()
+          ? collectSource(path)
+          : /\.(?:ts|tsx)$/.test(entry)
+            ? [path]
+            : [];
+      });
+    const clientSource = collectSource(clientDirectory)
+      .map(path => readFileSync(path, "utf8"))
+      .join("\n");
+
+    for (const prohibitedIdentifier of [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_SECRET_KEY",
+      "BUILT_IN_FORGE_API_KEY",
+      "JWT_SECRET",
+      "DATABASE_URL",
+      "AWS_SECRET_ACCESS_KEY",
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+    ]) {
+      expect(clientSource).not.toContain(prohibitedIdentifier);
+    }
   });
 });
