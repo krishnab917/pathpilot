@@ -239,6 +239,9 @@
 - [x] Checkpoint 61 verification: run focused and full regression, TypeScript, production build, and publish the independently testable recommendation-flow fix.
 - [x] Checkpoint 61 all-simulation safeguard: verify the completed-simulation handoff and first-time recommendation queue for every one of the 15 supported careers when no active roadmap exists.
 - [x] Checkpoint 61 root-cause prevention: document and regression-test the shared prior `roadmap` rendering gate so no supported simulation can silently lose its first-time recommendation queue.
+- [x] Checkpoint 62 top-recommendation handoff: preselect the highest preliminary evidence-based career recommendation after a completed simulation when no active roadmap exists, while retaining transparent non-predictive language.
+- [x] Checkpoint 62 career choice: expose a controlled supported-career chooser before roadmap generation, so a student can deliberately replace the preselected recommendation rather than typing a freeform target.
+- [x] Checkpoint 62 handoff regression: cover score ordering, no-score fallback, simulation/roadmap separation, supported-choice validation, provenance copy, full validation, and publication.
 - [x] Checkpoint 60 country-contract audit: reconcile the requested fifty canonical planning countries with existing profile, onboarding, discovery, and national-context contracts; retain one primary country and avoid unsupported detailed claims.
 - [x] Checkpoint 60 all-career graph: define distinct deterministic requirements and actionable primary/exploratory nodes for the remaining eleven curated careers, with traceable gaps, reasons, tips, stages, and verified-context boundaries.
 - [x] Checkpoint 60 country foundation: add canonical country display names, regions, controlled selection/search support, and structured planning-context states that distinguish verified facts from general or unknown context.
