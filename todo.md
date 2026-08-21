@@ -234,6 +234,11 @@
 - [x] Checkpoint 60 requirement coverage: extend the source-controlled deterministic requirement graph and acceptance matrix to the remaining eleven curated simulation careers. _(Completed through the all-fifteen profile graph and regression matrix.)_
 - [ ] Checkpoint 61 verified resources: add sourced, current online-course and opportunity records with explicit verification status, eligibility, country/grade filters, and no fabricated deadlines.
 - [ ] Checkpoint 62 recommendation integration: implement verified opportunity ranking, concrete dashboard next-best-action selection, source-preserving opportunity-to-roadmap goals, and project-assistant recommendation context.
+- [x] Checkpoint 61 fresh-user recommendation bug: reproduce and fix the empty roadmap recommendation state after a first completed Environmental Scientist simulation without altering existing student records.
+- [x] Checkpoint 61 recommendation regression: cover automatic first-time generation, clear loading/error behavior, and visible Environmental Scientist actions for a newly completed simulation.
+- [x] Checkpoint 61 verification: run focused and full regression, TypeScript, production build, and publish the independently testable recommendation-flow fix.
+- [x] Checkpoint 61 all-simulation safeguard: verify the completed-simulation handoff and first-time recommendation queue for every one of the 15 supported careers when no active roadmap exists.
+- [x] Checkpoint 61 root-cause prevention: document and regression-test the shared prior `roadmap` rendering gate so no supported simulation can silently lose its first-time recommendation queue.
 - [x] Checkpoint 60 country-contract audit: reconcile the requested fifty canonical planning countries with existing profile, onboarding, discovery, and national-context contracts; retain one primary country and avoid unsupported detailed claims.
 - [x] Checkpoint 60 all-career graph: define distinct deterministic requirements and actionable primary/exploratory nodes for the remaining eleven curated careers, with traceable gaps, reasons, tips, stages, and verified-context boundaries.
 - [x] Checkpoint 60 country foundation: add canonical country display names, regions, controlled selection/search support, and structured planning-context states that distinguish verified facts from general or unknown context.
