@@ -1,5 +1,4 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { AdaptiveSimulation } from "@/components/AdaptiveSimulation";
 import { Brand } from "@/components/Brand";
 import { CurrentPlanFocus, DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
 import {
@@ -11,7 +10,6 @@ import { CrossProductEvidencePolicyPanel } from "@/components/CrossProductEviden
 import { BehaviorConfidenceDetailPanel } from "@/components/BehaviorConfidenceDetailPanel";
 import { PlanningReportShareControls } from "@/components/PlanningReportShareControls";
 import { DerivedAnalysisStatusPanel } from "@/components/DerivedAnalysisStatusPanel";
-import { RoadmapExperience } from "@/components/RoadmapExperience";
 import { WorkspaceSectionSkeleton } from "@/components/WorkspaceSkeletons";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +30,6 @@ import { shouldShowWorkspaceStartupFrame } from "@/lib/workspace-startup";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
-import Portfolio from "./Portfolio";
-import Opportunities from "./Opportunities";
 import {
   ArrowRight,
   Bot,
@@ -87,6 +83,18 @@ type Section =
   | "goals";
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 const AIChatBox = lazy(() => import("@/components/AIChatBox"));
+const AdaptiveSimulation = lazy(() =>
+  import("@/components/AdaptiveSimulation").then(module => ({
+    default: module.AdaptiveSimulation,
+  }))
+);
+const RoadmapExperience = lazy(() =>
+  import("@/components/RoadmapExperience").then(module => ({
+    default: module.RoadmapExperience,
+  }))
+);
+const Portfolio = lazy(() => import("./Portfolio"));
+const Opportunities = lazy(() => import("./Opportunities"));
 type DashboardData = RouterOutputs["pathpilot"]["dashboard"]["get"];
 type CareerMatches = DashboardData["matches"];
 type ActiveRoadmap = DashboardData["roadmap"];
@@ -411,9 +419,13 @@ export default function Workspace() {
   };
   const content =
     section === "portfolio" ? (
-      <Portfolio />
+      <Suspense fallback={<WorkspaceSectionSkeleton section="portfolio" />}>
+        <Portfolio />
+      </Suspense>
     ) : section === "opportunities" ? (
-      <Opportunities />
+      <Suspense fallback={<WorkspaceSectionSkeleton section="opportunities" />}>
+        <Opportunities />
+      </Suspense>
     ) : section === "mentor" ? (
       <CompactMentor />
     ) : dashboard.data ? (
@@ -433,12 +445,18 @@ export default function Workspace() {
         ),
         discover: <CompactDiscover matches={dashboard.data.matches} />,
         roadmap: (
-          <RoadmapExperience
-            matches={dashboard.data.matches}
-            roadmap={dashboard.data.roadmap}
-          />
+          <Suspense fallback={<WorkspaceSectionSkeleton section="roadmap" />}>
+            <RoadmapExperience
+              matches={dashboard.data.matches}
+              roadmap={dashboard.data.roadmap}
+            />
+          </Suspense>
         ),
-        simulate: <AdaptiveSimulation matches={dashboard.data.matches} />,
+        simulate: (
+          <Suspense fallback={<WorkspaceSectionSkeleton section="simulate" />}>
+            <AdaptiveSimulation matches={dashboard.data.matches} />
+          </Suspense>
+        ),
         goals: <CompactGoals goals={dashboard.data.goals} />,
       }[section]
     ) : null;

@@ -9,4 +9,14 @@ describe("authentication accessibility", () => {
     expect(authSource).toContain('role="alert"');
     expect(authSource).toContain('role="status" aria-live="polite"');
   });
+
+  it("matches the saved registration password policy without blocking existing sign-ins", () => {
+    expect(authSource).toContain("const PASSWORD_MIN_LENGTH = 12;");
+    expect(authSource).toContain(
+      'minLength={mode === "sign-up" ? PASSWORD_MIN_LENGTH : undefined}'
+    );
+    expect(authSource).toContain(
+      "Use at least {PASSWORD_MIN_LENGTH} characters."
+    );
+  });
 });
