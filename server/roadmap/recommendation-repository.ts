@@ -97,7 +97,7 @@ async function getLatestCompletedSimulationById(userId: string, simulationId: st
   const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").maybeSingle();
   check(error);
   return data ? {
-    id: data.id, career: data.career, behavioralProfile: data.behavioral_profile ?? null, compatibilityResults: data.compatibility_results ?? [], resultSummary: data.result_summary ?? null,
+    id: data.id, career: data.career, completedAt: data.completed_at ? new Date(data.completed_at) : null, behavioralProfile: data.behavioral_profile ?? null, compatibilityResults: data.compatibility_results ?? [], resultSummary: data.result_summary ?? null,
   } : null;
 }
 

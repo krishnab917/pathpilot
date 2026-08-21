@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 
-const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), replaceCareerMatches: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getActiveRoadmap: vi.fn(), replaceCareerMatches: vi.fn() }));
 
 vi.mock("../server/_core/llm", () => ({ invokeLLM: mocks.invokeLLM, listLLMModels: mocks.listLLMModels }));
 vi.mock("../server/db", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/db")>();
-  return { ...actual, getStudentProfile: mocks.getStudentProfile, replaceCareerMatches: mocks.replaceCareerMatches };
+  return { ...actual, getStudentProfile: mocks.getStudentProfile, getActiveRoadmap: mocks.getActiveRoadmap, replaceCareerMatches: mocks.replaceCareerMatches };
 });
 
 import { appRouter } from "../server/routers";
@@ -22,6 +22,7 @@ describe("pathpilot.discovery.analyze", () => {
     vi.clearAllMocks();
     mocks.listLLMModels.mockResolvedValue({ data: [{ id: "gpt-5-mini" }] });
     mocks.getStudentProfile.mockResolvedValue(profile);
+    mocks.getActiveRoadmap.mockResolvedValue(undefined);
     mocks.replaceCareerMatches.mockResolvedValue({ persisted: true });
   });
 
@@ -50,5 +51,11 @@ describe("pathpilot.discovery.analyze", () => {
     await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Data scientist" })).resolves.toEqual({ profileReady: true });
     expect(mocks.getStudentProfile).toHaveBeenCalledWith(userId);
     expect(mocks.invokeLLM).not.toHaveBeenCalled();
+  });
+
+  it("requires explicit confirmation before replacing a different active roadmap career", async () => {
+    mocks.getActiveRoadmap.mockResolvedValue({ targetCareer: "Software Engineer", milestones: [] });
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Doctor / Physician" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Doctor / Physician", confirmCareerChange: true })).resolves.toEqual({ profileReady: true });
   });
 });

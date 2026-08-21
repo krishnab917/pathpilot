@@ -66,6 +66,7 @@ import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-gui
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
+import { requiresRoadmapCareerChangeConfirmation } from "../roadmap/career-change";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
 import { getSimulationCareer, simulationCareerCatalog } from "../simulation/catalog";
 import { buildMentorPlanningContext } from "../mentor-context";
@@ -434,14 +435,17 @@ export const pathpilotRouter = router({
 
   roadmap: router({
     get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
-    preflight: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx }) => {
+    preflight: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), confirmCareerChange: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
+      const activeRoadmap = await getActiveRoadmap(ctx.user.id);
+      if (requiresRoadmapCareerChangeConfirmation(activeRoadmap?.targetCareer, input.targetCareer) && !input.confirmCareerChange) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
       return { profileReady: true };
     }),
-    generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180) })).mutation(async ({ ctx, input }) => {
+    generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), confirmCareerChange: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       const [profile, latestSimulation, goals, projects, activeRoadmap] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), listGoals(ctx.user.id), listProjects(ctx.user.id), getActiveRoadmap(ctx.user.id)]);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
+      if (requiresRoadmapCareerChangeConfirmation(activeRoadmap?.targetCareer, input.targetCareer) && !input.confirmCareerChange) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
       try {
         const response = await invokeLLM({
           model: await preferredModel(),
