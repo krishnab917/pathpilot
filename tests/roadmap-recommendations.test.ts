@@ -19,10 +19,11 @@ describe("country-aware roadmap recommendations", () => {
     expect(recommendations.some(item => item.title.includes("evidence-rich"))).toBe(false);
   });
 
-  it("uses transparent unsupported-country guidance instead of fabricated national requirements", () => {
+  it("uses transparent canonical-general guidance instead of fabricated national requirements", () => {
     const context = getNationalEducationContext("BR");
-    expect(context.code).toBe("ZZ");
-    expect(context.sourceNote).toContain("not yet available");
+    expect(context.code).toBe("BR");
+    expect(context.detailLevel).toBe("general");
+    expect(context.sourceNote).toContain("not currently verified");
   });
 
   it("makes multi-simulation evolution visible in the editable recommendation rationale", () => {

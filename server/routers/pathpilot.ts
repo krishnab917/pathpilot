@@ -64,7 +64,7 @@ import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
-import { countryOptions, getNationalEducationContext } from "../roadmap/national-context";
+import { countryOptions, getNationalEducationContext, isCanonicalPlanningCountry } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 import { requiresRoadmapCareerChangeConfirmation } from "../roadmap/career-change";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
@@ -310,7 +310,7 @@ export const pathpilotRouter = router({
       careerPreferences: selectionSchema,
     })).mutation(({ ctx, input }) => saveStudentProfile(ctx.user.id, input)),
     countryOptions: protectedProcedure.query(() => countryOptions),
-    updateCountry: protectedProcedure.input(z.object({ countryCode: z.string().regex(/^[A-Z]{2}$/), educationSystem: z.string().trim().min(2).max(180) })).mutation(({ ctx, input }) => updateStudentCountryContext(ctx.user.id, input.countryCode, input.educationSystem)),
+    updateCountry: protectedProcedure.input(z.object({ countryCode: z.string().regex(/^[A-Z]{2}$/).refine(isCanonicalPlanningCountry, "Choose a supported planning country."), educationSystem: z.string().trim().min(2).max(180) })).mutation(({ ctx, input }) => updateStudentCountryContext(ctx.user.id, input.countryCode, input.educationSystem)),
   }),
 
   dashboard: router({
@@ -568,7 +568,7 @@ export const pathpilotRouter = router({
       const history = messages.slice(-12).map(message => `${message.role === "user" ? "Student" : "Mentor"}: ${message.content}`).join("\n");
       const roadmapSummary = dashboard.roadmap ? `${dashboard.roadmap.targetCareer} (${dashboard.roadmap.completionPercentage}% complete); milestones: ${dashboard.roadmap.milestones.map(milestone => `${milestone.title} ${milestone.progress}%`).join(", ")}` : "No roadmap created yet.";
       const goalsSummary = dashboard.goals.slice(0, 8).map(goal => `#${goal.id} ${goal.title} [${goal.status}, ${goal.priority}, ${goal.progress}%]`).join("; ") || "No goals yet.";
-      const planningContext = buildMentorPlanningContext({ behaviorEvolution, planningActivity });
+      const planningContext = buildMentorPlanningContext({ behaviorEvolution, planningActivity, countryCode: dashboard.profile?.countryCode, grade: dashboard.profile?.grade, roadmapCareer: dashboard.roadmap?.targetCareer });
       try {
         const response = await invokeLLM({
           model: await preferredModel(),

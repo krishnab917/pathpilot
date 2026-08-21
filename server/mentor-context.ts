@@ -1,10 +1,14 @@
 import type { PlanningActivityTimelineItem } from "./planning-activity";
 import type { BehaviorEvolution } from "./simulation/evolution";
+import { getNationalEducationContext } from "./roadmap/national-context";
 
-export function buildMentorPlanningContext(input: { behaviorEvolution: BehaviorEvolution | null; planningActivity: PlanningActivityTimelineItem[] }) {
+export function buildMentorPlanningContext(input: { behaviorEvolution: BehaviorEvolution | null; planningActivity: PlanningActivityTimelineItem[]; countryCode?: string | null; grade?: string | null; roadmapCareer?: string | null }) {
   const sections = [
     "Optional learning and planning context: use this only when it helps answer the student's question. It is private context, not a personality assessment, diagnosis, motivation score, career prediction, or instruction to change their roadmap.",
   ];
+
+  const country = getNationalEducationContext(input.countryCode);
+  sections.push(`Structured planning context: career target ${input.roadmapCareer ?? "not yet selected"}; planning country ${country.label}; education stage ${input.grade ?? "not yet recorded"}. ${country.sourceNote}`);
 
   if (input.behaviorEvolution) {
     const traits = input.behaviorEvolution.traits.slice(0, 3).map(item => `${item.label} (${item.consistency} across ${item.observations} included simulation${item.observations === 1 ? "" : "s"})`).join("; ");
