@@ -16,8 +16,21 @@ function recommendation(row: any) {
     targetCareer: row.target_career, countrySnapshot: row.country_snapshot, educationSystemSnapshot: row.education_system_snapshot,
     phase: row.phase, title: row.title, description: row.description, rationale: row.rationale, category: row.category as "skill" | "project" | "experience",
     suggestedDeadline: asDate(row.suggested_deadline), priority: row.priority as "low" | "medium" | "high", estimatedHours: row.estimated_hours,
+    actionKind: row.action_kind as "primary" | "explore", requirementId: row.requirement_id ?? null, requirementLabel: row.requirement_label ?? null, studentGap: row.student_gap ?? null, tip: row.tip ?? null, countryContext: row.country_context ?? null, verificationStatus: row.verification_status ?? null, sourceLabel: row.source_label ?? null,
     status: row.status as RecommendationStatus, sortOrder: row.sort_order, contextVersion: row.context_version, createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
   };
+}
+
+export function acceptedRecommendationDescription(item: ReturnType<typeof recommendation>) {
+  const details = [
+    item.description,
+    item.requirementLabel ? `Career requirement: ${item.requirementLabel}` : null,
+    item.studentGap ? `Why this: ${item.studentGap}` : null,
+    item.tip ? `Tip: ${item.tip}` : null,
+    item.countryContext ? `Planning country: ${item.countryContext}` : null,
+    item.sourceLabel ? `Source: ${item.sourceLabel}` : null,
+  ].filter((value): value is string => Boolean(value));
+  return details.join("\n\n");
 }
 
 export async function listRoadmapRecommendations(userId: string, sourceSimulationId?: string) {
@@ -42,12 +55,12 @@ export async function getRoadmapRecommendationContext(userId: string, simulation
 
 function recommendationDrafts(context: Awaited<ReturnType<typeof getRoadmapRecommendationContext>>, useEvolution: boolean) {
   const existingTitles = [
-    ...context.goals.filter(goal => goal.status !== "completed").map(goal => goal.title),
+    ...context.goals.map(goal => goal.title),
     ...context.projects.filter(project => project.status !== "archived").map(project => project.name),
     ...(context.roadmap?.milestones ?? []).map(milestone => milestone.title),
   ];
   return buildCountryAwareRecommendations({
-    career: context.simulation.career, countryCode: context.profile.countryCode, grade: context.profile.grade,
+    career: context.roadmap?.targetCareer ?? context.simulation.career, countryCode: context.profile.countryCode, grade: context.profile.grade,
     skills: context.profile.skills, activities: context.profile.activities, existingTitles,
     strongestTraits: context.simulation.behavioralProfile?.strongestTraits ?? [],
     evolvingFocus: useEvolution ? context.behaviorEvolution?.evolvingFocus ?? undefined : undefined,
@@ -83,11 +96,13 @@ export async function addEvolvedRoadmapRecommendations(userId: string, simulatio
     hasPendingEvolutionRecommendations: false,
   });
   if (preview.state !== "ready") throw new Error("Complete at least two simulations before adding an evolved recommendation set.");
+  const targetCareer = context.roadmap?.targetCareer ?? context.simulation.career;
   const { data, error } = await client().from("roadmap_recommendations").insert(drafts.map(item => ({
-    user_id: userId, source_simulation_id: context.simulation.id, target_career: context.simulation.career,
+    user_id: userId, source_simulation_id: context.simulation.id, target_career: targetCareer,
     country_snapshot: context.profile.countryCode ?? "ZZ", education_system_snapshot: context.national.educationSystem,
     phase: item.phase, title: item.title, description: item.description, rationale: item.rationale, category: item.category,
     priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder, context_version: EVOLUTION_CONTEXT_VERSION,
+    action_kind: item.intelligence?.kind ?? "primary", requirement_id: item.intelligence?.requirementId ?? null, requirement_label: item.intelligence?.requirementLabel ?? null, student_gap: item.intelligence?.studentGap ?? null, tip: item.intelligence?.tip ?? null, country_context: item.intelligence?.countryContext ?? null, verification_status: item.intelligence?.verificationStatus ?? null, source_label: item.intelligence?.sourceLabel ?? null,
   }))).select("*");
   check(error);
   return { preview, recommendations: (data ?? []).map(recommendation) };
@@ -111,11 +126,13 @@ export async function generateRoadmapRecommendations(userId: string, simulationI
     check(dismissError);
   }
   const drafts = recommendationDrafts(context, false);
+  const targetCareer = context.roadmap?.targetCareer ?? context.simulation.career;
   const { data, error } = await client().from("roadmap_recommendations").insert(drafts.map(item => ({
-    user_id: userId, source_simulation_id: context.simulation.id, target_career: context.simulation.career,
+    user_id: userId, source_simulation_id: context.simulation.id, target_career: targetCareer,
     country_snapshot: context.profile.countryCode ?? "ZZ", education_system_snapshot: context.national.educationSystem,
     phase: item.phase, title: item.title, description: item.description, rationale: item.rationale, category: item.category,
-    priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder, context_version: "baseline-v1",
+    priority: item.priority, estimated_hours: item.estimatedHours, sort_order: item.sortOrder, context_version: "career-intelligence-v1",
+    action_kind: item.intelligence?.kind ?? "primary", requirement_id: item.intelligence?.requirementId ?? null, requirement_label: item.intelligence?.requirementLabel ?? null, student_gap: item.intelligence?.studentGap ?? null, tip: item.intelligence?.tip ?? null, country_context: item.intelligence?.countryContext ?? null, verification_status: item.intelligence?.verificationStatus ?? null, source_label: item.intelligence?.sourceLabel ?? null,
   }))).select("*");
   check(error);
   return { context, recommendations: (data ?? []).map(recommendation) };
@@ -149,13 +166,14 @@ export async function acceptRoadmapRecommendation(userId: string, recommendation
   if (data.status === "accepted") return recommendation(data);
   if (data.status !== "pending") throw new Error("Only pending recommendations can be added to your roadmap.");
   const item = recommendation(data);
-  const goal = await createGoal(userId, { title: item.title, description: item.description, category: item.category, deadline: item.suggestedDeadline ?? undefined, priority: item.priority, estimatedHours: item.estimatedHours, resources: [] });
+  const description = acceptedRecommendationDescription(item);
+  const goal = await createGoal(userId, { title: item.title, description, category: item.category, deadline: item.suggestedDeadline ?? undefined, priority: item.priority, estimatedHours: item.estimatedHours, resources: [] });
   let active = await getActiveRoadmap(userId);
   if (!active) {
-    active = await createRoadmap(userId, item.targetCareer, [{ year: 1, title: item.title, description: item.description, category: item.category, deadline: item.suggestedDeadline ?? undefined, priority: item.priority, estimatedHours: item.estimatedHours, resources: [], sortOrder: 0 }]);
+    active = await createRoadmap(userId, item.targetCareer, [{ year: 1, title: item.title, description, category: item.category, deadline: item.suggestedDeadline ?? undefined, priority: item.priority, estimatedHours: item.estimatedHours, resources: [], sortOrder: 0 }]);
   } else {
     const sortOrder = Math.max(-1, ...active.milestones.map(milestone => milestone.sortOrder)) + 1;
-    const { error: milestoneError } = await client().from("roadmap_milestones").insert({ roadmap_id: active.id, year: 1, title: item.title, description: item.description, category: item.category, deadline: item.suggestedDeadline?.toISOString() ?? null, priority: item.priority, estimated_hours: item.estimatedHours, resources: [], sort_order: sortOrder });
+    const { error: milestoneError } = await client().from("roadmap_milestones").insert({ roadmap_id: active.id, year: 1, title: item.title, description, category: item.category, deadline: item.suggestedDeadline?.toISOString() ?? null, priority: item.priority, estimated_hours: item.estimatedHours, resources: [], sort_order: sortOrder });
     check(milestoneError);
   }
   const roadmapId = active!.id;
