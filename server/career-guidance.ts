@@ -1,3 +1,10 @@
+export class CareerGuidanceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CareerGuidanceValidationError";
+  }
+}
+
 export async function retryValidatedGuidance<T>(
   request: (attempt: number) => Promise<unknown>,
   validate: (response: unknown) => T,
@@ -9,6 +16,7 @@ export async function retryValidatedGuidance<T>(
       return validate(await request(attempt));
     } catch (error) {
       lastError = error;
+      if (!(error instanceof CareerGuidanceValidationError)) break;
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Career guidance could not be validated.");

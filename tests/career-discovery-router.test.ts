@@ -41,6 +41,13 @@ describe("pathpilot.discovery.analyze", () => {
     expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
   });
 
+  it("returns the safe gateway error without a second provider call when the AI provider fails", async () => {
+    mocks.invokeLLM.mockRejectedValue(new Error("provider unavailable"));
+    await expect(appRouter.createCaller(context).pathpilot.discovery.analyze()).rejects.toMatchObject({ code: "BAD_GATEWAY", message: "Career guidance is temporarily unavailable. Please try again shortly." });
+    expect(mocks.invokeLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
+  });
+
   it("confirms the signed-in profile before a long-running discovery request begins", async () => {
     await expect(appRouter.createCaller(context).pathpilot.discovery.preflight()).resolves.toEqual({ profileReady: true });
     expect(mocks.getStudentProfile).toHaveBeenCalledWith(userId);

@@ -2,10 +2,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { CurrentPlanFocus, DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
 import {
-  CompactDiscover,
   CompactGoals,
   CompactMentor,
 } from "@/components/UtilityWorkspaceSections";
+import { ReliableProfileAnalysis } from "@/components/ReliableProfileAnalysis";
 import { CrossProductEvidencePolicyPanel } from "@/components/CrossProductEvidencePolicyPanel";
 import { BehaviorConfidenceDetailPanel } from "@/components/BehaviorConfidenceDetailPanel";
 import { PlanningReportShareControls } from "@/components/PlanningReportShareControls";
@@ -443,7 +443,7 @@ export default function Workspace() {
             />
           </>
         ),
-        discover: <CompactDiscover matches={dashboard.data.matches} />,
+        discover: <ReliableProfileAnalysis matches={dashboard.data.matches} />,
         roadmap: (
           <Suspense fallback={<WorkspaceSectionSkeleton section="roadmap" />}>
             <RoadmapExperience

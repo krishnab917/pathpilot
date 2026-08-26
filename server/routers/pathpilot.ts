@@ -62,7 +62,7 @@ import {
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
-import { retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
+import { CareerGuidanceValidationError, retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext, isCanonicalPlanningCountry } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
@@ -352,9 +352,9 @@ export const pathpilotRouter = router({
             const parsed = discoverySchema.safeParse(JSON.parse(String(content)));
             if (!parsed.success) {
               const fields = parsed.error.issues.map(issue => issue.path.join(".") || "response").join(", ");
-              throw new Error(`The model response did not satisfy the career-discovery contract at: ${fields}.`);
+              throw new CareerGuidanceValidationError(`The model response did not satisfy the career-discovery contract at: ${fields}.`);
             }
-            if (!hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new Error("The model response did not contain five unique career names.");
+            if (!hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new CareerGuidanceValidationError("The model response did not contain five unique career names.");
             return parsed.data.matches;
           },
         );
