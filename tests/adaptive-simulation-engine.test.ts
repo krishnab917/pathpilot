@@ -25,18 +25,20 @@ describe("adaptive simulation engine", () => {
     expect(peerPath.state.teamTrust).toBeGreaterThan(initialSimulationState(getSimulationGraph("Software Engineer")).teamTrust);
   });
 
-  it("selects distinct health, design, and business work situations from the requested career", () => {
-    expect(getSimulationGraph("Registered Nurse").id).toBe("health-care-team-v1");
-    expect(getSimulationGraph("UX Designer").id).toBe("design-feedback-v1");
-    expect(getSimulationGraph("Entrepreneur").id).toBe("business-decision-v1");
+  it("selects distinct dedicated work situations from source-controlled careers only", () => {
+    expect(getSimulationGraph("Doctor / Physician").id).toBe("doctor-physician-v1");
+    expect(getSimulationGraph("UX / Product Designer").id).toBe("ux-product-designer-v1");
+    expect(getSimulationGraph("Entrepreneur / Startup Founder").id).toBe("entrepreneur-startup-founder-v1");
     expect(getSimulationGraph("Software Engineer").id).toBe("software-systems-v1");
+    expect(() => getSimulationGraph("Registered Nurse")).toThrow("supported simulation catalog");
+    expect(() => getSimulationGraph("UX Designer")).toThrow("supported simulation catalog");
   });
 
   it("records a student-visible consequence event for each decision without exposing signals publicly", () => {
-    const graph = getSimulationGraph("UX Designer");
-    const response = chooseSimulationDecision(graph, initialSimulationState(graph), "gather-evidence", [], []);
+    const graph = getSimulationGraph("Software Engineer");
+    const response = chooseSimulationDecision(graph, initialSimulationState(graph), "investigate-data", [], []);
     expect(response.events).toHaveLength(1);
-    expect(response.consequence).toMatchObject({ kind: "learning", message: expect.stringContaining("evidence") });
+    expect(response.consequence).toMatchObject({ kind: "learning", message: expect.stringContaining("learning signal") });
     expect(JSON.stringify(getPublicScenario(graph, response.state))).not.toContain("consequence");
   });
 

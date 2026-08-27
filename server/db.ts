@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
 import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState } from "./simulation/engine";
-import { getSimulationCareer } from "./simulation/catalog";
+import { getSimulationCareer, resolveSupportedCareer } from "./simulation/catalog";
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchBnlHighSchoolResearchRecord } from "./opportunities/bnl-high-school-research-source";
@@ -14,6 +14,7 @@ import { goalActivity, presentPlanningActivity, projectActivity, roadmapMileston
 import { buildPlanningReview } from "./planning-review";
 import { buildCrossProductEvidenceSummary } from "./cross-product-evidence-policy";
 import { createPlanningReportShareToken, hashPlanningReportShareToken, isPlanningReportShareToken, planningReportShareExpiresAt, toSharedPlanningReport } from "./report-share";
+import type { MentorContextNeeds } from "./mentor-context";
 
 export type ResourceLink = { label: string; url: string };
 export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
@@ -44,8 +45,8 @@ export function validateCareerCatalogWrite(userId: string, recommendations: Care
   if (recommendations.length !== 5) throw new Error("Career discovery must contain exactly five matches.");
   const names = new Set<string>();
   for (const recommendation of recommendations) {
-    const normalizedName = recommendation.name.trim().toLowerCase();
-    if (!normalizedName || normalizedName.length > 180 || names.has(normalizedName) || !Number.isInteger(recommendation.matchScore) || recommendation.matchScore < 1 || recommendation.matchScore > 100) throw new Error("Career recommendations failed validation.");
+    const normalizedName = resolveSupportedCareer(recommendation.name)?.id;
+    if (!normalizedName || names.has(normalizedName) || !Number.isInteger(recommendation.matchScore) || recommendation.matchScore < 1 || recommendation.matchScore > 100) throw new Error("Career recommendations must use five distinct supported PathPilot careers.");
     if (recommendation.requiredSkills.length < 3 || recommendation.requiredSkills.length > 8 || recommendation.dailyResponsibilities.length < 2 || recommendation.dailyResponsibilities.length > 6 || recommendation.relatedCareers.length < 2 || recommendation.relatedCareers.length > 6 || recommendation.strengths.length < 1 || recommendation.strengths.length > 6 || recommendation.missingSkills.length < 1 || recommendation.missingSkills.length > 6 || recommendation.nextSteps.length < 2 || recommendation.nextSteps.length > 5) throw new Error("Career recommendations failed validation.");
     names.add(normalizedName);
   }
@@ -165,7 +166,8 @@ export async function getCareerMatches(userId: string) {
 }
 export async function replaceCareerMatches(userId: string, recommendations: CareerRecommendation[]) {
   validateCareerCatalogWrite(userId, recommendations);
-  const stored = await syncSharedCareerCatalog(recommendations);
+  const canonicalRecommendations = recommendations.map(recommendation => ({ ...recommendation, name: resolveSupportedCareer(recommendation.name)!.name }));
+  const stored = await syncSharedCareerCatalog(canonicalRecommendations);
   const db = client();
   const remove = await db.from("career_matches").delete().eq("user_id", userId); check(remove.error);
   const insert = await db.from("career_matches").insert(stored.map(({ careerId, recommendation }, index) => ({ user_id: userId, career_id: careerId, rank: index + 1, match_score: Math.round(recommendation.matchScore), reasoning: recommendation.reasoning, strengths: recommendation.strengths, missing_skills: recommendation.missingSkills, reality_check: recommendation.realityCheck, next_steps: recommendation.nextSteps }))); check(insert.error);
@@ -173,6 +175,35 @@ export async function replaceCareerMatches(userId: string, recommendations: Care
 }
 
 export async function listGoals(userId: string) { const { data, error } = await client().from("goals").select("*").eq("user_id", userId).order("deadline", { nullsFirst: false }); check(error); return list(data as any[]).map(goal); }
+export async function getMentorContextData(userId: string, needs: MentorContextNeeds) {
+  const db = client();
+  const skippedList = Promise.resolve({ data: [] as any[], error: null });
+  const skippedRow = Promise.resolve({ data: null as any, error: null });
+  const [profileResult, roadmapResult, goalsResult, projectsResult, simulationResult] = await Promise.all([
+    db.from("student_profiles").select(needs.careerProfile ? "grade, country_code, career_preferences" : "grade, country_code").eq("user_id", userId).maybeSingle(),
+    db.from("roadmaps").select("id, target_career, completion_percentage").eq("user_id", userId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("goals").select("id, title, status, priority, progress, deadline").eq("user_id", userId).neq("status", "completed").order("deadline", { nullsFirst: false }).limit(6),
+    needs.projects ? db.from("projects").select("name, status, progress").eq("user_id", userId).neq("status", "archived").order("updated_at", { ascending: false }).limit(4) : skippedList,
+    needs.simulation ? db.from("simulations").select("career, result_summary, compatibility_results").eq("user_id", userId).eq("engine_version", "adaptive-v2").eq("status", "completed").order("completed_at", { ascending: false }).limit(1).maybeSingle() : skippedRow,
+  ]);
+  check(profileResult.error); check(roadmapResult.error); check(goalsResult.error); check(projectsResult.error); check(simulationResult.error);
+  const roadmapRow = roadmapResult.data as any;
+  let milestones: Array<{ title: string; status: string; progress: number; category: string; deadline: string | null }> = [];
+  if (roadmapRow?.id) {
+    const { data, error } = await db.from("roadmap_milestones").select("title, status, progress, category, deadline").eq("roadmap_id", roadmapRow.id).order("year").order("sort_order").limit(6);
+    check(error);
+    milestones = list(data as any[]).map(row => ({ title: String(row.title ?? ""), status: String(row.status ?? "not_started"), progress: Number(row.progress ?? 0), category: String(row.category ?? "skill"), deadline: typeof row.deadline === "string" ? row.deadline : null }));
+  }
+  const simulationRow = simulationResult.data as any;
+  const compatibility = list(simulationRow?.compatibility_results as any[]).flatMap(item => typeof item?.careerName === "string" && typeof item?.score === "number" ? [{ careerName: item.careerName, score: item.score }] : []);
+  return {
+    profile: profileResult.data ? { grade: String((profileResult.data as any).grade ?? ""), countryCode: (profileResult.data as any).country_code ?? null, careerPreferences: strings((profileResult.data as any).career_preferences) } : null,
+    roadmap: roadmapRow ? { targetCareer: String(roadmapRow.target_career ?? ""), completionPercentage: Number(roadmapRow.completion_percentage ?? 0), milestones } : null,
+    goals: list(goalsResult.data as any[]).map(row => ({ id: String(row.id), title: String(row.title ?? ""), status: String(row.status ?? "not_started"), priority: String(row.priority ?? "medium"), progress: Number(row.progress ?? 0), deadline: typeof row.deadline === "string" ? row.deadline : null })),
+    projects: list(projectsResult.data as any[]).map(row => ({ name: String(row.name ?? ""), status: String(row.status ?? "idea"), progress: Number(row.progress ?? 0) })),
+    simulation: simulationRow ? { career: String(simulationRow.career ?? ""), resultSummary: typeof simulationRow.result_summary === "string" ? simulationRow.result_summary : null, strongestTraits: [], compatibility } : null,
+  };
+}
 export async function createGoal(userId: string, value: { title: string; description?: string; category: string; deadline?: Date; priority: "low" | "medium" | "high"; estimatedHours: number; resources?: ResourceLink[] }) { const { data, error } = await client().from("goals").insert({ user_id: userId, title: value.title, description: value.description ?? null, category: value.category, deadline: iso(value.deadline), priority: value.priority, estimated_hours: value.estimatedHours, resources: value.resources ?? [] }).select().single(); check(error); const saved = goal(data); if (saved) { const activity = goalActivity({ category: value.category, estimatedHours: value.estimatedHours, deadline: value.deadline }); await recordPlanningActivity(userId, activity.eventType, "goal", saved.id, activity.metadata); } return saved; }
 export async function updateGoal(userId: string, goalId: string, update: { progress?: number; status?: GoalStatus; priority?: "low" | "medium" | "high"; title?: string; description?: string; deadline?: Date | null; resources?: ResourceLink[] }) { const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }; if (update.progress !== undefined) patch.progress = update.progress; if (update.status !== undefined) patch.status = update.status; if (update.priority !== undefined) patch.priority = update.priority; if (update.title !== undefined) patch.title = update.title; if (update.description !== undefined) patch.description = update.description; if (update.deadline !== undefined) patch.deadline = iso(update.deadline ?? undefined); if (update.resources !== undefined) patch.resources = update.resources; const { data, error } = await client().from("goals").update(patch).eq("id", goalId).eq("user_id", userId).select().maybeSingle(); check(error); if (!data) throw new Error("Goal not found."); const saved = goal(data)!; const fields = [update.title !== undefined && "title", update.description !== undefined && "description", update.priority !== undefined && "priority", update.deadline !== undefined && "deadline", update.resources !== undefined && "resources"].filter(Boolean) as string[]; const activity = goalActivity({ category: saved.category, estimatedHours: saved.estimatedHours, progress: update.progress, fields }); await recordPlanningActivity(userId, activity.eventType, "goal", saved.id, activity.metadata); return saved; }
 
@@ -235,6 +266,11 @@ export async function chooseAdaptiveSimulationDecision(userId: string, simulatio
 
 export async function getOrCreateMentorConversation(userId: string) { const db = client(); const { data: existing, error } = await db.from("ai_conversations").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle(); check(error); if (existing) return existing as any; const { data, error: insertError } = await db.from("ai_conversations").insert({ user_id: userId, title: "Career mentor", context: {} }).select().single(); check(insertError); return data as any; }
 export async function getConversationMessages(userId: string, conversationId: string) { const { data, error } = await client().from("ai_messages").select("*").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at"); check(error); return list(data as any[]).map(row => ({ id: row.id, conversationId: row.conversation_id, userId: row.user_id, role: row.role as "user" | "assistant", content: row.content, createdAt: new Date(row.created_at) })); }
+export async function getMentorConversationHistory(userId: string, conversationId: string) {
+  const { data, error } = await client().from("ai_messages").select("role, content").eq("conversation_id", conversationId).eq("user_id", userId).order("created_at", { ascending: false }).limit(6);
+  check(error);
+  return list(data as any[]).reverse().map(row => ({ role: row.role as "user" | "assistant", content: String(row.content ?? "") }));
+}
 export async function addMentorMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) { const db = client(); const message = await db.from("ai_messages").insert({ user_id: userId, conversation_id: conversationId, role, content }); check(message.error); const conversation = await db.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", userId); check(conversation.error); }
 type ProjectStatus = "idea" | "in_progress" | "completed" | "archived";
 type ProjectMilestoneStatus = "not_started" | "in_progress" | "completed";

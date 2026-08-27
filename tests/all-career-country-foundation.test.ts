@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildCountryAwareRecommendations } from "../server/roadmap/recommendations";
 import { getCareerRequirementActions } from "../server/roadmap/career-requirements";
 import { countryOptions, getNationalEducationContext, isCanonicalPlanningCountry } from "../server/roadmap/national-context";
-import { buildMentorPlanningContext } from "../server/mentor-context";
+import { buildMentorContext } from "../server/mentor-context";
 import { simulationCareerCatalog } from "../server/simulation/catalog";
 
 const base = { countryCode: "US", grade: "Grade 10", skills: [], activities: [], existingTitles: [], strongestTraits: ["analytical_thinking"], evolvingFocus: undefined };
@@ -90,10 +90,10 @@ describe("all-career deterministic roadmap and country foundation", () => {
   });
 
   it("passes planning country, education stage, and active career as structured mentor context", () => {
-    const context = buildMentorPlanningContext({ behaviorEvolution: null, planningActivity: [], countryCode: "GB", grade: "Grade 11", roadmapCareer: "Lawyer" });
-    expect(context).toContain("career target Lawyer");
-    expect(context).toContain("planning country United Kingdom");
-    expect(context).toContain("education stage Grade 11");
-    expect(routerSource).toContain("countryCode: dashboard.profile?.countryCode");
+    const context = JSON.parse(buildMentorContext({ request: "How does my career direction affect my roadmap?", profile: { countryCode: "GB", grade: "Grade 11", careerPreferences: [] }, roadmap: { targetCareer: "Lawyer", completionPercentage: 0, milestones: [] }, goals: [], projects: [], simulation: null, history: [] }).prompt);
+    expect(context.student_summary.career_direction).toBe("Lawyer");
+    expect(context.student_summary.planning_country).toBe("United Kingdom");
+    expect(context.student_summary.grade).toBe("Grade 11");
+    expect(routerSource).toContain("getMentorContextData(ctx.user.id, contextNeeds)");
   });
 });

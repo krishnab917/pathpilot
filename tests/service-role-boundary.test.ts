@@ -10,11 +10,12 @@ const validRecommendation = (name: string): CareerRecommendation => ({
 describe("service-role career catalog boundary", () => {
   it("requires a valid user identifier, five unique records, and bounded score data before catalog persistence", () => {
     const userId = "11111111-1111-4111-8111-111111111111";
-    const matches = ["One", "Two", "Three", "Four", "Five"].map(validRecommendation);
+    const matches = ["Software Engineer", "AI / Machine Learning Engineer", "Doctor / Physician", "Lawyer", "Entrepreneur / Startup Founder"].map(validRecommendation);
     expect(() => validateCareerCatalogWrite(userId, matches)).not.toThrow();
     expect(() => validateCareerCatalogWrite("not-a-user", matches)).toThrow("authenticated user");
     expect(() => validateCareerCatalogWrite(userId, matches.slice(0, 4))).toThrow("exactly five");
-    expect(() => validateCareerCatalogWrite(userId, [...matches.slice(0, 4), validRecommendation("One")])).toThrow("failed validation");
+    expect(() => validateCareerCatalogWrite(userId, [...matches.slice(0, 4), validRecommendation("Software Engineer")])).toThrow("supported PathPilot careers");
+    expect(() => validateCareerCatalogWrite(userId, [...matches.slice(0, 4), validRecommendation("Registered Nurse")])).toThrow("supported PathPilot careers");
   });
 
   it("keeps the service-role credential out of browser modules and requires it explicitly for every privileged path", () => {

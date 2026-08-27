@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { getAdaptivePublicScenario } from "../server/db";
 import { chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState, simulationGraphCatalog } from "../server/simulation/engine";
+import { simulationCareerCatalog } from "../server/simulation/catalog";
 
 describe("expanded adaptive simulation catalog", () => {
-  it("selects distinct career-family graphs for the expanded catalog", () => {
-    expect(getSimulationGraph("Civil Engineer").id).toBe("engineering-design-v1");
-    expect(getSimulationGraph("Research Scientist").id).toBe("scientific-research-v1");
-    expect(getSimulationGraph("Policy Analyst").id).toBe("public-policy-v1");
-    expect(getSimulationGraph("Teacher").id).toBe("education-learning-v1");
-    expect(getSimulationGraph("Environmental Scientist").id).toBe("environmental-systems-v1");
-    expect(getSimulationGraph("Journalist").id).toBe("communications-newsroom-v1");
+  it("maps every supported career to its dedicated graph and never substitutes an unsupported input", () => {
+    expect(simulationCareerCatalog).toHaveLength(15);
+    for (const career of simulationCareerCatalog) {
+      expect(getSimulationGraph(career.id).id).toBe(career.id === "software-engineer" ? "software-systems-v1" : `${career.id}-v1`);
+      expect(getSimulationGraph(career.name).id).toBe(getSimulationGraph(career.id).id);
+    }
+    expect(() => getSimulationGraph("Civil Engineer")).toThrow("supported simulation catalog");
   });
 
   it("keeps every catalog graph internally connected and safe for the shared public scenario shell", () => {
@@ -28,7 +29,7 @@ describe("expanded adaptive simulation catalog", () => {
   });
 
   it("replays saved simulations from scenario_graph_id rather than remapping their career text", () => {
-    const graph = getSimulationGraph("Civil Engineer");
+    const graph = getSimulationGraphById("engineering-design-v1")!;
     expect(getSimulationGraphById(graph.id)).toBe(graph);
     const saved = { career: "Software Engineer", scenarioGraphId: graph.id, simulationState: initialSimulationState(graph) } as any;
     expect(getAdaptivePublicScenario(saved).id).toBe("engineering-brief");

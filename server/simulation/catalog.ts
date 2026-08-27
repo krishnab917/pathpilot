@@ -198,9 +198,21 @@ export const simulationCareerCatalog: readonly SimulationCareerDefinition[] = [
 ] as const;
 
 const careersById = new Map(simulationCareerCatalog.map(career => [career.id, career]));
+const normalizeCareerInput = (value: string) => value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+const careersByResolvedInput = new Map<string, SimulationCareerDefinition>([
+  ...simulationCareerCatalog.flatMap(career => [
+    [normalizeCareerInput(career.id), career] as const,
+    [normalizeCareerInput(career.name), career] as const,
+  ]),
+]);
+
+/** Resolves only source-controlled catalog IDs or canonical display names; it never fuzzy-matches, aliases, or substitutes a career. */
+export function resolveSupportedCareer(input: string | null | undefined): SimulationCareerDefinition | null {
+  return typeof input === "string" ? careersByResolvedInput.get(normalizeCareerInput(input)) ?? null : null;
+}
 
 export function getSimulationCareer(careerId: string | null | undefined): SimulationCareerDefinition | null {
-  return careerId ? careersById.get(careerId) ?? null : null;
+  return resolveSupportedCareer(careerId);
 }
 
 export function searchSimulationCareers(query: string, category?: SimulationCareerCategory): SimulationCareerDefinition[] {

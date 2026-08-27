@@ -7,6 +7,7 @@ import { communicationsV1Graph, educationV1Graph, engineeringV1Graph, environmen
 import { aerospaceEngineerAstronautV1Graph, doctorPhysicianV1Graph, entrepreneurStartupFounderV1Graph, lawyerV1Graph } from "./graphs/dedicated-set-a";
 import { aiMachineLearningEngineerV1Graph, cybersecurityAnalystV1Graph, dataScientistV1Graph, mechanicalEngineerV1Graph, productManagerV1Graph } from "./graphs/dedicated-set-b";
 import { architectV1Graph, environmentalScientistV1Graph, financialAnalystV1Graph, researchScientistV1Graph, uxProductDesignerV1Graph } from "./graphs/dedicated-set-c";
+import { resolveSupportedCareer } from "./catalog";
 
 const clamp = (value: number) => Math.max(0, Math.min(10, value));
 const dedicatedGraphsByCareerId: Record<string, SimulationGraph> = {
@@ -16,20 +17,10 @@ const dedicatedGraphsByCareerId: Record<string, SimulationGraph> = {
 };
 export const simulationGraphCatalog: SimulationGraph[] = [...Object.values(dedicatedGraphsByCareerId), healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
 export const getSimulationGraphById = (graphId: string | null | undefined): SimulationGraph | null => simulationGraphCatalog.find(graph => graph.id === graphId) ?? null;
-export const getSimulationGraph = (career: string): SimulationGraph => {
-  if (dedicatedGraphsByCareerId[career]) return dedicatedGraphsByCareerId[career];
-  const value = career.toLowerCase();
-  if (/software|data|computer|web developer|cyber|machine learning|artificial intelligence|it specialist/.test(value)) return softwareV1Graph;
-  if (/journal|report|communications|public relations|newsroom|broadcast|copywriter/.test(value)) return communicationsV1Graph;
-  if (/teacher|educat|school counsel|learning design|instruction/.test(value)) return educationV1Graph;
-  if (/environment|climate|conservation|ecolog|geolog|earth science|sustainab/.test(value)) return environmentV1Graph;
-  if (/law|legal|policy|government|civic|urban plan|diplomat/.test(value)) return policyV1Graph;
-  if (/research|scientist|chemist|physic|laboratory|lab tech/.test(value)) return researchV1Graph;
-  if (/engineer|engineering|robotic|civil|mechanical|electrical|manufactur|construction/.test(value)) return engineeringV1Graph;
-  if (/doctor|nurs|health|medical|therap|biolog|public health/.test(value)) return healthV1Graph;
-  if (/design|artist|creative|ux|ui|media|writer/.test(value)) return designV1Graph;
-  if (/business|market|finance|entrepreneur|manager|sales/.test(value)) return businessV1Graph;
-  return softwareV1Graph;
+export const getSimulationGraph = (careerInput: string): SimulationGraph => {
+  const career = resolveSupportedCareer(careerInput);
+  if (!career) throw new Error("That career simulation is not currently available. Choose one from the supported simulation catalog.");
+  return dedicatedGraphsByCareerId[career.id]!;
 };
 export const initialSimulationState = (graph: SimulationGraph): SimulationState => ({ currentNodeId: graph.startNodeId, previousNodeIds: [], decisionCount: 0, timePressure: 1, projectHealth: 5, teamTrust: 3, riskExposure: 1, discoveredInformation: [], unresolvedEvents: [] });
 export function getPublicScenario(graph: SimulationGraph, state: SimulationState): PublicScenario {
