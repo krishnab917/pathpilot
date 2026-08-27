@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { getAuthRedirectUrl } from "@/lib/auth-redirect";
-import { getSafePostAuthPath, startGoogleOAuth } from "@/lib/google-auth";
-import { ArrowLeft, Chrome, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -22,9 +21,8 @@ export default function Auth() {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const intendedPath = getSafePostAuthPath(new URLSearchParams(window.location.search).get("next"));
 
-  useEffect(() => { if (!loading && isAuthenticated) navigate(intendedPath); }, [intendedPath, isAuthenticated, loading, navigate]);
+  useEffect(() => { if (!loading && isAuthenticated) navigate("/app"); }, [isAuthenticated, loading, navigate]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setError(null); setNotice(null); setPending(true);
@@ -32,7 +30,7 @@ export default function Auth() {
       if (mode === "sign-in") {
         const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
-        navigate(intendedPath);
+        navigate("/app");
       } else if (mode === "sign-up") {
         const { error: authError } = await supabase.auth.signUp({ email, password, options: { data: { full_name: displayName.trim() }, emailRedirectTo: getAuthRedirectUrl() } });
         if (authError) throw authError;
@@ -47,17 +45,6 @@ export default function Auth() {
     } finally { setPending(false); }
   };
 
-  const continueWithGoogle = async () => {
-    if (pending) return;
-    setError(null); setNotice(null); setPending(true);
-    try {
-      await startGoogleOAuth(supabase.auth, intendedPath);
-    } catch {
-      setError("Google sign-in couldn’t be started. Please try again or continue with email.");
-      setPending(false);
-    }
-  };
-
   const copy = mode === "sign-in" ? { title: "Welcome back.", description: "Continue building your career path.", action: "Sign in" } : mode === "sign-up" ? { title: "Start your path.", description: "Your profile, plans, and progress stay private to your account.", action: "Create account" } : { title: "Reset your password.", description: "We’ll send a secure reset link to your inbox.", action: "Send reset link" };
-  return <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#e5ebff,transparent_42%),#fcfcfd] px-5 py-10"><section className="surface-panel w-full max-w-md p-7 sm:p-9"><div className="flex items-center justify-between"><Brand />{mode !== "sign-in" && <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={() => { setMode("sign-in"); setError(null); setNotice(null); }}><ArrowLeft className="size-3.5" />Sign in</button>}</div><h1 className="mt-10 text-3xl font-semibold tracking-[-0.055em]">{copy.title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.description}</p>{mode === "sign-in" && <><Button className="mt-8 h-11 w-full" type="button" variant="outline" disabled={pending} onClick={() => void continueWithGoogle()}>{pending ? <Loader2 className="size-4" /> : <Chrome className="size-4" />} {pending ? "Connecting to Google…" : "Continue with Google"}</Button><div className="my-6 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or continue with email<span className="h-px flex-1 bg-border" /></div></>}<form className={mode === "sign-in" ? "space-y-4" : "mt-8 space-y-4"} onSubmit={submit}>{mode === "sign-up" && <label className="field-label">Your name<Input className="mt-2 h-11 rounded-xl" value={displayName} onChange={event => setDisplayName(event.target.value)} autoComplete="name" required /></label>}<label className="field-label">Email<Input className="mt-2 h-11 rounded-xl" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>{mode !== "reset" && <label className="field-label">Password<Input className="mt-2 h-11 rounded-xl" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={mode === "sign-up" ? PASSWORD_MIN_LENGTH : undefined} required />{mode === "sign-up" && <span className="mt-2 block text-xs text-muted-foreground">Use at least {PASSWORD_MIN_LENGTH} characters.</span>}</label>}<Button className="mt-2 h-11 w-full" type="submit" disabled={pending}>{pending ? <Loader2 className="size-4" /> : copy.action}</Button></form>{error && <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">{error}</p>}{notice && <p role="status" aria-live="polite" className="mt-4 rounded-xl bg-primary/10 px-3 py-2.5 text-sm text-primary">{notice}</p>}<div className="mt-6 border-t pt-5 text-center text-xs text-muted-foreground">{mode === "sign-in" ? <><button className="font-semibold text-primary" onClick={() => setMode("sign-up")}>Create an account</button><span className="px-2">·</span><button className="font-semibold text-primary" onClick={() => setMode("reset")}>Forgot password?</button></> : <>Already have an account? <button className="font-semibold text-primary" onClick={() => setMode("sign-in")}>Sign in</button></>}<div className="mt-4"><Link href="/" className="hover:text-foreground">Back to PathPilot</Link></div></div></section></main>;
+  return <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#e5ebff,transparent_42%),#fcfcfd] px-5 py-10"><section className="surface-panel w-full max-w-md p-7 sm:p-9"><div className="flex items-center justify-between"><Brand />{mode !== "sign-in" && <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={() => { setMode("sign-in"); setError(null); setNotice(null); }}><ArrowLeft className="size-3.5" />Sign in</button>}</div><h1 className="mt-10 text-3xl font-semibold tracking-[-0.055em]">{copy.title}</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.description}</p><form className="mt-8 space-y-4" onSubmit={submit}>{mode === "sign-up" && <label className="field-label">Your name<Input className="mt-2 h-11 rounded-xl" value={displayName} onChange={event => setDisplayName(event.target.value)} autoComplete="name" required /></label>}<label className="field-label">Email<Input className="mt-2 h-11 rounded-xl" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>{mode !== "reset" && <label className="field-label">Password<Input className="mt-2 h-11 rounded-xl" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={mode === "sign-up" ? PASSWORD_MIN_LENGTH : undefined} required />{mode === "sign-up" && <span className="mt-2 block text-xs text-muted-foreground">Use at least {PASSWORD_MIN_LENGTH} characters.</span>}</label>}<Button className="mt-2 h-11 w-full" type="submit" disabled={pending}>{pending ? <Loader2 className="size-4" /> : copy.action}</Button></form>{error && <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive">{error}</p>}{notice && <p role="status" aria-live="polite" className="mt-4 rounded-xl bg-primary/10 px-3 py-2.5 text-sm text-destructive">{notice}</p>}<div className="mt-6 border-t pt-5 text-center text-xs text-muted-foreground">{mode === "sign-in" ? <><button className="font-semibold text-primary" onClick={() => setMode("sign-up")}>Create an account</button><span className="px-2">·</span><button className="font-semibold text-primary" onClick={() => setMode("reset")}>Forgot password?</button></> : <>Already have an account? <button className="font-semibold text-primary" onClick={() => setMode("sign-in")}>Sign in</button></>}<div className="mt-4"><Link href="/" className="hover:text-foreground">Back to PathPilot</Link></div></div></section></main>;
 }
