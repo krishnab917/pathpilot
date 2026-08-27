@@ -3,6 +3,8 @@ import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { startLogin } from "@/const";
+import { staticMetadataQueryOptions } from "@/lib/query-policies";
+import { invalidateProfileDependentViews } from "@/lib/planning-cache-invalidation";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check, Loader2, MapPin, Search, Sparkles } from "lucide-react";
@@ -38,9 +40,9 @@ export default function Onboarding() {
   const utils = trpc.useUtils();
   const savedProfile = trpc.pathpilot.profile.get.useQuery(undefined, { enabled: isAuthenticated });
   const draft = trpc.pathpilot.profile.getDraft.useQuery(undefined, { enabled: isAuthenticated });
-  const countries = trpc.pathpilot.profile.countryOptions.useQuery(undefined, { enabled: isAuthenticated });
+  const countries = trpc.pathpilot.profile.countryOptions.useQuery(undefined, { ...staticMetadataQueryOptions, enabled: isAuthenticated });
   const saveDraft = trpc.pathpilot.profile.saveDraft.useMutation();
-  const complete = trpc.pathpilot.profile.completeOnboarding.useMutation({ onSuccess: async () => { await utils.pathpilot.dashboard.get.invalidate(); setLocation("/app"); } });
+  const complete = trpc.pathpilot.profile.completeOnboarding.useMutation({ onSuccess: async () => { await invalidateProfileDependentViews(utils); await utils.pathpilot.profile.getDraft.invalidate(); setLocation("/app"); } });
 
   useEffect(() => { if (savedProfile.data?.onboardingCompletedAt) setLocation("/app"); }, [savedProfile.data, setLocation]);
   useEffect(() => {

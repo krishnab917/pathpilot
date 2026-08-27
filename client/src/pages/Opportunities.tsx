@@ -1,10 +1,13 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/notifications";
+import { invalidatePlanningSummariesAndActivity } from "@/lib/planning-cache-invalidation";
+import { opportunitySearchQueryOptions, staticMetadataQueryOptions } from "@/lib/query-policies";
 import { trpc } from "@/lib/trpc";
 import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, Filter, Loader2, MapPin, Search, ShieldCheck, Target } from "lucide-react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type Category = "internship" | "competition" | "research";
 
@@ -38,6 +41,7 @@ const categories: { value: Category; label: string }[] = [
   { value: "competition", label: "Competitions" },
   { value: "research", label: "Research" },
 ];
+export const OPPORTUNITY_SEARCH_DEBOUNCE_MS = 300;
 
 const dateLabel = (value: Date | null) => value ? new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Not listed";
 const dateRange = (start: Date | null, end: Date | null, sourceDateLabel: string | null) => sourceDateLabel ?? (start && end ? `${dateLabel(start)} – ${dateLabel(end)}` : "Dates on source page");
@@ -82,7 +86,7 @@ export default function Opportunities() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const profile = trpc.pathpilot.profile.get.useQuery();
-  const countryOptions = trpc.pathpilot.profile.countryOptions.useQuery();
+  const countryOptions = trpc.pathpilot.profile.countryOptions.useQuery(undefined, staticMetadataQueryOptions);
   const [category, setCategory] = useState<Category | undefined>();
   const [alignedOnly, setAlignedOnly] = useState(true);
   const [search, setSearch] = useState("");
@@ -90,12 +94,12 @@ export default function Opportunities() {
   const [grade, setGrade] = useState<string | undefined>();
   const [deadlineOnly, setDeadlineOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const deferredSearch = useDeferredValue(search);
+  const debouncedSearch = useDebouncedValue(search, OPPORTUNITY_SEARCH_DEBOUNCE_MS);
   const gradeOptions = useMemo(() => Array.from(new Set(["Grade 9", "Grade 10", "Grade 11", "Grade 12", profile.data?.grade].filter((value): value is string => Boolean(value)))).sort(), [profile.data?.grade]);
-  const input = useMemo(() => ({ category, alignedOnly, search: deferredSearch || undefined, countryCode, grade, deadlineOnly, page, pageSize: 12 }), [alignedOnly, category, countryCode, deadlineOnly, deferredSearch, grade, page]);
-  const opportunities = trpc.pathpilot.opportunities.list.useQuery(input);
+  const input = useMemo(() => ({ category, alignedOnly, search: debouncedSearch.trim() || undefined, countryCode, grade, deadlineOnly, page, pageSize: 12 }), [alignedOnly, category, countryCode, deadlineOnly, debouncedSearch, grade, page]);
+  const opportunities = trpc.pathpilot.opportunities.list.useQuery(input, opportunitySearchQueryOptions);
   const updateState = trpc.pathpilot.opportunities.setState.useMutation({ onSuccess: () => utils.pathpilot.opportunities.list.invalidate() });
-  const createGoal = trpc.pathpilot.opportunities.createGoal.useMutation({ onSuccess: result => { utils.pathpilot.goals.list.invalidate(); utils.pathpilot.dashboard.get.invalidate(); notify.success(result.created ? "Opportunity added as an editable goal." : "This opportunity is already linked to one of your goals."); } });
+  const createGoal = trpc.pathpilot.opportunities.createGoal.useMutation({ onSuccess: result => { utils.pathpilot.goals.list.invalidate(); void invalidatePlanningSummariesAndActivity(utils); notify.success(result.created ? "Opportunity added as an editable goal." : "This opportunity is already linked to one of your goals."); } });
   const refreshCatalog = trpc.pathpilot.opportunities.refreshCuratedCatalog.useMutation({ onSuccess: result => { utils.pathpilot.opportunities.list.invalidate(); notify.success(`${result.imported} popular opportunities refreshed from their source directories.`); } });
   const result = opportunities.data;
   const items = (result?.items ?? []) as Opportunity[];

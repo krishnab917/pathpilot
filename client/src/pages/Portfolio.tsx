@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PortfolioTableSkeleton } from "@/components/WorkspaceSkeletons";
 import { notify } from "@/lib/notifications";
+import { invalidateProjectDependentViews } from "@/lib/planning-cache-invalidation";
 import { trpc } from "@/lib/trpc";
 import { Bot, Check, ChevronRight, ExternalLink, FilePenLine, FolderKanban, Globe2, Loader2, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -28,8 +29,8 @@ function ProjectMilestoneEditor({ project, milestone, onRefresh }: { project: Pr
   const [details, setDetails] = useState(milestone.details ?? "");
   const [targetDate, setTargetDate] = useState(dateInputValue(milestone.targetDate));
   const utils = trpc.useUtils();
-  const update = trpc.pathpilot.projects.updateMilestone.useMutation({ onSuccess: () => { utils.pathpilot.projects.list.invalidate(); onRefresh(); setEditing(false); notify.success("Project milestone updated."); } });
-  const remove = trpc.pathpilot.projects.deleteMilestone.useMutation({ onSuccess: () => { utils.pathpilot.projects.list.invalidate(); onRefresh(); notify.success("Project milestone removed."); } });
+  const update = trpc.pathpilot.projects.updateMilestone.useMutation({ onSuccess: () => { void invalidateProjectDependentViews(utils); onRefresh(); setEditing(false); notify.success("Project milestone updated."); } });
+  const remove = trpc.pathpilot.projects.deleteMilestone.useMutation({ onSuccess: () => { void invalidateProjectDependentViews(utils); onRefresh(); notify.success("Project milestone removed."); } });
   const isBusy = update.isPending || remove.isPending;
 
   const setProgress = (progress: number, status: MilestoneStatus) => update.mutate({ projectId: project.id, id: milestone.id, progress, status });
@@ -90,8 +91,8 @@ function ProjectWorkspace({ project, onClose }: { project: Project; onClose: () 
   const [completionDate, setCompletionDate] = useState(dateInputValue(project.completionDate));
   const [milestoneTitle, setMilestoneTitle] = useState("");
   const [milestoneTargetDate, setMilestoneTargetDate] = useState("");
-  const update = trpc.pathpilot.projects.update.useMutation({ onSuccess: () => { utils.pathpilot.projects.list.invalidate(); notify.success("Project workspace saved."); } });
-  const createMilestone = trpc.pathpilot.projects.createMilestone.useMutation({ onSuccess: () => { setMilestoneTitle(""); setMilestoneTargetDate(""); utils.pathpilot.projects.list.invalidate(); notify.success("Project milestone added."); } });
+  const update = trpc.pathpilot.projects.update.useMutation({ onSuccess: () => { void invalidateProjectDependentViews(utils); notify.success("Project workspace saved."); } });
+  const createMilestone = trpc.pathpilot.projects.createMilestone.useMutation({ onSuccess: () => { setMilestoneTitle(""); setMilestoneTargetDate(""); void invalidateProjectDependentViews(utils); notify.success("Project milestone added."); } });
   const isBusy = update.isPending || createMilestone.isPending;
   const saveWorkspace = () => update.mutate({ id: project.id, name, description, scopeStatement: asNullable(scopeStatement), projectNotes: asNullable(projectNotes), skills: skills.split(",").map(item => item.trim()).filter(Boolean), status, progress: Math.min(100, Math.max(0, Number(progress) || 0)), githubLink: asNullable(githubLink), liveUrl: asNullable(liveUrl), startDate: asNullable(startDate), completionDate: asNullable(completionDate) });
 
@@ -110,7 +111,7 @@ export default function Portfolio() {
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const create = trpc.pathpilot.projects.create.useMutation({ onSuccess: project => { setOpen(false); setName(""); setDescription(""); setSkills(""); utils.pathpilot.projects.list.invalidate(); if (project?.id) setSelectedProjectId(project.id); notify.success("Project workspace created."); } });
+  const create = trpc.pathpilot.projects.create.useMutation({ onSuccess: project => { setOpen(false); setName(""); setDescription(""); setSkills(""); void invalidateProjectDependentViews(utils); if (project?.id) setSelectedProjectId(project.id); notify.success("Project workspace created."); } });
   const selectedProject = (projects.data as Project[] | undefined)?.find(project => project.id === selectedProjectId) ?? null;
 
   return <>

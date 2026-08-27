@@ -70,6 +70,7 @@ import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqu
 import { countryOptions, getNationalEducationContext, isCanonicalPlanningCountry } from "../roadmap/national-context";
 import { acceptRoadmapRecommendation, addEvolvedRoadmapRecommendations, generateRoadmapRecommendations, getRoadmapRecommendationContext, getRoadmapRecommendationEvolutionPreview, listRoadmapRecommendations, skipRoadmapRecommendation, updateRoadmapRecommendation } from "../roadmap/recommendation-repository";
 import { requiresRoadmapCareerChangeConfirmation } from "../roadmap/career-change";
+import { canReuseActiveRoadmap } from "../roadmap/reuse";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
 import { getSimulationCareer, resolveSupportedCareer, simulationCareerCatalog } from "../simulation/catalog";
 import { buildMentorContext, mentorContextNeeds } from "../mentor-context";
@@ -481,6 +482,7 @@ export const pathpilotRouter = router({
       const [profile, latestSimulation, goals, projects, activeRoadmap] = await Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), listGoals(ctx.user.id), listProjects(ctx.user.id), getActiveRoadmap(ctx.user.id)]);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
       if (requiresRoadmapCareerChangeConfirmation(activeRoadmap?.targetCareer, targetCareer.name) && !input.confirmCareerChange) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
+      if (canReuseActiveRoadmap({ activeRoadmap, targetCareer: targetCareer.name, profileUpdatedAt: profile.updatedAt, latestSimulationUpdatedAt: latestSimulation?.updatedAt, goals, projects })) return activeRoadmap;
       try {
         return await runLimitedAiRequest(ctx, "roadmap_generation", aiRequestFingerprint(targetCareer.id, profile.updatedAt, latestSimulation?.updatedAt, goals.map(goal => `${goal.id}:${goal.updatedAt.toISOString()}`).join(","), projects.map(project => `${project.id}:${project.updatedAt.toISOString()}`).join(",")), async () => {
           const response = await invokeLLM({

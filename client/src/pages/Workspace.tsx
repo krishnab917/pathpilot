@@ -67,6 +67,7 @@ import { buildPlanningPrintReport } from "@/lib/planning-report";
 import { requiresWorkspaceDashboard } from "@/lib/workspace-data-scope";
 import { buildPlanningActivityCsv } from "@/lib/planning-activity-export";
 import { buildDashboardJourney } from "@/lib/dashboard-journey";
+import { DASHBOARD_SECONDARY_DELAY_MS, deferredDashboardQueryOptions } from "@/lib/dashboard-secondary";
 import {
   shouldCloseWorkspaceMobileNavigation,
   shouldWrapWorkspaceMobileNavigationFocus,
@@ -616,6 +617,7 @@ function Overview({
   data: DashboardData;
   onNavigate: (section: Section) => void;
 }) {
+  const [loadSecondary, setLoadSecondary] = useState(false);
   const upcoming = data.goals
     .filter(goal => goal.deadline && goal.status !== "completed")
     .sort((a, b) => Number(a.deadline) - Number(b.deadline))
@@ -624,10 +626,13 @@ function Overview({
   const nextMilestone = data.roadmap?.milestones.find(
     milestone => milestone.progress < 100
   );
-  const behaviorSummary =
-    trpc.pathpilot.simulations.adaptive.behaviorSummary.useQuery(undefined, {
-      enabled: Boolean(data.recentSimulation),
-    });
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setLoadSecondary(true),
+      DASHBOARD_SECONDARY_DELAY_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, []);
   const action = data.intelligence.nextAction;
   const journey = buildDashboardJourney({
     hasResumableSimulation: Boolean(data.resumableSimulation),
@@ -684,7 +689,7 @@ function Overview({
           onClick={() => onNavigate("discover")}
         />
       </div>
-      <PlanningReview onNavigate={onNavigate} />
+      <PlanningReview onNavigate={onNavigate} enabled={loadSecondary} />
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
         <section className="surface-panel overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
@@ -799,48 +804,28 @@ function Overview({
             <Sparkles className="size-4 text-primary" />
             <p className="text-sm font-semibold">Observed decision patterns</p>
           </div>
-          {behaviorSummary.isLoading ? (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Loading your simulation learning signals…
-            </p>
-          ) : behaviorSummary.data ? (
-            <>
-              <p className="mt-3 text-sm font-medium">
-                {behaviorSummary.data.includedSimulationCount > 1
-                  ? `Across your last ${behaviorSummary.data.includedSimulationCount} simulations`
-                  : "From your latest completed simulation"}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {behaviorSummary.data.traits.slice(0, 3).map(trait => (
-                  <span key={trait.trait} className="status-tag">
-                    {trait.label} · {trait.consistency}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                Learning signals from decision patterns, not a personality
-                assessment or career prediction.
-              </p>
-            </>
-          ) : (
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              Complete a simulation to add decision-pattern learning signals
-              here.
-            </p>
-          )}
+          <BehaviorSignals
+            enabled={loadSecondary}
+            hasCompletedSimulation={Boolean(data.recentSimulation)}
+          />
         </section>
       </div>
-      <PlanningActivityTimeline />
+      <PlanningActivityTimeline enabled={loadSecondary} />
     </>
   );
 }
 function PlanningReview({
   onNavigate,
+  enabled,
 }: {
   onNavigate: (section: Section) => void;
+  enabled: boolean;
 }) {
-  const review = trpc.pathpilot.review.get.useQuery();
-  if (review.isLoading)
+  const review = trpc.pathpilot.review.get.useQuery(undefined, {
+    enabled,
+    ...deferredDashboardQueryOptions,
+  });
+  if (!enabled || review.isLoading)
     return (
       <section className="surface-panel mt-4 p-4">
         <p className="text-xs text-muted-foreground">
@@ -964,11 +949,60 @@ function PlanningReview({
     </>
   );
 }
-function PlanningActivityTimeline() {
+function BehaviorSignals({
+  enabled,
+  hasCompletedSimulation,
+}: {
+  enabled: boolean;
+  hasCompletedSimulation: boolean;
+}) {
+  const behaviorSummary =
+    trpc.pathpilot.simulations.adaptive.behaviorSummary.useQuery(undefined, {
+      enabled: enabled && hasCompletedSimulation,
+      ...deferredDashboardQueryOptions,
+    });
+
+  if (!enabled || behaviorSummary.isLoading)
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        Loading your simulation learning signals…
+      </p>
+    );
+  if (behaviorSummary.data)
+    return (
+      <>
+        <p className="mt-3 text-sm font-medium">
+          {behaviorSummary.data.includedSimulationCount > 1
+            ? `Across your last ${behaviorSummary.data.includedSimulationCount} simulations`
+            : "From your latest completed simulation"}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {behaviorSummary.data.traits.slice(0, 3).map(trait => (
+            <span key={trait.trait} className="status-tag">
+              {trait.label} · {trait.consistency}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+          Learning signals from decision patterns, not a personality assessment
+          or career prediction.
+        </p>
+      </>
+    );
+  return (
+    <p className="mt-3 text-xs leading-5 text-muted-foreground">
+      Complete a simulation to add decision-pattern learning signals here.
+    </p>
+  );
+}
+function PlanningActivityTimeline({ enabled }: { enabled: boolean }) {
   const utils = trpc.useUtils();
   const [clearOpen, setClearOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const activity = trpc.pathpilot.activity.list.useQuery();
+  const activity = trpc.pathpilot.activity.list.useQuery(undefined, {
+    enabled,
+    ...deferredDashboardQueryOptions,
+  });
   const activityExport = trpc.pathpilot.activity.export.useQuery(undefined, {
     enabled: false,
   });
@@ -1065,7 +1099,7 @@ function PlanningActivityTimeline() {
           </div>
         )}
       </div>
-      {activity.isLoading ? (
+      {!enabled || activity.isLoading ? (
         <p className="p-4 text-xs text-muted-foreground">
           Loading your private activity history…
         </p>

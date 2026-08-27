@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { AIOperationLifecycle } from "@/components/AIOperationStatus";
 import { RoadmapRecommendationSkeleton } from "@/components/WorkspaceSkeletons";
 import { notify } from "@/lib/notifications";
+import { invalidatePlanningSummaries, invalidatePlanningSummariesAndActivity, invalidateProfileDependentViews, invalidateProjectDependentViews } from "@/lib/planning-cache-invalidation";
+import { staticMetadataQueryOptions } from "@/lib/query-policies";
 import { trpc } from "@/lib/trpc";
 import { simulationIdFromRoadmapSearch } from "@/lib/simulation-roadmap-handoff";
 import { isVisibleInRecommendationQueue } from "@/lib/recommendation-visibility";
@@ -42,11 +44,11 @@ function RoadmapContextSummary({ roadmap, context }: { roadmap: Roadmap; context
 }
 
 function CountryContextControl({ simulationId }: { simulationId?: string }) {
-  const utils = trpc.useUtils(); const profile = trpc.pathpilot.profile.get.useQuery(); const countries = trpc.pathpilot.profile.countryOptions.useQuery();
+  const utils = trpc.useUtils(); const profile = trpc.pathpilot.profile.get.useQuery(); const countries = trpc.pathpilot.profile.countryOptions.useQuery(undefined, staticMetadataQueryOptions);
   const [countryCode, setCountryCode] = useState("US"); const [educationSystem, setEducationSystem] = useState("US high school and institution-specific admissions context");
   useEffect(() => { if (profile.data?.countryCode) setCountryCode(profile.data.countryCode); if (profile.data?.educationSystem) setEducationSystem(profile.data.educationSystem); }, [profile.data]);
-  const refresh = trpc.pathpilot.roadmap.recommendations.generate.useMutation({ onSuccess: () => { if (simulationId) { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); utils.pathpilot.roadmap.recommendationContext.invalidate({ simulationId }); } utils.pathpilot.dashboard.get.invalidate(); } });
-  const save = trpc.pathpilot.profile.updateCountry.useMutation({ onSuccess: () => { utils.pathpilot.profile.get.invalidate(); if (simulationId) utils.pathpilot.roadmap.recommendationContext.invalidate({ simulationId }); utils.pathpilot.dashboard.get.invalidate(); } });
+  const refresh = trpc.pathpilot.roadmap.recommendations.generate.useMutation({ onSuccess: () => { if (simulationId) { utils.pathpilot.roadmap.recommendations.list.invalidate({ simulationId }); utils.pathpilot.roadmap.recommendationContext.invalidate({ simulationId }); } void invalidatePlanningSummaries(utils); } });
+  const save = trpc.pathpilot.profile.updateCountry.useMutation({ onSuccess: () => { void invalidateProfileDependentViews(utils); if (simulationId) utils.pathpilot.roadmap.recommendationContext.invalidate({ simulationId }); } });
   const choose = (code: string) => { const selected = countries.data?.find(item => item.code === code); setCountryCode(code); setEducationSystem(selected?.educationSystem ?? "General education planning context"); };
   return <details className="surface-panel mb-4 px-4 py-3"><summary className="cursor-pointer text-sm font-semibold">Primary roadmap country</summary><p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">Changing this saves a new planning context only. Your existing roadmap stays intact until you explicitly refresh pending recommendations.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><select className="h-9 min-w-48 border border-slate-200 bg-background px-2 text-sm dark:border-slate-700" value={countryCode} onChange={event => choose(event.target.value)}>{(countries.data ?? []).map(country => <option key={country.code} value={country.code}>{country.label}</option>)}</select><Button size="sm" disabled={save.isPending} onClick={() => save.mutate({ countryCode, educationSystem })}>{save.isPending ? <Loader2 className="size-3.5" /> : "Save country"}</Button></div>{save.isSuccess && <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700"><p className="text-xs text-muted-foreground">Country saved. Keep the current roadmap, or refresh only the pending recommendations for this simulation.</p><div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="outline">Keep current roadmap</Button>{simulationId && <Button size="sm" disabled={refresh.isPending} onClick={() => refresh.mutate({ simulationId, force: true })}>{refresh.isPending ? <Loader2 className="size-3.5" /> : "Refresh recommendations"}</Button>}</div></div>}{save.error && <p className="mt-2 text-xs text-destructive">{save.error.message}</p>}</details>;
 }
@@ -110,10 +112,10 @@ export function RoadmapExperience({ matches, roadmap }: { matches: Matches; road
     const preferredTarget = roadmap?.targetCareer ?? (simulationId ? topRecommendedCareer : matches[0]?.career.name);
     if (!target && preferredTarget) setTarget(preferredTarget);
   }, [matches, roadmap?.targetCareer, simulationId, target, topRecommendedCareer]);
-  const buildWithAi = trpc.pathpilot.roadmap.generate.useMutation({ onMutate: () => setStage("generating"), onSuccess: () => { setStage("ready"); utils.pathpilot.dashboard.get.invalidate(); }, onError: () => setStage("error") });
+  const buildWithAi = trpc.pathpilot.roadmap.generate.useMutation({ onMutate: () => setStage("generating"), onSuccess: () => { setStage("ready"); void invalidatePlanningSummaries(utils); }, onError: () => setStage("error") });
   const preflight = trpc.pathpilot.roadmap.preflight.useMutation({ onMutate: () => setStage("analyzing"), onError: () => setStage("error") });
-  const update = trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({ onSuccess: () => { utils.pathpilot.dashboard.get.invalidate(); notify.success("Roadmap milestone updated."); } });
-  const startProject = trpc.pathpilot.projects.createFromRoadmapMilestone.useMutation({ onMutate: ({ milestoneId }) => setStartingMilestoneId(milestoneId), onSuccess: result => { utils.pathpilot.projects.list.invalidate(); notify.success(result.created ? "Project workspace created from your roadmap." : "Project workspace already exists; opening portfolio."); setLocation("/app/portfolio"); }, onSettled: () => setStartingMilestoneId(null) });
+  const update = trpc.pathpilot.roadmap.updateMilestoneProgress.useMutation({ onSuccess: () => { void invalidatePlanningSummariesAndActivity(utils); notify.success("Roadmap milestone updated."); } });
+  const startProject = trpc.pathpilot.projects.createFromRoadmapMilestone.useMutation({ onMutate: ({ milestoneId }) => setStartingMilestoneId(milestoneId), onSuccess: result => { void invalidateProjectDependentViews(utils); notify.success(result.created ? "Project workspace created from your roadmap." : "Project workspace already exists; opening portfolio."); setLocation("/app/portfolio"); }, onSettled: () => setStartingMilestoneId(null) });
   const milestones = useMemo(() => roadmap?.milestones ?? [], [roadmap]);
   const isRunning = preflight.isPending || buildWithAi.isPending; const error = preflight.error ?? buildWithAi.error; const targetChangesRoadmap = Boolean(roadmap?.targetCareer && target.trim() && roadmap.targetCareer.trim().toLocaleLowerCase() !== target.trim().toLocaleLowerCase()); const runRoadmapBuild = (confirmed: boolean) => preflight.mutate({ targetCareer: target, confirmCareerChange: confirmed }, { onSuccess: () => buildWithAi.mutate({ targetCareer: target, confirmCareerChange: confirmed }) }); const buildRoadmap = () => targetChangesRoadmap ? setConfirmCareerChange(true) : runRoadmapBuild(false);
 

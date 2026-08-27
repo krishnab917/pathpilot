@@ -32,6 +32,26 @@ Server-side, dashboard retrieval already begins profile, career matches, goals, 
 
 One cache-correctness candidate requires direct regression coverage before any broader stale-time increase: protected tRPC query keys do not include the authenticated user ID at the call site, and the long-lived global QueryClient is not explicitly cleared by the visible sign-out helper. Existing RLS prevents a new server read from returning another student’s records, but the client should not temporarily render stale in-memory data during account transitions. This is an audit hypothesis, not a reported leakage; it will be tested with User A/User B cache behavior before remediation.
 
+## Library behavior verified during implementation
+
+Official tRPC React Query guidance states that queries are **not aborted on unmount by default** and supports opting in globally or per query through `abortOnUnmount`; this is relevant for rapidly changing Opportunity searches.[1] The same documentation confirms that v11 streaming queries require an async-generator server contract and `httpBatchStreamLink`.[2] PathPilot’s current foreground AI operations return validated structured JSON from mutations, so changing them to a stream would require a separately designed validation and failure boundary. No streaming change is assumed or implemented in this checkpoint merely because the transport supports it.
+
+## References
+
+[1] [tRPC, “Aborting Procedure Calls”](https://trpc.io/docs/client/react/aborting-procedure-calls)
+
+[2] [tRPC, “useQuery()”](https://trpc.io/docs/client/react/useQuery)
+
+## Checkpoint implementation record
+
+The active performance checkpoint now establishes two client-side defenses for private data. First, the React Query client hashes every query with the current verified Supabase session identity and clears/cancels the entire browser query cache on logout or an identity transition. This is defense in depth for existing server-side ownership and RLS controls: a User B request still has to pass the authenticated server boundary, while a User A response cannot remain available in the in-memory browser cache during the transition. The current regression suite covers stable same-user reuse, logout before User B, and direct A-to-B transition.
+
+Second, the dashboard retains its existing primary aggregate as the critical first request, but starts its planning review, activity timeline, and optional simulation learning-signals queries only after a 50-millisecond post-render delay. Those queries are marked to abort when the overview unmounts. This does not alter dashboard data, simulation logic, or visible section purpose; it allows the primary workspace shell and core action/goal/roadmap content to render before lower-priority reads compete for the initial request window.
+
+Opportunities now uses a 300-millisecond debounced search term, retains its server-side filter/pagination input and 12-item page size, preserves the prior page while the next result is pending, and opts in to query cancellation when the page unmounts. Immutable country metadata receives a one-hour stale interval and 24-hour in-session garbage-collection interval. Personalized opportunity results remain short-lived, user-session-namespaced, and are neither globally cached nor loaded as a full catalog.
+
+The client invalidation review found that PathPilot already invalidates the active dashboard after many state changes, but that secondary planning review and activity queries can remain cached for their 60-second default interval after goal, roadmap, or project changes. The next targeted update will invalidate those derived views only after mutations that can actually affect them. It will also invalidate the personalized Opportunity query after a country or profile-analysis direction change, but will not globally refresh pending recommendation rows when a student elects to preserve them after changing country. Mentor message creation does not alter dashboard state and is a candidate for removing an unnecessary dashboard invalidation.
+
 ## Initial optimization hypotheses to validate
 
 | Area | Current baseline observation | Validation needed before change |
@@ -43,3 +63,26 @@ One cache-correctness candidate requires direct regression coverage before any b
 | Dashboard data | Server gathers several user-owned data sets concurrently. | Measure payload and response path before considering targeted projection or layered-query changes. |
 
 This document will be updated only with measured before/after values and verified changes. It does not claim a performance improvement at baseline.
+
+## Before/after checkpoint measurements
+
+| Area | Before | After | Evidence and interpretation |
+|---|---:|---:|---|
+| Production build | Not recorded for this exact source revision | 14.99 seconds | `pnpm build` completed successfully on 2026-08-27. Build timing is environment-sensitive and is reported only as a local validation measurement. |
+| Deployed public route | 4.098–4.669 s completed TTFB; 8.866–9.639 s completed transfer | Not remeasured before this checkpoint is published | The deployed site still serves the prior version until checkpoint publication; no comparison is claimed. |
+| Production output | ~17 MiB | ~17 MiB | Rounded output size is unchanged. |
+| Workspace route chunk | 244.59 KiB | 250.95 KiB | The 6.36 KiB pre-compression increase is the scoped cache/loading logic; it remains independently lazy loaded. |
+| Rich Mentor renderer | 890.35 KiB | 911.72 KiB | It remains independently lazy loaded; no Mentor-open initial-load regression is inferred from the global chunk output. |
+| Overview first query window | Dashboard aggregate plus review/activity and conditionally behavior summary started together (3–4 queries) | One dashboard aggregate starts first; three lower-priority reads wait 50 ms | Source-contract regression verifies this deliberate sequencing. The eventual total stays 3–4 when the overview remains open, preserving information freshness. |
+| Opportunity rapid search | Deferred rendering could change server input during a typing burst | A 300 ms quiet period is required before input changes | The explicit debounce contract bounds a contiguous typing burst to one new server search after the quiet period; server pagination remains 12 rows per page. |
+| Same-user private query reuse | Not directly covered | One underlying fetch across two fresh reads | Synthetic QueryClient regression: 1 fetch for User A’s repeated fresh query. |
+| A-to-B private query transition | No explicit client cache clear or identity namespace | User A queries are canceled/cleared; User B performs a second independent fetch | Synthetic QueryClient regression: 1 User A fetch, then 1 User B fetch; late A result remains absent. |
+| Immutable metadata | General 60 s stale interval | 1-hour stale interval / 24-hour in-session GC | Applied only to canonical country and 15-career catalog metadata. Session transition still clears it. |
+| Unchanged active roadmap generation | Repeated same-target generation could reach the AI path | Existing roadmap returns before limiter/model work | Router regression observes zero model calls for valid, unchanged profile/simulation/goal/project state. |
+| Project guidance cache hit | Existing behavior | Retained | Existing cache regression confirms validated owner-scoped cache hits bypass the fresh model/limit path. |
+| Mentor message dashboard refetch | Dashboard invalidated after a stored message although no dashboard state changed | Removed | Source contract protects removal; Mentor history remains invalidated. |
+| Live AI first feedback/completion | Not invoked for this checkpoint | Not changed | Existing truthful in-progress UI is retained. A live provider timing sample was intentionally not incurred. |
+
+### Validation limits
+
+Authenticated browser-network timings for workspace, dashboard, roadmap, Opportunities, and Mentor open remain unmeasured because this checkpoint used data-free synthetic QueryClient and router tests rather than a student account. The test evidence verifies cache scope, cancellation, query ordering, and cache/model reuse semantics; it does not substitute a real-device timing study. The public production page must be remeasured after this checkpoint is live to compare public transfer timing. No recommendation, simulation, security-policy, RLS, or rate-limit behavior was changed.

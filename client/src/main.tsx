@@ -6,11 +6,22 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { createAuthenticatedQueryCacheBoundary } from "./lib/authenticated-query-cache";
 import { pathpilotQueryDefaults } from "./lib/query-defaults";
-import { getSupabaseAccessToken, hydrateSupabaseSession } from "./lib/supabase";
+import { getSupabaseAccessToken, hydrateSupabaseSession, supabase } from "./lib/supabase";
 import "./index.css";
 
-const queryClient = new QueryClient({ defaultOptions: pathpilotQueryDefaults });
+const authenticatedQueryCache = createAuthenticatedQueryCacheBoundary();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    ...pathpilotQueryDefaults,
+    queries: {
+      ...pathpilotQueryDefaults.queries,
+      queryKeyHashFn: authenticatedQueryCache.queryKeyHashFn,
+    },
+  },
+});
+authenticatedQueryCache.attach(queryClient);
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
@@ -66,4 +77,10 @@ root.render(
   </trpc.Provider>
 );
 
-void hydrateSupabaseSession();
+void hydrateSupabaseSession().then(session => {
+  authenticatedQueryCache.transition(session?.user.id ?? null);
+});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  authenticatedQueryCache.transition(session?.user.id ?? null);
+});

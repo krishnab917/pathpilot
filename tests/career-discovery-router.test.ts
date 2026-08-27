@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 import { simulationCareerCatalog } from "../server/simulation/catalog";
 
-const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getCareerMatches: vi.fn(), getActiveRoadmap: vi.fn(), replaceCareerMatches: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getCareerMatches: vi.fn(), getActiveRoadmap: vi.fn(), getLatestCompletedAdaptiveSimulation: vi.fn(), listGoals: vi.fn(), listProjects: vi.fn(), replaceCareerMatches: vi.fn() }));
 
 vi.mock("../server/_core/llm", () => ({ invokeLLM: mocks.invokeLLM, listLLMModels: mocks.listLLMModels }));
 vi.mock("../server/db", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/db")>();
-  return { ...actual, getStudentProfile: mocks.getStudentProfile, getCareerMatches: mocks.getCareerMatches, getActiveRoadmap: mocks.getActiveRoadmap, replaceCareerMatches: mocks.replaceCareerMatches };
+  return { ...actual, getStudentProfile: mocks.getStudentProfile, getCareerMatches: mocks.getCareerMatches, getActiveRoadmap: mocks.getActiveRoadmap, getLatestCompletedAdaptiveSimulation: mocks.getLatestCompletedAdaptiveSimulation, listGoals: mocks.listGoals, listProjects: mocks.listProjects, replaceCareerMatches: mocks.replaceCareerMatches };
 });
 
 import { appRouter } from "../server/routers";
@@ -25,6 +25,9 @@ describe("pathpilot.discovery.analyze", () => {
     mocks.getStudentProfile.mockResolvedValue(profile);
     mocks.getCareerMatches.mockResolvedValue([]);
     mocks.getActiveRoadmap.mockResolvedValue(undefined);
+    mocks.getLatestCompletedAdaptiveSimulation.mockResolvedValue(undefined);
+    mocks.listGoals.mockResolvedValue([]);
+    mocks.listProjects.mockResolvedValue([]);
     mocks.replaceCareerMatches.mockResolvedValue({ persisted: true });
   });
 
@@ -97,5 +100,22 @@ describe("pathpilot.discovery.analyze", () => {
     mocks.getActiveRoadmap.mockResolvedValue({ targetCareer: "Software Engineer", milestones: [] });
     await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Doctor / Physician" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
     await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Doctor / Physician", confirmCareerChange: true })).resolves.toEqual({ profileReady: true });
+  });
+
+  it("reuses an unchanged active roadmap before the shared AI limiter or model generation path", async () => {
+    const activeRoadmap = {
+      id: "33333333-3333-4333-8333-333333333333",
+      userId,
+      targetCareer: "Data Scientist",
+      completionPercentage: 20,
+      status: "active",
+      createdAt: new Date(profile.updatedAt),
+      updatedAt: new Date(profile.updatedAt.getTime() + 1_000),
+      milestones: [],
+    };
+    mocks.getActiveRoadmap.mockResolvedValue(activeRoadmap);
+
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.generate({ targetCareer: "Data Scientist" })).resolves.toEqual(activeRoadmap);
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
   });
 });
