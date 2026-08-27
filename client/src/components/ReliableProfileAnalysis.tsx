@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
+import { useLocation } from "wouter";
 
 type CareerMatch = {
   career: {
@@ -34,10 +35,12 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const inFlight = useRef(false);
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const preflight = trpc.pathpilot.discovery.preflight.useMutation();
   const analyze = trpc.pathpilot.discovery.analyze.useMutation();
   const isWorking = state === "checking" || state === "analyzing";
   const hasSavedAnalysis = matches.length === 5;
+  const recommendedDirection = matches[0];
 
   const startAnalysis = async () => {
     if (inFlight.current) return;
@@ -105,22 +108,39 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
       ) : null}
 
       {hasSavedAnalysis ? (
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          {matches.map((match, index) => (
-            <article key={`${match.career.name}-${index}`} className="border border-slate-200 bg-card p-4 dark:border-slate-700">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Direction {index + 1}</p>
-                  <h3 className="mt-1 font-semibold text-foreground">{match.career.name}</h3>
+        <>
+          {recommendedDirection ? (
+            <article className="mt-5 border border-primary/35 bg-primary/5 p-4 sm:p-5" aria-labelledby="recommended-direction-title">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div className="min-w-0">
+                  <p className="eyebrow">Recommended direction</p>
+                  <h3 id="recommended-direction-title" className="mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground">{recommendedDirection.career.name}</h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{recommendedDirection.reasoning}</p>
+                  {recommendedDirection.nextSteps[0] ? <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowRight className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />Next step: {recommendedDirection.nextSteps[0]}</p> : null}
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">This is your highest current profile-analysis direction based on the information you saved. It is a starting point for exploration, not a prediction.</p>
                 </div>
-                <span className="font-mono text-sm font-semibold text-primary">{match.matchScore}%</span>
+                <Button size="sm" className="shrink-0" onClick={() => setLocation("/app/roadmap")}>Build a roadmap <ArrowRight className="size-3.5" /></Button>
               </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{match.career.description}</p>
-              <p className="mt-3 border-l-2 border-primary/40 pl-3 text-sm leading-6 text-foreground">{match.reasoning}</p>
-              {match.nextSteps[0] ? <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowRight className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />{match.nextSteps[0]}</p> : null}
             </article>
-          ))}
-        </div>
+          ) : null}
+          <div className="mt-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold">Explore all five directions</p><p className="text-xs text-muted-foreground">Compare the evidence before choosing your next action.</p></div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {matches.map((match, index) => (
+              <article key={`${match.career.name}-${index}`} className="border border-slate-200 bg-card p-4 dark:border-slate-700">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Direction {index + 1}</p>
+                    <h3 className="mt-1 font-semibold text-foreground">{match.career.name}</h3>
+                  </div>
+                  <span className="font-mono text-sm font-semibold text-primary">{match.matchScore}%</span>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{match.career.description}</p>
+                <p className="mt-3 border-l-2 border-primary/40 pl-3 text-sm leading-6 text-foreground">{match.reasoning}</p>
+                {match.nextSteps[0] ? <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowRight className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />{match.nextSteps[0]}</p> : null}
+              </article>
+            ))}
+          </div>
+        </>
       ) : state === "idle" ? (
         <div className="mt-5 border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-muted-foreground dark:border-slate-600 dark:bg-slate-800/50">
           <CheckCircle2 className="mr-2 inline size-4 text-primary" aria-hidden="true" />
