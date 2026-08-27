@@ -28,6 +28,7 @@ describe("Profile Analysis reliability UI", () => {
     expect(componentSource).toContain("if (inFlight.current) return;");
     expect(componentSource).toContain("inFlight.current = false;");
     expect(componentSource).toContain("PathPilot couldn’t finish your profile analysis.");
+    expect(componentSource).toContain("PathPilot is limiting repeated profile-analysis requests temporarily.");
     expect(componentSource).toContain("Try again");
     expect(componentSource).not.toContain("error.message");
   });

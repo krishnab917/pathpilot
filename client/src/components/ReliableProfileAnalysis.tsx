@@ -19,7 +19,13 @@ type AnalysisState = "idle" | "checking" | "analyzing" | "failed" | "complete";
 
 const stages = ["Checking your profile", "Comparing career directions", "Preparing your matches"];
 
-function safeFailureMessage() {
+function safeFailureMessage(error?: unknown) {
+  const status = typeof error === "object" && error !== null && "data" in error
+    ? (error as { data?: { httpStatus?: unknown } }).data?.httpStatus
+    : undefined;
+  if (status === 429) {
+    return "PathPilot is limiting repeated profile-analysis requests temporarily. Your previous result is still available. Please try again shortly.";
+  }
   return "PathPilot couldn’t finish your profile analysis. Your saved profile is unchanged. Please try again.";
 }
 
@@ -45,9 +51,9 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
       await analyze.mutateAsync();
       await utils.pathpilot.dashboard.get.invalidate();
       setState("complete");
-    } catch {
+    } catch (error) {
       setState("failed");
-      setFailureMessage(safeFailureMessage());
+      setFailureMessage(safeFailureMessage(error));
     } finally {
       inFlight.current = false;
     }

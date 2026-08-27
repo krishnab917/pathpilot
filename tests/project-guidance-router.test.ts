@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
+import { aiRateLimiter } from "../server/rate-limit";
 
 const mocks = vi.hoisted(() => ({ getProjectWorkspace: vi.fn(), invokeLLM: vi.fn(), listLLMModels: vi.fn(), getCachedProjectGuidance: vi.fn(), cacheProjectGuidance: vi.fn(), invalidateProjectGuidanceCache: vi.fn() }));
 
@@ -29,6 +30,8 @@ describe("project guidance router", () => {
     mocks.invokeLLM.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ summary: "Start with one clear screen and a small observation form.", nextSteps: ["List the three fields.", "Sketch a compact screen."], watchouts: ["Keep the first version narrow."], questions: ["Which observation is most useful first?"] }) } }] });
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   it("uses only the authenticated student’s selected project workspace and returns generated guidance", async () => {
     const result = await appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "What should I build first?" });
 
@@ -51,10 +54,12 @@ describe("project guidance router", () => {
   });
 
   it("returns a validated cache hit without calling the model when the project and request are unchanged", async () => {
+    const rateLimiterRun = vi.spyOn(aiRateLimiter, "run");
     mocks.getCachedProjectGuidance.mockResolvedValue({ summary: "Reuse the validated response.", nextSteps: ["Keep scope narrow.", "Test one field."], watchouts: [], questions: [] });
     const result = await appRouter.createCaller(context).pathpilot.projects.guidance({ projectId, request: "What should I build first?" });
     expect(result).toMatchObject({ summary: "Reuse the validated response.", cacheStatus: "cached", cacheVersion: "project-guidance-v1" });
     expect(mocks.invokeLLM).not.toHaveBeenCalled();
+    expect(rateLimiterRun).not.toHaveBeenCalled();
   });
 
   it("bypasses and clears cached guidance only when the student explicitly refreshes", async () => {

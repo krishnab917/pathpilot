@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 import { simulationCareerCatalog } from "../server/simulation/catalog";
 
-const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getActiveRoadmap: vi.fn(), replaceCareerMatches: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getCareerMatches: vi.fn(), getActiveRoadmap: vi.fn(), replaceCareerMatches: vi.fn() }));
 
 vi.mock("../server/_core/llm", () => ({ invokeLLM: mocks.invokeLLM, listLLMModels: mocks.listLLMModels }));
 vi.mock("../server/db", async importOriginal => {
   const actual = await importOriginal<typeof import("../server/db")>();
-  return { ...actual, getStudentProfile: mocks.getStudentProfile, getActiveRoadmap: mocks.getActiveRoadmap, replaceCareerMatches: mocks.replaceCareerMatches };
+  return { ...actual, getStudentProfile: mocks.getStudentProfile, getCareerMatches: mocks.getCareerMatches, getActiveRoadmap: mocks.getActiveRoadmap, replaceCareerMatches: mocks.replaceCareerMatches };
 });
 
 import { appRouter } from "../server/routers";
@@ -23,6 +23,7 @@ describe("pathpilot.discovery.analyze", () => {
     vi.clearAllMocks();
     mocks.listLLMModels.mockResolvedValue({ data: [{ id: "gpt-5-mini" }] });
     mocks.getStudentProfile.mockResolvedValue(profile);
+    mocks.getCareerMatches.mockResolvedValue([]);
     mocks.getActiveRoadmap.mockResolvedValue(undefined);
     mocks.replaceCareerMatches.mockResolvedValue({ persisted: true });
   });
@@ -33,6 +34,14 @@ describe("pathpilot.discovery.analyze", () => {
     expect(result).toEqual({ persisted: true });
     expect(mocks.invokeLLM).toHaveBeenCalledTimes(2);
     expect(mocks.replaceCareerMatches).toHaveBeenCalledWith(userId, matches);
+  });
+
+  it("reuses a current five-career analysis without invoking the model or consuming a generation path", async () => {
+    const saved = matches.map(match => ({ career: { name: match.name, description: match.description }, generatedAt: new Date(profile.updatedAt) }));
+    mocks.getCareerMatches.mockResolvedValue(saved);
+    await expect(appRouter.createCaller(context).pathpilot.discovery.analyze()).resolves.toEqual(saved);
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
+    expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
   });
 
   it("returns BAD_GATEWAY after invalid responses exhaust the retry budget", async () => {
