@@ -36,7 +36,7 @@ export default function Auth() {
         if (authError) throw authError;
         setNotice("Check your email to confirm your account, then return to sign in.");
       } else {
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl() });
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl("/auth/update-password") });
         if (authError) throw authError;
         setNotice("If an account exists for that email, a reset link is on its way.");
       }

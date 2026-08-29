@@ -10,6 +10,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Workspace = lazy(() => import("./pages/Workspace"));
 const Auth = lazy(() => import("./pages/Auth"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const SharedPlanningReport = lazy(() => import("./pages/SharedPlanningReport"));
 const PublicPortfolio = lazy(() => import("./pages/PublicPortfolio"));
 
@@ -18,7 +19,7 @@ function RouteLoadingFrame() {
 }
 
 function Router() {
-  return <Suspense fallback={<RouteLoadingFrame />}><Switch><Route path="/" component={Home} /><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/share/:token" component={SharedPlanningReport} /><Route path="/portfolio/:handle" component={PublicPortfolio} /><Route path="/app" component={Workspace} /><Route path="/app/:section" component={Workspace} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch></Suspense>;
+  return <Suspense fallback={<RouteLoadingFrame />}><Switch><Route path="/" component={Home} /><Route path="/auth/update-password" component={UpdatePassword} /><Route path="/auth" component={Auth} /><Route path="/onboarding" component={Onboarding} /><Route path="/share/:token" component={SharedPlanningReport} /><Route path="/portfolio/:handle" component={PublicPortfolio} /><Route path="/app" component={Workspace} /><Route path="/app/:section" component={Workspace} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch></Suspense>;
 }
 
 export default function App() {
