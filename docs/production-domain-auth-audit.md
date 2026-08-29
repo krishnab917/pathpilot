@@ -59,3 +59,19 @@ On 2026-08-29, the project owner reported that the instructed Supabase Auth URL 
 Focused recovery, redirect, accessibility, sign-out, authenticated-cache, and RLS tests passed: 6 files / 21 tests. The complete application suite passed: 88 files / 288 tests. TypeScript validation and the production build passed, as did `git diff --check`. The build emitted the existing non-blocking rich-renderer chunk-size advisory.
 
 Live email delivery, confirmation-link completion, password-reset link completion, existing-user login/persistence, and the dashboard’s exact current URL Configuration view remain **MANUAL VERIFICATION REQUIRED** because they require an authenticated owner dashboard session and/or a real inbox. No password, reset token, confirmation token, access token, service-role key, or student record was accessed during these checks.
+
+## Post-publication deployment check — follow-up required
+
+After publishing version `8c611e2e`, the canonical host still returned the prior build’s 404 page for both `/auth/update-password` and the same URL with a harmless cache-busting query. This rules out a normal browser-document cache for the observed result. The local development preview renders the new route correctly, and the checkpoint build passed; the remaining evidence instead indicates that the custom domain was not yet serving the new published deployment at the time of the check.
+
+The canonical root continues to serve PathPilot over valid TLS, but the current custom-domain deployment target requires **MANUAL VERIFICATION REQUIRED** in the Manus domain configuration before email recovery should be treated as production-ready. Do not complete a password-reset inbox test until the canonical domain serves `/auth/update-password`’s safe reset state rather than a 404.
+
+The fallback host `https://pathpilot-s64joaqq.manus.space/auth/update-password` was also checked after the same publication and returned the prior route map’s 404 page. Consequently, neither public host provides evidence that version `8c611e2e` has propagated to production, even though the checkpoint was successfully saved and the development preview has the route. The deployment/version assignment must be checked in the Manus project dashboard before proceeding with external email-auth acceptance.
+
+An attempt to read production runtime logs through the managed log interface returned `cloudrun service not found`. That is an infrastructure-observability limitation, not evidence of an application failure or a reason to retry the same unavailable call. The public-host route checks above remain the relevant evidence until the hosting assignment is confirmed.
+
+## Final public-route propagation verification
+
+After the managed deployment-success notification, a fresh cache-busted visit to `https://pathpilotapp.com/auth/update-password` completed the normal loading skeleton and rendered the intended signed-out recovery state: a generic expired-or-invalid-link explanation and a link to request a new reset link. It did not render the prior 404 page, did not reveal any token, and did not enter a private route. This verifies that the canonical production domain now serves the published recovery-route implementation. The earlier 404 observations are retained above as pre-propagation evidence only.
+
+The configured `https://www.pathpilotapp.com/` host completed one HTTPS-verified redirect to `https://pathpilotapp.com/` and returned HTTP 200. The www hostname therefore does not create a competing public application origin or a redirect loop.
