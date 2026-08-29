@@ -75,3 +75,9 @@ An attempt to read production runtime logs through the managed log interface ret
 After the managed deployment-success notification, a fresh cache-busted visit to `https://pathpilotapp.com/auth/update-password` completed the normal loading skeleton and rendered the intended signed-out recovery state: a generic expired-or-invalid-link explanation and a link to request a new reset link. It did not render the prior 404 page, did not reveal any token, and did not enter a private route. This verifies that the canonical production domain now serves the published recovery-route implementation. The earlier 404 observations are retained above as pre-propagation evidence only.
 
 The configured `https://www.pathpilotapp.com/` host completed one HTTPS-verified redirect to `https://pathpilotapp.com/` and returned HTTP 200. The www hostname therefore does not create a competing public application origin or a redirect loop.
+
+## Controlled production email-flow acceptance
+
+On 2026-08-29, the project owner reported a successful controlled production flow on the canonical domain: test-account signup, email confirmation, sign-in, password-reset request, reset-link completion, new-password update, and sign-in with the updated password. This owner-run acceptance also verifies that the previously documented Supabase Auth Site URL and two narrow canonical redirect values were accepted by the hosted project for the existing email/password flow.
+
+No credentials, confirmation links, reset links, tokens, or student data were shared with this task. The owner report is treated as manual acceptance evidence; the automated regression, public-route, TLS, and redirect verification records above remain independently observed evidence.
