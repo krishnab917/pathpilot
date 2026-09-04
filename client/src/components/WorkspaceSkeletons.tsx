@@ -51,6 +51,16 @@ export function SimulationDecisionSkeleton() {
 
 export function WorkspaceSectionSkeleton({ section }: { section: WorkspaceSkeletonSection }) {
   const label = workspaceLoadingLabel(section);
-  const content = { overview: <OverviewSkeleton />, discover: <DiscoverSkeleton />, roadmap: <RoadmapSkeleton />, simulate: <SimulationSkeleton />, portfolio: <PortfolioTableSkeleton />, opportunities: <DiscoverSkeleton />, mentor: <MentorConversationSkeleton />, goals: <DiscoverSkeleton /> }[section];
+  const content = {
+    overview: <OverviewSkeleton />,
+    discover: <DiscoverSkeleton />,
+    roadmap: <RoadmapSkeleton />,
+    simulate: <SimulationSkeleton />,
+    portfolio: <PortfolioTableSkeleton />,
+    opportunities: <DiscoverSkeleton />,
+    mentor: <MentorConversationSkeleton />,
+    goals: <DiscoverSkeleton />,
+    settings: <OverviewSkeleton />,
+  }[section];
   return <LoadingRegion label={label}>{content}</LoadingRegion>;
 }

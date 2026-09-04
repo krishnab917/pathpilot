@@ -51,6 +51,7 @@ import {
   Printer,
   Rocket,
   SearchCheck,
+  Settings as SettingsIcon,
   Sparkles,
   Sun,
   Target,
@@ -81,7 +82,8 @@ type Section =
   | "portfolio"
   | "opportunities"
   | "mentor"
-  | "goals";
+  | "goals"
+  | "settings";
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 const AIChatBox = lazy(() => import("@/components/AIChatBox"));
 const AdaptiveSimulation = lazy(() =>
@@ -120,6 +122,7 @@ const nav: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "opportunities", label: "Opportunities", icon: SearchCheck },
   { id: "mentor", label: "Career mentor", icon: MessageCircle },
   { id: "goals", label: "Goals", icon: Target },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 const formatDate = (value: Date | null) =>
   value
@@ -459,6 +462,7 @@ export default function Workspace() {
           </Suspense>
         ),
         goals: <CompactGoals goals={dashboard.data.goals} />,
+        settings: <SettingsView />,
       }[section]
     ) : null;
   const sidebar = (
@@ -814,6 +818,126 @@ function Overview({
     </>
   );
 }
+function SettingsView() {
+  const { user, logout } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const deleteAccount = trpc.pathpilot.account.delete.useMutation({
+    onSuccess: () => {
+      notify.success("Your account and all associated data have been deleted.");
+      signOutAndNavigate(logout, () => (window.location.href = "/"));
+    },
+    onError: err => {
+      setError(err.message);
+    },
+  });
+
+  const handleDelete = async () => {
+    if (confirmText !== "DELETE") return;
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await deleteAccount.mutateAsync({ confirmed: true });
+    } catch (e) {
+      // handled in onError
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <SectionHeader
+        eyebrow="Account management"
+        title="Settings"
+        description="Manage your PathPilot account and data preferences."
+      />
+
+      <div className="space-y-6">
+        <section className="surface-panel p-6">
+          <h2 className="text-lg font-semibold">Profile information</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Name
+              </p>
+              <p className="mt-1 text-sm">{user?.name || "Not set"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Email
+              </p>
+              <p className="mt-1 text-sm">{user?.email || "Not set"}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="surface-panel border-destructive/20 p-6">
+          <div className="flex items-center gap-2 text-destructive">
+            <Zap className="size-4" />
+            <h2 className="text-lg font-semibold">Danger Zone</h2>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Permanently delete your account and all associated PathPilot data.
+            This action is irreversible.
+          </p>
+
+          <div className="mt-6">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">Delete Account</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete your profile, career matches,
+                    simulations, roadmaps, goals, projects, and mentor history.
+                    This action cannot be undone.
+                    <div className="mt-4">
+                      <p className="mb-2 text-sm font-medium text-foreground">
+                        Type <span className="font-bold">DELETE</span> to
+                        confirm:
+                      </p>
+                      <Input
+                        value={confirmText}
+                        onChange={e => setConfirmText(e.target.value)}
+                        placeholder="DELETE"
+                        className="uppercase"
+                      />
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setConfirmText("")}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={confirmText !== "DELETE" || isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />{" "}
+                        Deleting...
+                      </>
+                    ) : (
+                      "Delete Account"
+                    )}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
 function PlanningReview({
   onNavigate,
   enabled,

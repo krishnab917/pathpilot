@@ -1,4 +1,13 @@
-export type WorkspaceSkeletonSection = "overview" | "discover" | "roadmap" | "simulate" | "portfolio" | "opportunities" | "mentor" | "goals";
+export type WorkspaceSkeletonSection =
+  | "overview"
+  | "discover"
+  | "roadmap"
+  | "simulate"
+  | "portfolio"
+  | "opportunities"
+  | "mentor"
+  | "goals"
+  | "settings";
 
 const loadingLabels: Record<WorkspaceSkeletonSection, string> = {
   overview: "Loading workspace overview",
@@ -9,6 +18,7 @@ const loadingLabels: Record<WorkspaceSkeletonSection, string> = {
   opportunities: "Loading verified opportunities",
   mentor: "Loading career mentor",
   goals: "Loading commitments",
+  settings: "Loading settings",
 };
 
 export function workspaceLoadingLabel(section: WorkspaceSkeletonSection) {

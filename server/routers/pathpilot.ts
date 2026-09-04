@@ -62,6 +62,7 @@ import {
   deleteProjectWorkspaceMilestone,
   updateMilestoneProgress,
   updateStudentCountryContext,
+  deleteStudentAccount,
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
@@ -677,5 +678,9 @@ export const pathpilotRouter = router({
     publish: protectedProcedure.input(z.object({ id: z.string().uuid(), confirmed: z.literal(true) })).mutation(({ ctx, input }) => publishPortfolioProject(ctx.user.id, input.id)),
     unpublish: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => unpublishPortfolioProject(ctx.user.id, input.id)),
     public: publicProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/) })).query(({ input }) => getPublicPortfolio(input.handle)),
+  }),
+  account: router({
+    delete: protectedProcedure.input(z.object({ confirmed: z.literal(true) }))
+      .mutation(({ ctx }) => deleteStudentAccount(ctx.user.id)),
   }),
 });

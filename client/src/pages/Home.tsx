@@ -11,10 +11,39 @@ import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { startLogin } from "@/const";
 import { ArrowRight, Compass, Map, Rocket, SearchCheck, Sparkles, Target } from "lucide-react";
 import { Link } from "wouter";
+import { useEffect } from "react";
 
 const featureIcons = [Compass, SearchCheck, Rocket, Sparkles, Map] as const;
 
 export default function Home() {
+  useEffect(() => {
+    // SEO Title: 30-60 characters (56 characters)
+    document.title = "PathPilot | Explore Your Future with AI Career Discovery";
+
+    // SEO Keywords: 3-8 keywords (6 keywords)
+    let keywordsMeta = document.querySelector('meta[name="keywords"]');
+    if (!keywordsMeta) {
+      keywordsMeta = document.createElement("meta");
+      keywordsMeta.setAttribute("name", "keywords");
+      document.head.appendChild(keywordsMeta);
+    }
+    keywordsMeta.setAttribute(
+      "content",
+      "career discovery, AI mentor, high school, career roadmap, student guidance, career planning"
+    );
+
+    // SEO Description: 50-160 characters (154 characters)
+    let descriptionMeta = document.querySelector('meta[name="description"]');
+    if (!descriptionMeta) {
+      descriptionMeta = document.createElement("meta");
+      descriptionMeta.setAttribute("name", "description");
+      document.head.appendChild(descriptionMeta);
+    }
+    descriptionMeta.setAttribute(
+      "content",
+      "PathPilot helps high school students discover their ideal career paths through AI-guided simulations, personalized roadmaps, and actionable next steps."
+    );
+  }, []);
   const { isAuthenticated } = useAuth();
   const workspaceHref = isAuthenticated ? "/app" : undefined;
   const scrollToJourney = () => {
