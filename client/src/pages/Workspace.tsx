@@ -61,7 +61,7 @@ import {
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { signOutAndNavigate } from "@/lib/sign-out";
 import { notify } from "@/lib/notifications";
 import { buildPlanningPrintReport } from "@/lib/planning-report";
@@ -931,6 +931,44 @@ function SettingsView() {
               </AlertDialogContent>
             </AlertDialog>
             {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+          </div>
+        </section>
+
+        <section className="surface-panel p-6">
+          <h2 className="text-lg font-semibold">Resources & Legal</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3">
+              <Link
+                href="/support"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+              >
+                <MessageCircle className="size-4" />
+                Support & Help
+              </Link>
+              <Link
+                href="/accessibility"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+              >
+                <Zap className="size-4" />
+                Accessibility Statement
+              </Link>
+            </div>
+            <div className="space-y-3">
+              <Link
+                href="/privacy"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+              >
+                <SearchCheck className="size-4" />
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+              >
+                <Waypoints className="size-4" />
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </section>
       </div>

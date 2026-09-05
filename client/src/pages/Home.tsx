@@ -271,10 +271,33 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-border/70 py-7">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 text-xs text-muted-foreground sm:px-8">
-          <Brand compact />
-          <p>PathPilot · A place to explore what comes next.</p>
+      <footer className="border-t border-border/70 py-10">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <Brand compact />
+              <p className="text-xs text-muted-foreground">
+                PathPilot · A place to explore what comes next.
+              </p>
+            </div>
+            <nav className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-xs font-medium text-muted-foreground">
+              <Link href="/privacy" className="hover:text-foreground">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="hover:text-foreground">
+                Terms of Service
+              </Link>
+              <Link href="/support" className="hover:text-foreground">
+                Support
+              </Link>
+              <Link href="/accessibility" className="hover:text-foreground">
+                Accessibility
+              </Link>
+            </nav>
+          </div>
+          <p className="mt-8 text-center text-[10px] text-muted-foreground sm:text-left">
+            © {new Date().getFullYear()} PathPilot. All rights reserved.
+          </p>
         </div>
       </footer>
     </main>
