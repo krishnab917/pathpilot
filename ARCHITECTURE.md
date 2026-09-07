@@ -1,34 +1,46 @@
-# PathPilot Technical Architecture
+# PathPilot architecture
 
-## Product Scope
+Verified from source at commit a5104b1 and updated during the approved source migration on 2026-09-07. Supersedes this file's obsolete Manus OAuth / MySQL description.
 
-PathPilot is implemented as a full-stack student career platform. The MVP protects persistent student data behind authenticated procedures and presents the experience through a responsive React application. The system treats AI output as **advisory guidance**, not a guarantee of career outcomes, and requires structured validation before storing generated recommendations.
+```mermaid
+flowchart TD
+  UI[React 19 / Wouter / TanStack Query] -->|Supabase Auth session| Auth[Supabase Auth]
+  UI -->|Bearer token, tRPC| API[Express / tRPC 11]
+  API -->|getUser token validation| Auth
+  API -->|request-scoped Supabase client / RLS| DB[Supabase PostgreSQL]
+  API -->|bounded privileged operations| Admin[Supabase service-role client / RPCs]
+  Admin --> DB
+  API --> LLM[Configured OpenAI-compatible LLM provider]
+  API --> Notify[Owner notification webhook, optional]
+  Storage[manus-storage compatibility route] --> ObjectHost[Configured migrated object host, optional]
+  Scheduler[External scheduler: configuration absent] -->|POST token| Worker[Derived-analysis worker]
+  Worker -->|service role / token-verified RPC| DB
+  Refresh[Opportunity refresh scripts / admin operations] --> Sources[Public opportunity sources]
+  Refresh --> DB
+```
 
-## Architectural Decisions
+## Source boundaries
 
-| Area | Decision | Rationale |
-| --- | --- | --- |
-| Application runtime | React 19 client with an Express/tRPC server | Provides end-to-end TypeScript contracts and a single deployable SaaS application. |
-| Authentication | Platform-provided OAuth session and protected tRPC procedures | Avoids custom password handling while providing persistent, secure accounts. |
-| Persistence | MySQL-compatible relational database using Drizzle ORM | Supports typed models, relations, migrations, and efficient scoped queries. |
-| AI integration | Server-side built-in LLM helper with strict JSON schemas | Keeps credentials private and ensures career discovery results can be validated before persistence. |
-| Product navigation | Purpose-built student workspace shell | Supports the roadmap, mentor, simulations, and dashboard without reusing a generic administration UI. |
-| Safety posture | Profile-scoped queries, structured AI output, explicit error handling | Prevents cross-user data access and reduces unreliable AI response handling. |
+- `client/src`: React 19, TypeScript, Tailwind 4, Radix/shadcn components, Wouter routing. `App.tsx` lazily loads public, auth, onboarding, workspace, shared report, and public portfolio routes. React Query and tRPC handle server data; Supabase manages browser sessions.
+- `server/_core/index.ts`: Express entry point; JSON/urlencoded parsers; `/api/trpc`; `/api/scheduled/derived-analysis`; `/manus-storage/*`; Vite middleware in development and built SPA files in production.
+- `server/_core/context.ts`, `trpc.ts`, `server/supabase.ts`: bearer-token validation, protected/admin procedures, request-specific clients using AsyncLocalStorage. Admin role comes from `app_metadata`, not editable user metadata.
+- `server/routers/pathpilot.ts`: product API. `server/db.ts` accesses Supabase tables; user data operations run under authenticated RLS. Limited service-role operations include shared catalog and explicitly privileged/public RPC boundaries. Preserve their validation.
+- `server/simulation`, `roadmap`, `dashboard`, `opportunities`: deterministic career graphs, behavioral evidence, recommendations, dashboard signals, external opportunity catalog fetch/normalization.
+- `server/_core/llm.ts`: configured OpenAI-compatible chat adapter; consumed by career discovery, roadmap generation, mentor, and project guidance. Structured results are validated before persistence. Cache and rate limits reduce repeated AI work.
+- `supabase/migrations`: PostgreSQL tables, policies, grants, indexes, catalog data, and RPCs. Auth users live in Supabase's `auth.users`; application rows use UUID ownership and cascade relationships.
+- `drizzle`: legacy MySQL definitions and migrations. These are not the active application's database layer.
+- `tests` and `server/*.test.ts`: Vitest Node tests; many pure unit/source-boundary checks plus three live Supabase integration files.
 
-## Domain Model
+## Data flow and safety
 
-The system centers on an authenticated user and a one-to-one StudentProfile. A profile owns career matches, goals, roadmaps, simulations, mentor conversations, and portfolio projects. Careers are managed as reusable records so recommendations reference a stable career entity rather than duplicating career metadata across each student.
+A user signs in through Supabase. The browser attaches the session bearer token to tRPC calls. The server validates it with Supabase Auth and creates a client carrying that token. Protected procedures establish a request-local client and scope operations to the user, with PostgreSQL RLS as an additional boundary. Career and mentor requests assemble bounded context, apply rate limiting and validation, invoke the configured AI provider, and persist results. Adaptive simulation logic primarily runs in the application using versioned graphs.
 
-Roadmaps contain yearly milestones. Each milestone is typed as a skill, project, or experience and records the data needed for a meaningful plan: deadline, priority, estimated hours, resource link, and progress. Simulations persist student choices and three individual assessment dimensions so the fit analysis is auditable and repeatable.
+Public portfolios and report links have separate publication/token boundaries. Account deletion uses a privileged database helper and explicit UI confirmation. Derived analysis queues records; the HTTP worker invokes a token-checked SQL RPC via a service-role client. Deployment must provide an external trigger; no checked-in cron registration establishes one.
 
-## AI Workflows
+## Build, assets and operations
 
-The Career Discovery workflow receives a normalized profile, asks the model for structured JSON, validates the shape, and rejects outputs that do not contain **exactly five** unique recommendations. The server then upserts the career records and replaces only the requesting student's previous matches. The mentor workflow sends a bounded, ordered context window consisting of the profile summary, active roadmap, current goals, and prior messages. Conversations are stored by the server, never entrusted to browser-local state as the source of truth.
+Vite outputs `dist/public`; esbuild bundles the Express entry to `dist/index.js` with packages external. Vite and its config are loaded dynamically only when the development middleware starts, so production startup does not need to execute Vite.
 
-## Privacy and Product Boundaries
+Public assets are `client/public` (robots and sitemap); Google Fonts loads externally. No uploaded binary asset collection or Supabase bucket provisioning is checked in. The storage compatibility route remains active for historical `/manus-storage/*` URLs and redirects to `STORAGE_PUBLIC_BASE_URL` when configured. The `@assets` alias points to an absent `attached_assets` directory.
 
-PathPilot stores only the student data necessary for the planned functionality. Every feature procedure scopes reads and writes to the authenticated user. The initial MVP does not process resumes, applicant records, payments, school administrator access, or public opportunity scraping. Those items are intentionally deferred until their data, permission, and safety requirements are separately designed.
-
-## Interface System
-
-The interface uses a warm off-white canvas, graphite text, muted blue surfaces, and a restrained cobalt accent. The visual language focuses on generous spacing, compact data cards, crisp typography, soft shadows, and motion constrained to opacity and transforms. Mobile navigation is designed as a condensed workspace rather than a scaled-down desktop screen.
+Logging uses console calls. HTTP/tRPC boundaries return application errors; some server logging includes raw upstream errors and needs redaction review. No Docker, CI workflow, deployment manifest, Python service, or scheduler configuration is checked in. See the audit for verification limits and migration steps.

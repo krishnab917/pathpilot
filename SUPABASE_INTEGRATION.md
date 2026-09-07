@@ -1,3 +1,5 @@
+> Historical checkpoint: this document describes an earlier integration state. Current code requires SUPABASE_SERVICE_ROLE_KEY for bounded server operations. Use DEVELOPMENT.md and ARCHITECTURE.md for current setup; hosted project settings have not been reverified by the migration audit.
+
 # Supabase API Integration
 
 PathPilot is configured against the active Supabase project named **PathPilot**. The project URL and public API credential are stored only in the project secret manager under `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`; no value is committed to the repository.

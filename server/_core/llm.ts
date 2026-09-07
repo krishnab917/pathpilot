@@ -20,7 +20,12 @@ export type FileContent = {
   type: "file_url";
   file_url: {
     url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+    mime_type?:
+      | "audio/mpeg"
+      | "audio/wav"
+      | "application/pdf"
+      | "audio/mp4"
+      | "video/mp4";
   };
 };
 
@@ -213,14 +218,20 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const normalizeApiBaseUrl = (): string => {
+  const baseUrl = ENV.llmApiBaseUrl.replace(/\/+$/, "");
+  return baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
+};
+
+const resolveChatCompletionsUrl = () =>
+  new URL("chat/completions", `${normalizeApiBaseUrl()}/`).toString();
+
+const resolveModelsUrl = () =>
+  new URL("models", `${normalizeApiBaseUrl()}/`).toString();
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.llmApiKey) {
+    throw new Error("LLM_API_KEY or OPENAI_API_KEY is not configured");
   }
 };
 
@@ -313,9 +324,7 @@ const fetchWithBackoff = async (
         return response;
       }
 
-      const retryAfterMs = parseRetryAfter(
-        response.headers.get("retry-after")
-      );
+      const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
       try {
         await response.body?.cancel();
       } catch {
@@ -360,11 +369,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
+    model: model ?? ENV.llmModel,
     messages: messages.map(normalizeMessage),
   };
 
-  if (model) {
-    payload.model = model;
+  if (!payload.model) {
+    throw new Error("LLM_MODEL or OPENAI_MODEL is not configured");
   }
 
   if (tools && tools.length > 0) {
@@ -402,11 +412,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveApiUrl(), {
+  const response = await fetchWithBackoff(resolveChatCompletionsUrl(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.llmApiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -436,14 +446,24 @@ export type ModelsResponse = {
 const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60_000;
 
 async function fetchLLMModels(): Promise<ModelsResponse> {
+  if (ENV.llmModel) {
+    return {
+      object: "list",
+      data: [
+        {
+          id: ENV.llmModel,
+          object: "model",
+          created: 0,
+          owned_by: "configured",
+        },
+      ],
+    };
+  }
+
   assertApiKey();
 
-  const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/models`
-    : "https://forge.manus.im/v1/models";
-
-  const response = await fetchWithBackoff(url, {
-    headers: { authorization: `Bearer ${ENV.forgeApiKey}` },
+  const response = await fetchWithBackoff(resolveModelsUrl(), {
+    headers: { authorization: `Bearer ${ENV.llmApiKey}` },
   });
 
   if (!response.ok) {
@@ -456,7 +476,10 @@ async function fetchLLMModels(): Promise<ModelsResponse> {
   return (await response.json()) as ModelsResponse;
 }
 
-const modelCatalogCache = createTimedAsyncCache(fetchLLMModels, MODEL_CATALOG_CACHE_TTL_MS);
+const modelCatalogCache = createTimedAsyncCache(
+  fetchLLMModels,
+  MODEL_CATALOG_CACHE_TTL_MS
+);
 
 export async function listLLMModels(): Promise<ModelsResponse> {
   return modelCatalogCache.get();

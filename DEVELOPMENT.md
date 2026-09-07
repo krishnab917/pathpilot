@@ -1,0 +1,75 @@
+# Development reference
+
+## Toolchain and commands
+
+Baseline verified on macOS with Node 22.16.0 and pnpm 10.4.1. The packageManager field pins pnpm 10.4.1; the separate pnpm dev dependency resolves to 10.18.0. Global pnpm 11 warned that it ignores package.json overrides and patchedDependencies; use the exact launcher below.
+
+```sh
+npx --yes pnpm@10.4.1 install --frozen-lockfile
+cp .env.example .env
+# Fill configuration privately, then:
+npx --yes pnpm@10.4.1 dev
+npx --yes pnpm@10.4.1 check
+npx --yes pnpm@10.4.1 build
+npx --yes pnpm@10.4.1 start
+```
+
+Run from the repository root. Express loads `.env` through `dotenv/config`. Vite uses the root env directory. Runtime-only Supabase variables cannot supply missing VITE variables to an already-built browser bundle: rebuild after changing public configuration.
+
+## Environment inventory
+
+`.env.example` contains names with empty assignments, no credentials. Populate needed values and remove unused empty assignments, especially server aliases: the server uses nullish fallback, so an empty SUPABASE_URL or SUPABASE_ANON_KEY blocks fallback to VITE variables.
+
+| Name                              | Component / purpose                                                                 | Required / source                                                                                                        |
+| --------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| VITE_SUPABASE_URL                 | Browser Supabase project URL                                                        | Required; chosen Supabase project settings                                                                               |
+| VITE_SUPABASE_ANON_KEY            | Browser public API credential                                                       | Required; same project public anon/publishable credential                                                                |
+| SUPABASE_URL                      | Server project URL, first preference                                                | Set to same project, or remove assignment to use VITE fallback                                                           |
+| SUPABASE_ANON_KEY                 | Server user-scoped public API credential                                            | Set to same project, or remove assignment to use VITE fallback                                                           |
+| NEXT_PUBLIC_SUPABASE_URL          | Server URL compatibility fallback                                                   | Optional; same project; this is not a Next.js application                                                                |
+| NEXT_PUBLIC_SUPABASE_ANON_KEY     | Server public-key compatibility fallback                                            | Optional; same project                                                                                                   |
+| SUPABASE_SERVICE_ROLE_KEY         | Server catalog persistence, privileged RPCs, rate limits, worker; integration tests | Required for complete feature set; Supabase server-only service-role credential                                          |
+| JWT_SECRET                        | Server rate-limiter HMAC secret                                                     | Set a strong locally generated secret for deployment; keep consistent across replicas; not the current login signing key |
+| LLM_API_KEY                       | Server-only AI provider credential                                                  | Required for career discovery, roadmap generation, mentor chat and project guidance                                      |
+| LLM_API_BASE_URL                  | OpenAI-compatible provider base URL                                                 | Optional; defaults to `https://api.openai.com`; may include or omit `/v1`                                                |
+| LLM_MODEL                         | Deterministic model used by AI workflows                                            | Optional; defaults to `gpt-5-mini`; set explicitly for the chosen provider                                               |
+| OPENAI_API_KEY                    | Compatibility alias for `LLM_API_KEY`                                               | Optional; useful when using OpenAI-compatible providers that standardize on OpenAI naming                                |
+| OPENAI_BASE_URL                   | Compatibility alias for `LLM_API_BASE_URL`                                          | Optional; ignored when `LLM_API_BASE_URL` is set                                                                         |
+| OPENAI_MODEL                      | Compatibility alias for `LLM_MODEL`                                                 | Optional; ignored when `LLM_MODEL` is set                                                                                |
+| OWNER_NOTIFICATION_WEBHOOK_URL    | Admin owner notification endpoint                                                   | Required only if using `system.notifyOwner`; receives `{ title, content }` as JSON                                       |
+| OWNER_NOTIFICATION_WEBHOOK_SECRET | Optional bearer secret for owner notification webhook                               | Server-only; sent as `Authorization: Bearer ...` when configured                                                         |
+| STORAGE_PUBLIC_BASE_URL           | Public base URL for migrated historical storage objects                             | Optional; `/manus-storage/{key}` redirects here when configured, otherwise returns 410                                   |
+| ALLOWED_HOSTS                     | Server-side Vite development host allowlist                                         | Optional comma-separated list for non-local development hosts                                                            |
+| VITE_ALLOWED_HOSTS                | Vite development host allowlist                                                     | Optional comma-separated list; takes precedence over `ALLOWED_HOSTS`                                                     |
+| PORT                              | Express listening port                                                              | Optional; defaults to 3000; host configuration                                                                           |
+| NODE_ENV                          | Runtime mode / Vite collector switch                                                | Scripts set development or production; leave out unless needed                                                           |
+| VITE_ANALYTICS_ENDPOINT           | Browser Umami script base URL                                                       | Optional product integration; analytics administrator; currently missing values cause build warnings                     |
+| VITE_ANALYTICS_WEBSITE_ID         | Browser analytics site identifier                                                   | Optional product integration; analytics administrator                                                                    |
+| DATABASE_URL                      | Legacy Drizzle MySQL CLI                                                            | Not needed by active Supabase runtime; only for a deliberately retained legacy database                                  |
+| VITEST                            | Test runner marker selecting permissive mock rate limiter                           | Set by Vitest; do not set in development or production servers                                                           |
+
+`SUPABASE_KEY` is not a supported variable. `BUILT_IN_FORGE_API_URL`, `BUILT_IN_FORGE_API_KEY`, `VITE_FRONTEND_FORGE_API_URL`, `VITE_FRONTEND_FORGE_API_KEY`, `VITE_APP_ID`, `OAUTH_SERVER_URL` and `OWNER_OPEN_ID` are not used by the migrated source. The worker token is a request-body value, not an environment variable in current code; it must be provisioned in a scheduler secret store separately.
+
+## Tests and formatting
+
+```sh
+npx --yes pnpm@10.4.1 test
+```
+
+This currently fails in a credential-free checkout. Three live files are `supabase-config.test.ts`, `supabase-service-role.test.ts`, `supabase-rls.test.ts`. The RLS suite creates and deletes temporary accounts and application rows. The two credential checks require a hosted `https://*.supabase.co` URL and would need adaptation for local Supabase.
+
+For a bounded offline baseline, use public synthetic values and explicitly exclude only the live integration files:
+
+```sh
+VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=offline-test-placeholder npx --yes pnpm@10.4.1 exec vitest run --exclude tests/supabase-config.test.ts --exclude tests/supabase-service-role.test.ts --exclude tests/supabase-rls.test.ts
+```
+
+These values only allow the imported browser client to initialize; they are not working credentials or database validation. The migration plan calls for proper offline mocks and a separate explicit integration command.
+
+No lint command/configuration exists. `npx --yes pnpm@10.4.1 exec prettier --check README.md DEVELOPMENT.md ARCHITECTURE.md AGENTS.md docs/MANUS_MIGRATION_AUDIT.md docs/REPOSITORY_INVENTORY.md` checks the new documentation's formatting, not application lint. `pnpm format` modifies all files, so avoid it for scoped migration work.
+
+## Database and deployment
+
+The active database is Supabase PostgreSQL, with 31 SQL migration files, Auth schemas, RLS and service RPCs. There is no safe verified one-command replay yet: duplicate date prefixes and incorrect alphabetical ordering must be reconciled against the actual migration history. Do not run `pnpm db:push`; it targets legacy MySQL. See the database section of the audit for the restoration plan.
+
+For an application host, use a frozen dependency install, build, then start. The production bundle no longer imports Vite unless development middleware is started. Configure TLS, canonical host and Supabase email/recovery redirects for the new host. Transfer DNS only after authenticated smoke tests. Schedule the derived-analysis endpoint with its private token and restore any required opportunity refresh schedule. Neither a scheduler nor hosted database state is recoverable from this repository alone.

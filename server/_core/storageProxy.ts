@@ -1,6 +1,15 @@
 import type { Express } from "express";
 import { ENV } from "./env";
 
+const encodeStorageKey = (key: string): string =>
+  key
+    .split("/")
+    .filter(
+      segment => segment.length > 0 && segment !== "." && segment !== ".."
+    )
+    .map(encodeURIComponent)
+    .join("/");
+
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
@@ -9,37 +18,24 @@ export function registerStorageProxy(app: Express) {
       return;
     }
 
-    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
+    if (!ENV.storagePublicBaseUrl) {
+      res.status(410).send("Storage compatibility backend is not configured");
       return;
     }
 
     try {
-      const forgeUrl = new URL(
-        "v1/storage/presign/get",
-        ENV.forgeApiUrl.replace(/\/+$/, "") + "/",
+      const encodedKey = encodeStorageKey(key);
+      if (!encodedKey) {
+        res.status(400).send("Invalid storage key");
+        return;
+      }
+
+      const url = new URL(
+        encodedKey,
+        ENV.storagePublicBaseUrl.replace(/\/+$/, "") + "/"
       );
-      forgeUrl.searchParams.set("path", key);
-
-      const forgeResp = await fetch(forgeUrl, {
-        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` },
-      });
-
-      if (!forgeResp.ok) {
-        const body = await forgeResp.text().catch(() => "");
-        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
-        return;
-      }
-
-      const { url } = (await forgeResp.json()) as { url: string };
-      if (!url) {
-        res.status(502).send("Empty signed URL from backend");
-        return;
-      }
-
       res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
+      res.redirect(307, url.toString());
     } catch (err) {
       console.error("[StorageProxy] failed:", err);
       res.status(502).send("Storage proxy error");
