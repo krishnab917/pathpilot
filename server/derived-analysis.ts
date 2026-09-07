@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
+import { currentSupabaseClient, getSupabaseConfig, getOptionalSupabaseServiceRoleKey } from "./supabase";
 
 export const DERIVED_ANALYSIS_TYPE = "simulation_evolution" as const;
 export type DerivedAnalysisStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -62,7 +62,7 @@ export async function cancelDerivedAnalysis(userId: string, jobId: string) {
 export async function processNextDerivedAnalysis(workerToken: unknown) {
   if (typeof workerToken !== "string" || !/^[a-f0-9]{64}$/.test(workerToken)) return { authorized: false as const };
   const { url } = getSupabaseConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getOptionalSupabaseServiceRoleKey();
   if (!serviceRoleKey) throw new Error("The background worker is not configured.");
   const workerRpcClient = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
   const { data, error } = await workerRpcClient.rpc("process_next_derived_analysis", { worker_token: workerToken });

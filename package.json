@@ -10,7 +10,9 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:verify:supabase": "node scripts/supabase-continuity-check.mjs",
+    "db:push": "node -e \"console.error('db:push is disabled for PathPilot because it targets legacy Drizzle/MySQL, not Supabase. Use db:verify:supabase for read-only continuity checks and reconcile Supabase migrations manually.'); process.exit(1)\"",
+    "db:push:legacy": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

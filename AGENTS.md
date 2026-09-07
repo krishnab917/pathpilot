@@ -16,7 +16,7 @@ Use Node 22.16+ within the Node 22 line and `npx --yes pnpm@10.4.1` (lockfile an
 - Type check: `npx --yes pnpm@10.4.1 check`
 - Tests: `npx --yes pnpm@10.4.1 test` (includes live integration tests; use disposable Supabase)
 - Lint: no lint script/config exists. Prettier check is formatting only; `format` rewrites the entire repository.
-- Database: no verified Supabase replay command yet. Do not use `db:push` for Supabase; it generates and migrates legacy MySQL.
+- Database: no verified Supabase replay command yet. Do not use `db:push` for Supabase; it is disabled because the preserved legacy command generates and migrates MySQL. Use `db:verify:supabase` only for read-only continuity checks after existing project credentials are configured privately.
 
 ## Conventions and boundaries
 

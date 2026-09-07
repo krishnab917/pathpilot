@@ -75,13 +75,13 @@ describe("service-role career catalog boundary", () => {
     );
     expect(clientSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(repositorySource).toContain(
-      "const key = process.env.SUPABASE_SERVICE_ROLE_KEY;"
+      'getSupabaseServiceRoleKey("Career catalog persistence")'
     );
     expect(repositorySource).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY"
     );
     expect(workerSource).toContain(
-      "const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;"
+      "const serviceRoleKey = getOptionalSupabaseServiceRoleKey();"
     );
     expect(workerSource).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY"

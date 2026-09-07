@@ -18,7 +18,7 @@ Run from the repository root. Express loads `.env` through `dotenv/config`. Vite
 
 ## Environment inventory
 
-`.env.example` contains names with empty assignments, no credentials. Populate needed values and remove unused empty assignments, especially server aliases: the server uses nullish fallback, so an empty SUPABASE_URL or SUPABASE_ANON_KEY blocks fallback to VITE variables.
+`.env.example` contains names with empty assignments, no credentials. Populate needed values privately. Empty Supabase placeholders are treated as missing by the server, so `SUPABASE_URL=` and `SUPABASE_ANON_KEY=` no longer block fallback to `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
 | Name                              | Component / purpose                                                                 | Required / source                                                                                                        |
 | --------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -70,6 +70,14 @@ No lint command/configuration exists. `npx --yes pnpm@10.4.1 exec prettier --che
 
 ## Database and deployment
 
-The active database is Supabase PostgreSQL, with 31 SQL migration files, Auth schemas, RLS and service RPCs. There is no safe verified one-command replay yet: duplicate date prefixes and incorrect alphabetical ordering must be reconciled against the actual migration history. Do not run `pnpm db:push`; it targets legacy MySQL. See the database section of the audit for the restoration plan.
+The active database is Supabase PostgreSQL, with 31 SQL migration files, Auth schemas, RLS and service RPCs. There is no safe verified one-command replay yet: duplicate date prefixes and incorrect alphabetical ordering must be reconciled against the actual migration history. `pnpm db:push` is intentionally disabled because it targets legacy Drizzle/MySQL. The preserved command is `pnpm db:push:legacy` and should not be used for the active Supabase database.
+
+After configuring the existing Supabase project values outside git, run the read-only continuity check:
+
+```sh
+npx --yes pnpm@10.4.1 db:verify:supabase
+```
+
+For full schema metadata, run `supabase/read-only-continuity-check.sql` in the existing Supabase project's SQL editor. It reads tables, columns, policies, indexes, functions, triggers and aggregate record counts without modifying data. Record the outcome in `docs/DATABASE_CONTINUITY_REPORT.md`.
 
 For an application host, use a frozen dependency install, build, then start. The production bundle no longer imports Vite unless development middleware is started. Configure TLS, canonical host and Supabase email/recovery redirects for the new host. Transfer DNS only after authenticated smoke tests. Schedule the derived-analysis endpoint with its private token and restore any required opportunity refresh schedule. Neither a scheduler nor hosted database state is recoverable from this repository alone.

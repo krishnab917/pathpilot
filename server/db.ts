@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { currentSupabaseClient, getSupabaseConfig } from "./supabase";
+import { currentSupabaseClient, getSupabaseConfig, getSupabaseServiceRoleKey } from "./supabase";
 import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState } from "./simulation/engine";
 import { getSimulationCareer, resolveSupportedCareer } from "./simulation/catalog";
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
@@ -35,8 +35,7 @@ export async function exportPlanningActivity(userId: string) { const { data, err
 export async function clearPlanningActivity(userId: string) { const { error } = await client().from("behavioral_activity_events").delete().eq("user_id", userId); check(error); return { cleared: true }; }
 
 function serviceClient() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error("Career catalog persistence is not configured.");
+  const key = getSupabaseServiceRoleKey("Career catalog persistence");
   return createClient(getSupabaseConfig().url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

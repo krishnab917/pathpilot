@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseConfig } from "./supabase";
+import { getOptionalSupabaseServiceRoleKey, getSupabaseConfig } from "./supabase";
 
 export type AiRateLimitAction =
   | "mentor"
@@ -62,7 +62,7 @@ function hmac(value: string) {
 }
 
 function createSupabaseRateLimitStore(): RateLimitStore {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getOptionalSupabaseServiceRoleKey();
   if (!serviceRoleKey) {
     return {
       consume: async () => { throw new RateLimiterUnavailableError(); },
