@@ -8,7 +8,14 @@ import App from "./App";
 import { startLogin } from "./const";
 import { createAuthenticatedQueryCacheBoundary } from "./lib/authenticated-query-cache";
 import { pathpilotQueryDefaults } from "./lib/query-defaults";
-import { getSupabaseAccessToken, hydrateSupabaseSession, supabase } from "./lib/supabase";
+import ConfigurationErrorPage from "./components/ConfigurationErrorPage";
+import {
+  getSupabaseAccessToken,
+  hydrateSupabaseSession,
+  isSupabaseBrowserConfigured,
+  missingSupabaseBrowserConfig,
+  supabase,
+} from "./lib/supabase";
 import "./index.css";
 
 const authenticatedQueryCache = createAuthenticatedQueryCacheBoundary();
@@ -72,15 +79,23 @@ const trpcClient = trpc.createClient({
 const root = createRoot(document.getElementById("root")!);
 
 root.render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}><App /></QueryClientProvider>
-  </trpc.Provider>
+  isSupabaseBrowserConfigured ? (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </trpc.Provider>
+  ) : (
+    <ConfigurationErrorPage missingVariables={missingSupabaseBrowserConfig} />
+  )
 );
 
-void hydrateSupabaseSession().then(session => {
-  authenticatedQueryCache.transition(session?.user.id ?? null);
-});
+if (isSupabaseBrowserConfigured) {
+  void hydrateSupabaseSession().then(session => {
+    authenticatedQueryCache.transition(session?.user.id ?? null);
+  });
 
-supabase.auth.onAuthStateChange((_event, session) => {
-  authenticatedQueryCache.transition(session?.user.id ?? null);
-});
+  supabase.auth.onAuthStateChange((_event, session) => {
+    authenticatedQueryCache.transition(session?.user.id ?? null);
+  });
+}
