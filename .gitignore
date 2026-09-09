@@ -121,3 +121,4 @@ client/public/__manus__/version.json
 *.key
 supabase/.temp/
 supabase/.branches/
+.vercel

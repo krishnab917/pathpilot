@@ -11,7 +11,7 @@ const encodeStorageKey = (key: string): string =>
     .join("/");
 
 export function registerStorageProxy(app: Express) {
-  app.get("/manus-storage/*", async (req, res) => {
+  app.get(["/manus-storage/*", "/api/manus-storage/*"], async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
