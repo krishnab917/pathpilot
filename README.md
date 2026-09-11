@@ -29,6 +29,7 @@ The default tests include live database tests and fail without configured Supaba
 Use `npx --yes pnpm@10.4.1 db:verify:supabase` only after configuring the existing Supabase project in a private environment. The check is read-only and complements `supabase/read-only-continuity-check.sql`; it does not replay migrations.
 
 - [Development and environment reference](DEVELOPMENT.md)
+- [Vercel deployment guide](docs/VERCEL_DEPLOYMENT.md)
 - [Current architecture](ARCHITECTURE.md)
 - [Codex guidance](AGENTS.md)
 - [Audit, completed source migration, remaining deployment blockers and database plan](docs/MANUS_MIGRATION_AUDIT.md)
