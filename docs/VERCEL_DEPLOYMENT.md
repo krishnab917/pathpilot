@@ -2,10 +2,10 @@
 
 PathPilot is a Vite single-page application with an Express/tRPC API. The
 checked-in `vercel.json` builds the client into `dist/public`, serves it from
-Vercel's CDN, and maps `/api/*` through the `api/[...path].ts` function.
-The legacy `/manus-storage/*` route is forwarded to that function. Each
-function entry uses the same application factory as the local Express server;
-it does not open a port itself.
+Vercel's CDN, and maps `/api/*` through the `api/index.js` function. The
+Vercel build bundles the TypeScript API application into `dist/vercel-api.mjs`,
+which that function loads. The legacy `/manus-storage/*` route is forwarded
+to the same function. It does not open a port itself.
 
 ## Before the first deployment
 
@@ -44,20 +44,22 @@ password-recovery route (`/update-password`) in the redirect URL configuration.
 ## CLI workflow
 
 From the repository root, link the local checkout to the intended Vercel
-project, create a preview deployment, and then promote only after the checks
-below pass:
+project and create a preview deployment:
 
 ```sh
 vercel link
-vercel env pull .env.local
-vercel build
-vercel
-vercel --prod
+vercel env ls preview
+vercel deploy --target=preview
 ```
 
-`vercel env pull` writes secrets locally, so `.env.local` stays ignored. The
-repository pins pnpm 10.4.1 through `vercel.json`; do not change the Vercel
-build command to the legacy `db:push` command.
+After the checks below pass, deploy to production with `vercel deploy --prod`.
+
+For a local Vercel build, first run
+`vercel pull --environment=preview --git-branch=develop`, then `vercel build`.
+`vercel pull` writes secrets under the ignored `.vercel/` directory. The
+repository pins pnpm 10.4.1 through
+`vercel.json`; do not change the Vercel build command to the legacy `db:push`
+command.
 
 ## Required validation and operational follow-up
 
