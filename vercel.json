@@ -5,11 +5,15 @@
   "buildCommand": "npx --yes pnpm@10.4.1 build:vercel",
   "outputDirectory": "dist/public",
   "functions": {
-    "api/*.ts": {
+    "api/*.js": {
       "maxDuration": 60
     }
   },
   "rewrites": [
+    {
+      "source": "/api(/.*)?",
+      "destination": "/api/index"
+    },
     {
       "source": "/manus-storage/(.*)",
       "destination": "/api/manus-storage/$1"
