@@ -1,5 +1,6 @@
 import { ENV } from "./env";
 import { createTimedAsyncCache } from "../ai/timed-async-cache";
+import { ProviderRequestError, requestProviderJson } from "../ai/provider-request";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -62,6 +63,7 @@ export type ToolChoice =
   | ToolChoiceExplicit;
 
 export type InvokeParams = {
+  timeoutMs?: number;
   messages: Message[];
   tools?: Tool[];
   toolChoice?: ToolChoice;
@@ -280,76 +282,8 @@ const normalizeResponseFormat = ({
   };
 };
 
-const RETRY_MAX_RETRIES = 4;
-const RETRY_BASE_DELAY_MS = 500;
-const RETRY_MAX_DELAY_MS = 30_000;
-
-type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
-
-const sleep = (ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms));
-
-const parseRetryAfter = (value: string | null): number | undefined => {
-  if (!value) return undefined;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-  const at = Date.parse(value);
-  return Number.isNaN(at) ? undefined : Math.max(0, at - Date.now());
-};
-
-// Equal-jitter exponential backoff. The cap/2 floor guarantees a minimum
-// delay so a misbehaving caller loop slows down instead of hammering the
-// upstream while it keeps returning errors.
-const computeBackoffDelay = (
-  attempt: number,
-  retryAfterMs?: number
-): number => {
-  const cap = Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
-  const jittered = cap / 2 + Math.random() * (cap / 2);
-  return Math.min(Math.max(jittered, retryAfterMs ?? 0), RETRY_MAX_DELAY_MS);
-};
-
-// Retries non-2xx responses and network errors with exponential backoff, then
-// returns the final Response so callers keep their existing error handling.
-const fetchWithBackoff = async (
-  url: string,
-  init: FetchInit
-): Promise<Response> => {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
-        return response;
-      }
-
-      const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
-      try {
-        await response.body?.cancel();
-      } catch {
-        // Body already settled; nothing to clean up.
-      }
-      console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after status ${response.status}`
-      );
-      await sleep(computeBackoffDelay(attempt, retryAfterMs));
-    } catch (error) {
-      lastError = error;
-      if (attempt === RETRY_MAX_RETRIES) throw error;
-      console.warn(
-        `LLM request retry ${attempt + 1}/${RETRY_MAX_RETRIES} after network error`
-      );
-      await sleep(computeBackoffDelay(attempt));
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("LLM request failed after exhausting retries");
-};
-
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
+  console.info("[AI provider] configuration", { hasApiKey: Boolean(ENV.llmApiKey) });
   assertApiKey();
 
   const {
@@ -412,23 +346,24 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveChatCompletionsUrl(), {
+  const result = await requestProviderJson(resolveChatCompletionsUrl(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${ENV.llmApiKey}`,
     },
     body: JSON.stringify(payload),
-  });
+  }, params.timeoutMs);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  if (!result || typeof result !== "object" || !("choices" in result) ||
+      !Array.isArray(result.choices) || !result.choices[0]?.message ||
+      result.choices[0].message.refusal ||
+      ["length", "content_filter"].includes(result.choices[0].finish_reason)) {
+    console.warn("[AI provider] validation", { passed: false });
+    throw new ProviderRequestError("invalid_response");
   }
 
-  return (await response.json()) as InvokeResult;
+  return result as InvokeResult;
 }
 
 export type ModelInfo = {
@@ -462,18 +397,15 @@ async function fetchLLMModels(): Promise<ModelsResponse> {
 
   assertApiKey();
 
-  const response = await fetchWithBackoff(resolveModelsUrl(), {
+  const response = await requestProviderJson(resolveModelsUrl(), {
     headers: { authorization: `Bearer ${ENV.llmApiKey}` },
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `List LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
-    );
+  if (!response || typeof response !== "object" || !("data" in response) || !Array.isArray(response.data)) {
+    throw new ProviderRequestError("invalid_response");
   }
 
-  return (await response.json()) as ModelsResponse;
+  return response as ModelsResponse;
 }
 
 const modelCatalogCache = createTimedAsyncCache(

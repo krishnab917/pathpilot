@@ -65,6 +65,7 @@ import {
   deleteStudentAccount,
 } from "../db";
 import { invokeLLM, listLLMModels } from "../_core/llm";
+import { PROVIDER_TIMEOUT_MS, ProviderRequestError } from "../ai/provider-request";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { CareerGuidanceValidationError, retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
@@ -217,7 +218,7 @@ const roadmapJsonSchema = {
 const mentorJsonSchema = {
   type: "object",
   properties: {
-    reply: { type: "string" },
+    reply: { type: "string", minLength: 1, maxLength: 4000 },
     suggestedGoal: {
       type: ["object", "null"],
       properties: { title: { type: "string" }, description: { type: "string" }, category: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high"] }, estimatedHours: { type: "integer" }, deadline: { type: ["string", "null"] } },
@@ -266,9 +267,19 @@ function aiRequestFingerprint(...parts: Array<string | number | Date | null | un
 
 export async function runLimitedAiRequest<T>(ctx: { user: { id: string } | null; res: { setHeader?: (name: string, value: string) => unknown } }, action: AiRateLimitAction, fingerprint: string, operation: () => Promise<T>) {
   if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  const started = Date.now();
+  console.info("[AI operation] started", { action });
   try {
-    return await aiRateLimiter.run({ userId: ctx.user.id, action, fingerprint }, operation);
+    const result = await aiRateLimiter.run({ userId: ctx.user.id, action, fingerprint }, operation);
+    console.info("[AI operation] completed", { action, elapsedMs: Date.now() - started });
+    return result;
   } catch (error) {
+    const category = error instanceof RateLimitExceededError ? "rate_limit"
+      : error instanceof RateLimiterUnavailableError ? "rate_limiter_unavailable"
+      : error instanceof ProviderRequestError ? error.category
+      : error instanceof SyntaxError || error instanceof CareerGuidanceValidationError ? "validation"
+      : "operation";
+    console.warn("[AI operation] failed", { action, category, elapsedMs: Date.now() - started });
     if (error instanceof RateLimitExceededError) {
       ctx.res.setHeader?.("Retry-After", String(Math.max(1, Math.ceil(error.retryAfterSeconds))));
       throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: error.message });
@@ -365,27 +376,32 @@ export const pathpilotRouter = router({
       try {
         return await runLimitedAiRequest(ctx, "profile_analysis", aiRequestFingerprint(profile.updatedAt), async () => {
           const model = await withCareerGuidanceTimeout(preferredModel(), 8_000);
+          const providerDeadline = Date.now() + PROVIDER_TIMEOUT_MS;
           const matches = await retryValidatedGuidance(
           async attempt => {
-            const response = await withCareerGuidanceTimeout(invokeLLM({
+            if (Date.now() >= providerDeadline) throw new ProviderRequestError("timeout");
+            const response = await invokeLLM({
+              timeoutMs: providerDeadline - Date.now(),
               model,
               messages: [
                 { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Every recommended career must be one of these exact supported PathPilot careers: ${simulationCareerCatalog.map(career => career.name).join("; ")}. Salary ranges must be described as location-dependent estimates, not guarantees. Keep every text field to one concise sentence or phrase. Return exactly the required minimum list sizes: 3 required skills, 2 daily responsibilities, 2 related careers, 1 current strength, 1 skill to build, and 2 next steps. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct, supported, and every required field is complete." : ""}` },
                 { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
               ],
               response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
-            }), 45_000);
+            });
             return contentFrom(response);
           },
           content => {
             const parsed = discoverySchema.safeParse(JSON.parse(String(content)));
             if (!parsed.success) {
+              console.info("[AI validation]", { action: "profile_analysis", passed: false });
               const fields = parsed.error.issues.map(issue => issue.path.join(".") || "response").join(", ");
               throw new CareerGuidanceValidationError(`The model response did not satisfy the career-discovery contract at: ${fields}.`);
             }
             if (!hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new CareerGuidanceValidationError("The model response did not contain five unique career names.");
             const canonicalMatches = parsed.data.matches.map(match => ({ ...match, name: resolveSupportedCareer(match.name)?.name ?? "" }));
             if (canonicalMatches.some(match => !match.name) || !hasExactlyFiveUniqueCareerMatches(canonicalMatches)) throw new CareerGuidanceValidationError("The model response included an unsupported or duplicate career.");
+            console.info("[AI validation]", { action: "profile_analysis", passed: true });
             return canonicalMatches;
           },
         );
@@ -495,6 +511,7 @@ export const pathpilotRouter = router({
           response_format: { type: "json_schema", json_schema: { name: "career_roadmap", strict: true, schema: roadmapJsonSchema } },
         });
         const parsed = roadmapGenerationSchema.safeParse(JSON.parse(contentFrom(response)));
+        console.info("[AI validation]", { action: "roadmap_generation", passed: parsed.success && new Set(parsed.data.milestones.map(milestone => `${milestone.year}-${milestone.category}`)).size === 9 });
         if (!parsed.success || new Set(parsed.data.milestones.map(milestone => `${milestone.year}-${milestone.category}`)).size !== 9) {
           throw new Error("The generated roadmap did not include the required yearly milestone structure.");
         }
@@ -610,6 +627,7 @@ export const pathpilotRouter = router({
           response_format: { type: "json_schema", json_schema: { name: "mentor_response", strict: true, schema: mentorJsonSchema } },
         });
         const parsed = mentorResponseSchema.safeParse(JSON.parse(contentFrom(response)));
+        console.info("[AI validation]", { action: "mentor", passed: parsed.success });
         if (!parsed.success) throw new Error("The mentor response failed validation.");
         const goalId = parsed.data.priorityAdjustment ? mentorContext.goalIdsByReference.get(parsed.data.priorityAdjustment.goalReference) : null;
         if (parsed.data.priorityAdjustment && !goalId) throw new Error("The mentor response referenced a goal outside the supplied allowlist.");
@@ -659,6 +677,7 @@ export const pathpilotRouter = router({
           response_format: { type: "json_schema", json_schema: { name: "project_guidance", strict: true, schema: projectGuidanceJsonSchema } },
         });
         const parsed = projectGuidanceSchema.safeParse(JSON.parse(contentFrom(response)));
+        console.info("[AI validation]", { action: "project_guidance", passed: parsed.success });
         if (!parsed.success) throw new Error("The project guidance response failed validation.");
         try { await cacheProjectGuidance(ctx.user.id, input.projectId, inputHash, parsed.data); } catch (error) { console.error("[PathPilot] project guidance cache write failed", error); }
           return { ...parsed.data, cacheStatus: "fresh" as const, cacheVersion: PROJECT_GUIDANCE_CACHE_VERSION };

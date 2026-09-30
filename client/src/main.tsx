@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { aiRequestDeadlineLink } from "./lib/ai-request-deadline";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
@@ -59,6 +60,7 @@ queryClient.getMutationCache().subscribe(event => {
 
 const trpcClient = trpc.createClient({
   links: [
+    aiRequestDeadlineLink(),
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,

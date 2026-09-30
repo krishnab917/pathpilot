@@ -52,6 +52,15 @@ describe("Mentor context server boundary", () => {
     expect(mocks.updateGoal).not.toHaveBeenCalled();
   });
 
+  it("expresses the reply length contract to the provider and rejects oversized replies before saving them", async () => {
+    mocks.invokeLLM.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ reply: "x".repeat(4001), suggestedGoal: null, priorityAdjustment: null }) } }] });
+    await expect(appRouter.createCaller(context).pathpilot.mentor.send({ content: "Help me plan." })).rejects.toMatchObject({ code: "BAD_GATEWAY" });
+    expect(mocks.invokeLLM.mock.calls[0][0].response_format.json_schema.schema.properties.reply.maxLength).toBe(4000);
+    expect(mocks.addMentorMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.addMentorMessage.mock.calls[0][2]).toBe("user");
+    expect(mocks.updateGoal).not.toHaveBeenCalled();
+  });
+
   it("cannot put User A’s records into a Mentor request authenticated as User B", async () => {
     mocks.getMentorContextData.mockImplementation((userId: string) => Promise.resolve(userId === userB
       ? { profile: { grade: "10", countryCode: "IN", careerPreferences: [] }, roadmap: null, goals: [{ id: "55555555-5555-4555-8555-555555555555", title: "USER_B_ONLY_GOAL", status: "in_progress", priority: "medium", progress: 0 }], projects: [], simulation: null }
