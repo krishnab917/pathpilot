@@ -2,302 +2,399 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { LandingWalkthrough } from "@/components/LandingWalkthrough";
+import {
+  landingAudiences,
   landingCopy,
-  landingExperientialEvidence,
-  landingFeatureCards,
-  landingProofPoints,
+  landingQuestions,
 } from "@/lib/landing-copy";
 import { scrollToLandingJourney } from "@/lib/landing-scroll";
-import { startLogin } from "@/const";
-import { ArrowRight, Compass, Map, Rocket, SearchCheck, Sparkles, Target } from "lucide-react";
-import { Link } from "wouter";
-import { useEffect } from "react";
+import { ArrowDown, ArrowRight, Check } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useEffect, type ComponentPropsWithoutRef } from "react";
 
-const featureIcons = [Compass, SearchCheck, Rocket, Sparkles, Map] as const;
+function StoryLink({
+  target,
+  children,
+  ...props
+}: { target: string } & Omit<
+  ComponentPropsWithoutRef<"a">,
+  "href" | "target"
+>) {
+  return (
+    <a
+      {...props}
+      href={"#" + target}
+      onClick={event => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        event.preventDefault();
+        if (
+          scrollToLandingJourney({
+            target: document.getElementById(target),
+            prefersReducedMotion: window.matchMedia(
+              "(prefers-reduced-motion: reduce)"
+            ).matches,
+          })
+        )
+          window.history.replaceState(window.history.state, "", "#" + target);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 export default function Home() {
-  useEffect(() => {
-    // SEO Title: 30-60 characters (56 characters)
-    document.title = "PathPilot | Explore Your Future with AI Career Discovery";
-
-    // SEO Keywords: 3-8 keywords (6 keywords)
-    let keywordsMeta = document.querySelector('meta[name="keywords"]');
-    if (!keywordsMeta) {
-      keywordsMeta = document.createElement("meta");
-      keywordsMeta.setAttribute("name", "keywords");
-      document.head.appendChild(keywordsMeta);
-    }
-    keywordsMeta.setAttribute(
-      "content",
-      "career discovery, AI mentor, high school, career roadmap, student guidance, career planning"
-    );
-
-    // SEO Description: 50-160 characters (154 characters)
-    let descriptionMeta = document.querySelector('meta[name="description"]');
-    if (!descriptionMeta) {
-      descriptionMeta = document.createElement("meta");
-      descriptionMeta.setAttribute("name", "description");
-      document.head.appendChild(descriptionMeta);
-    }
-    descriptionMeta.setAttribute(
-      "content",
-      "PathPilot helps high school students discover their ideal career paths through AI-guided simulations, personalized roadmaps, and actionable next steps."
-    );
-  }, []);
   const { isAuthenticated } = useAuth();
-  const workspaceHref = isAuthenticated ? "/app" : undefined;
-  const scrollToJourney = () => {
-    scrollToLandingJourney({
-      target: document.getElementById("how-it-works"),
-      prefersReducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    });
-  };
-  const primaryAction = workspaceHref ? (
-    <Link href={workspaceHref}>
-      {landingCopy.hero.cta} <ArrowRight className="ml-2 size-4" />
-    </Link>
-  ) : (
-    <>
-      {landingCopy.hero.cta} <ArrowRight className="ml-2 size-4" />
-    </>
-  );
+  const [, navigate] = useLocation();
+  const startHref = isAuthenticated ? "/app" : "/auth";
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "PathPilot | Discover your career. Build your path.";
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#fcfcfd]">
-      <header className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
+    <main className="min-h-screen bg-[#fcfcfd]">
+      <header className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
         <Brand />
-        <div className="flex items-center gap-3">
-          {isAuthenticated ? (
-            <Link href="/app">
-              <Button variant="outline" className="rounded-xl">
-                Open workspace
-              </Button>
-            </Link>
-          ) : (
-            <Button
-              variant="ghost"
-              className="hidden rounded-xl sm:inline-flex"
-              onClick={() => startLogin()}
-            >
-              Sign in
-            </Button>
-          )}
-          <Button
-            className="rounded-xl"
-            onClick={() => (workspaceHref ? undefined : startLogin())}
-            asChild={Boolean(workspaceHref)}
+        <nav
+          aria-label="Main navigation"
+          className="flex items-center gap-5 text-sm"
+        >
+          <StoryLink
+            target="how-it-works"
+            className="hidden sm:inline hover:text-primary"
           >
-            {primaryAction}
+            How it works
+          </StoryLink>
+          <StoryLink
+            target="audiences"
+            className="hidden md:inline hover:text-primary"
+          >
+            Who it's for
+          </StoryLink>
+          <Button variant="outline" className="rounded-xl" asChild>
+            <Link href={startHref}>
+              {isAuthenticated ? "Open workspace" : "Sign in"}
+            </Link>
           </Button>
-        </div>
+        </nav>
       </header>
-
-      <section className="relative mx-auto max-w-7xl px-5 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24">
-        <div className="absolute left-1/2 top-0 -z-0 h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#dbe4ff_0%,rgba(246,248,255,0.8)_36%,transparent_70%)] blur-2xl" />
-        <div className="relative z-10 mx-auto max-w-4xl text-center">
-          <h1 className="text-balance text-5xl font-semibold tracking-[-0.075em] sm:text-7xl">
+      <section className="mx-auto max-w-7xl px-5 pb-16 pt-14 sm:px-8 sm:pt-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="eyebrow">A place to explore what's next</p>
+          <h1 className="mt-5 text-balance text-4xl font-semibold tracking-[-0.065em] sm:text-6xl lg:text-7xl">
             {landingCopy.hero.titleLead}{" "}
             <span className="text-primary">{landingCopy.hero.titleAccent}</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-sm font-medium leading-6 text-foreground sm:text-base">
-            {landingCopy.hero.proof}{" "}
-            <a
-              href={landingProofPoints[0].href}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              {landingCopy.hero.proofSource}
-            </a>
-          </p>
-          <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
             {landingCopy.hero.description}
           </p>
-          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button
-              size="lg"
-              className="h-12 rounded-xl px-6"
-              onClick={scrollToJourney}
-            >
-              {landingCopy.hero.cta} <ArrowRight className="ml-2 size-4" />
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Button size="lg" className="rounded-xl" asChild>
+              <Link href={startHref}>
+                Start exploring
+                <ArrowRight className="size-4" />
+              </Link>
             </Button>
-            <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="h-12 rounded-xl px-6">
+            <Button size="lg" variant="outline" className="rounded-xl" asChild>
+              <StoryLink target="how-it-works">
                 See how it works
-              </Button>
-            </a>
+                <ArrowDown className="size-4" />
+              </StoryLink>
+            </Button>
           </div>
-          <dl className="mx-auto mt-10 grid max-w-3xl divide-y divide-slate-200 border border-slate-200 bg-white text-left sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {landingProofPoints.map(point => (
-              <div key={point.value} className="px-4 py-4 sm:px-5">
-                <dt className="data-value text-lg font-semibold tracking-[-0.04em] text-foreground">
-                  {point.value}
-                </dt>
-                <dd className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {point.label}
-                </dd>
-                <a
-                  href={point.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-block text-[10px] font-medium uppercase tracking-[0.08em] text-primary underline-offset-4 hover:underline"
-                >
-                  {point.source}
-                </a>
-              </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            No chosen career needed. Start with a curiosity.
+          </p>
+        </div>
+        <div
+          id="audiences"
+          tabIndex={-1}
+          className="mt-16 scroll-mt-8 border-t border-slate-200 pt-8"
+        >
+          <h2 className="text-xl font-semibold tracking-tight">
+            Who are you exploring PathPilot for?
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Start with what brings you here.
+          </p>
+          <nav
+            aria-label="Choose your PathPilot audience"
+            className="mt-5 grid divide-y divide-slate-200 border-y border-slate-200 md:grid-cols-3 md:divide-x md:divide-y-0"
+          >
+            {landingAudiences.map(audience => (
+              <StoryLink
+                key={audience.id}
+                target={audience.id}
+                className="group px-4 py-6 transition-colors hover:bg-slate-50 focus-visible:outline-primary"
+              >
+                <p className="eyebrow">{audience.label}</p>
+                <div className="mt-3 flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold tracking-tight">
+                    {audience.invitation}
+                  </h3>
+                  <ArrowDown
+                    aria-hidden="true"
+                    className="mt-1 size-4 shrink-0 text-primary"
+                  />
+                </div>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {audience.reason}
+                </p>
+              </StoryLink>
             ))}
-          </dl>
+          </nav>
         </div>
       </section>
-
-      <section id="how-it-works" tabIndex={-1} className="border-y border-border/70 bg-white py-20 sm:py-28">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="max-w-xl">
-            <div className="eyebrow">{landingCopy.story.eyebrow}</div>
-            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.06em]">
-              {landingCopy.story.title}
+      <section className="border-y border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="eyebrow">The question behind the career choice</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+              {landingCopy.problem.title}
             </h2>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              {landingCopy.story.description}
-            </p>
           </div>
-          <div className="mt-10 grid border border-slate-200 bg-white lg:grid-cols-[0.82fr_1.18fr]">
-            <div className="border-b border-slate-200 p-6 lg:border-b-0 lg:border-r">
-              <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center border border-slate-200 bg-slate-50 text-primary">
-                  <Compass className="size-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">{landingCopy.story.workflowTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {landingCopy.story.workflowDescription}
-                  </p>
+          <div className="space-y-5 text-base leading-8 text-muted-foreground">
+            <p>{landingCopy.problem.description}</p>
+            <p>{landingCopy.problem.response}</p>
+            <StoryLink
+              target="how-it-works"
+              className="inline-flex items-center gap-2 font-medium text-primary"
+            >
+              See the student journey
+              <ArrowRight className="size-4" />
+            </StoryLink>
+          </div>
+        </div>
+      </section>
+      <section
+        id="how-it-works"
+        tabIndex={-1}
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 py-16 sm:px-8 sm:py-20"
+      >
+        <p className="eyebrow">
+          Discover → Explore → Experience → Build your path
+        </p>
+        <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+          From a first question to a next step.
+        </h2>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+          Take a look at the journey. These public examples show what you can
+          explore; your own workspace keeps your profile, choices, and progress
+          together.
+        </p>
+        <LandingWalkthrough onStart={() => navigate(startHref)} />
+      </section>
+      {landingAudiences.map((audience, index) => (
+        <section
+          key={audience.id}
+          id={audience.id}
+          tabIndex={-1}
+          aria-labelledby={audience.id + "-title"}
+          className={
+            "scroll-mt-6 border-t border-slate-200 " +
+            (index % 2 === 0 ? "bg-white" : "")
+          }
+        >
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="eyebrow">
+                {index === 0
+                  ? "For students"
+                  : index === 1
+                    ? "For parents"
+                    : "For schools and counselors"}
+              </p>
+              <StoryLink
+                target="audiences"
+                className="text-xs text-muted-foreground hover:text-primary"
+              >
+                Choose another starting point ↑
+              </StoryLink>
+            </div>
+            <div className="mt-7 grid gap-10 lg:grid-cols-2 lg:gap-20">
+              <div>
+                <h2
+                  id={audience.id + "-title"}
+                  className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl"
+                >
+                  {audience.title}
+                </h2>
+                <p className="mt-5 text-base leading-8 text-muted-foreground">
+                  {audience.description}
+                </p>
+                <ul className="mt-6 space-y-4">
+                  {audience.points.map(point => (
+                    <li key={point} className="flex gap-3 text-sm leading-6">
+                      <Check
+                        aria-hidden="true"
+                        className="mt-1 size-4 shrink-0 text-primary"
+                      />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-7 flex flex-wrap items-center gap-5">
+                  <Button
+                    className="h-auto whitespace-normal rounded-xl py-3"
+                    asChild
+                  >
+                    <Link href={index === 0 ? startHref : audience.href}>
+                      {audience.cta}
+                      <ArrowRight className="size-4 shrink-0" />
+                    </Link>
+                  </Button>
+                  {index === 2 ? (
+                    <Link href="/counselors" className="text-sm text-primary">
+                      For counselors →
+                    </Link>
+                  ) : (
+                    <StoryLink
+                      target="how-it-works"
+                      className="text-sm text-primary"
+                    >
+                      Explore the experience →
+                    </StoryLink>
+                  )}
                 </div>
               </div>
-              <dl className="mt-7 divide-y divide-slate-200 border-y border-slate-200 text-sm">
-                {landingCopy.story.rows.map(row => (
-                  <div key={row.label} className="flex items-center justify-between gap-4 py-3">
-                    <dt className="text-muted-foreground">{row.label}</dt>
-                    <dd className="text-right font-medium">{row.value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <Link
-                href="/auth"
-                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary"
-              >
-                {landingCopy.hero.cta} <ArrowRight className="size-4" />
-              </Link>
-            </div>
-            <div>
-              <table className="w-full table-fixed text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  <tr>
-                    <th className="w-[38%] px-3 py-3 sm:px-5">Stage</th>
-                    <th className="px-3 py-3 sm:px-5">What it helps you do</th>
-                    <th className="hidden px-5 py-3 sm:table-cell">Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {landingFeatureCards.map((item, index) => {
-                    const Icon = featureIcons[index];
-                    return (
-                      <tr key={item.step} className="border-b border-slate-200 last:border-0">
-                        <td className="px-3 py-4 sm:px-5">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <span className="font-mono text-xs text-muted-foreground">{item.step}</span>
-                            <Icon className="size-4 shrink-0 text-primary" />
-                            <span className="font-medium">{item.title}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 text-xs leading-5 text-muted-foreground sm:px-5">
-                          {item.copy}
-                        </td>
-                        <td className="hidden px-5 py-4 sm:table-cell">
-                          <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-slate-600">
-                            {item.result}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div className="border-t border-slate-200 px-3 py-4 sm:px-5">
-                <Button asChild className="h-10 rounded-xl px-4">
-                  <Link href="/auth">
-                    {landingCopy.story.stageCta}
-                    <ArrowRight className="ml-2 size-4" />
-                  </Link>
-                </Button>
-                <p className="mt-4 max-w-3xl text-xs leading-5 text-muted-foreground">
-                  {landingExperientialEvidence.text}{" "}
-                  <a
-                    href={landingExperientialEvidence.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    {landingExperientialEvidence.source}
-                  </a>
+              <article className="self-center border-l-2 border-primary/40 pl-6 sm:pl-8">
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Illustrative scenario · Not a customer testimonial
                 </p>
-              </div>
+                <h3 className="mt-4 text-2xl font-semibold tracking-tight">
+                  {audience.storyTitle}
+                </h3>
+                <p className="mt-5 text-sm leading-7 text-muted-foreground">
+                  {audience.story}
+                </p>
+                <p className="mt-5 text-sm leading-7">{audience.next}</p>
+              </article>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
-        <div className="relative overflow-hidden rounded-[32px] bg-foreground px-6 py-12 text-center text-background sm:px-12 sm:py-16">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(78,119,255,0.5),transparent_42%)]" />
-          <div className="relative">
-            <span className="mx-auto grid size-10 place-items-center rounded-xl bg-white/10 text-white">
-              <Target className="size-5" />
-            </span>
-            <h2 className="mx-auto mt-5 max-w-2xl text-4xl font-semibold tracking-[-0.06em]">
-              {landingCopy.closing.title}
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/65">
-              {landingCopy.closing.description}
-            </p>
-            <Button
-              className="mt-8 rounded-xl bg-white text-foreground hover:bg-white/90"
-              onClick={() => (workspaceHref ? undefined : startLogin())}
-              asChild={Boolean(workspaceHref)}
-            >
-              {primaryAction}
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-border/70 py-10">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex flex-col items-center gap-3 sm:items-start">
-              <Brand compact />
-              <p className="text-xs text-muted-foreground">
-                PathPilot · A place to explore what comes next.
+        </section>
+      ))}
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+        <p className="eyebrow">Why PathPilot</p>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+          Exploration that gives you somewhere to go.
+        </h2>
+        <div className="mt-9 grid gap-8 md:grid-cols-3">
+          {[
+            [
+              "Experience before commitment",
+              "Go beyond a job title. A simulation gives you decisions to consider and questions to bring to someone who knows the field.",
+            ],
+            [
+              "A path you can return to",
+              "Saved decisions and metrics, roadmap steps, opportunities, and goals help connect a moment of curiosity to continued exploration.",
+            ],
+            [
+              "Guidance, with room for judgment",
+              "The career mentor and project assistant can help you think through a next step. You decide what fits, with support from the people who know you.",
+            ],
+          ].map(([title, description]) => (
+            <div key={title} className="border-t border-slate-200 pt-5">
+              <h3 className="text-lg font-semibold">{title}</h3>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                {description}
               </p>
             </div>
-            <nav className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-xs font-medium text-muted-foreground">
-              <Link href="/privacy" className="hover:text-foreground">
-                Privacy Policy
-              </Link>
-              <Link href="/terms" className="hover:text-foreground">
-                Terms of Service
-              </Link>
-              <Link href="/support" className="hover:text-foreground">
-                Support
-              </Link>
-              <Link href="/accessibility" className="hover:text-foreground">
-                Accessibility
-              </Link>
-            </nav>
+          ))}
+        </div>
+      </section>
+      <section className="border-y border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 md:grid-cols-[0.7fr_1.3fr] md:gap-16">
+          <div>
+            <p className="eyebrow">A few natural questions</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+              Before you begin.
+            </h2>
           </div>
-          <p className="mt-8 text-center text-[10px] text-muted-foreground sm:text-left">
-            © {new Date().getFullYear()} PathPilot. All rights reserved.
+          <Accordion type="single" collapsible>
+            {landingQuestions.map((item, index) => (
+              <AccordionItem key={item.question} value={String(index)}>
+                <AccordionTrigger className="text-left leading-6">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="leading-7 text-muted-foreground">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+        <div className="rounded-[32px] bg-foreground px-6 py-12 text-center text-background sm:p-16">
+          <h2 className="mx-auto max-w-2xl text-balance text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+            {landingCopy.closing.title}
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl text-sm leading-7 opacity-80">
+            {landingCopy.closing.description}
           </p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-6">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="rounded-xl"
+              asChild
+            >
+              <Link href={startHref}>
+                Start your PathPilot
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <a
+              href="mailto:support@pathpilotapp.com?subject=PathPilot%20for%20our%20school"
+              className="text-sm underline underline-offset-4"
+            >
+              Bring PathPilot to your school
+            </a>
+          </div>
+        </div>
+      </section>
+      <footer className="border-t border-slate-200">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
+          <div>
+            <Brand />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Discover your career and build the path to reach it.
+            </p>
+          </div>
+          <nav
+            aria-label="Footer navigation"
+            className="flex flex-wrap gap-x-5 gap-y-3 text-xs text-muted-foreground"
+          >
+            {[
+              ["/schools", "Schools"],
+              ["/counselors", "Counselors"],
+              ["/parents", "Parents"],
+              ["/privacy", "Privacy"],
+              ["/terms", "Terms"],
+              ["/accessibility", "Accessibility"],
+            ].map(([href, label]) => (
+              <Link key={href} href={href} className="hover:text-primary">
+                {label}
+              </Link>
+            ))}
+            <a
+              href="mailto:support@pathpilotapp.com"
+              className="hover:text-primary"
+            >
+              Contact
+            </a>
+          </nav>
         </div>
       </footer>
     </main>

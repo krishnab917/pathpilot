@@ -1,54 +1,88 @@
 import { describe, expect, it } from "vitest";
 import {
   landingCopy,
-  landingExperientialEvidence,
-  landingFeatureCards,
-  landingProofPoints,
-  prohibitedLandingClaims,
+  landingAudiences,
+  landingJourneySteps,
+  landingQuestions,
 } from "../client/src/lib/landing-copy";
-
-const allLandingCopy = JSON.stringify({ landingCopy, landingFeatureCards, landingProofPoints, landingExperientialEvidence }).toLowerCase();
+import {
+  landingCareerExamples,
+  landingSimulationExcerpt,
+} from "../client/src/lib/landing-product-examples";
+import { simulationCareerCatalog } from "../server/simulation/catalog";
+import { softwareV1Graph } from "../server/simulation/graphs/software-v1";
 
 describe("landing-page narrative", () => {
-  it("centers the hero on career experience rather than a quiz result and provides a value-specific CTA", () => {
-    expect(landingCopy.hero.titleLead).toContain("quiz result");
-    expect(landingCopy.hero.titleAccent).toContain("Experience");
-    expect(landingCopy.hero.cta).toBe("Discover my career path");
-    expect(landingCopy.hero.proof).toBe("4 in 5 students want more career exploration opportunities in high school.");
-    expect(landingCopy.hero.description).toContain("realistic decisions");
-  });
-
-  it("moves students from uncertainty through a five-stage exploration journey without taking away agency", () => {
-    expect(landingCopy.story.title).toBe("You shouldn't have to figure out your whole future from a quiz.");
-    expect(landingCopy.story.description).toContain("explore before you commit");
-    expect(landingCopy.story.workflowTitle).toBe("Don't just choose a career. Experience it.");
-    expect(landingCopy.story.workflowDescription).toContain("you remain the person who decides");
-    expect(landingCopy.story.stageCta).toBe("Start your journey");
-    expect(landingFeatureCards.map(card => card.title)).toEqual([
-      "Discover yourself",
-      "Explore careers",
-      "Experience them",
-      "Understand your direction",
-      "Take your next step",
+  it("keeps the core message and all three audience paths", () => {
+    expect(landingCopy.hero.titleLead).toBe("Discover your career.");
+    expect(landingCopy.hero.titleAccent).toBe("Build the path to reach it.");
+    expect(landingAudiences.map(item => item.id)).toEqual([
+      "students",
+      "parents",
+      "educators",
     ]);
-    expect(landingCopy.closing.title).toBe("From “Maybe” to “What's next.”");
-    expect(landingCopy.closing.description).toContain("You don't need all the answers");
-  });
-
-  it("uses only the verified, source-attributed proof points in the conversion narrative", () => {
-    expect(landingProofPoints.map(point => point.value)).toEqual(["4 in 5", "66%", "49%"]);
-    expect(landingProofPoints[0].source).toBe("College Board / Morning Consult");
-    expect(landingProofPoints[1].source).toContain("Jobs for the Future");
-    expect(landingProofPoints[2].source).toBe("DeBruce Foundation / TeenVoice 2024");
-    expect(landingExperientialEvidence.text).toContain("57%");
-    expect(landingExperientialEvidence.text).toContain("internship or externship");
-    for (const point of landingProofPoints) expect(point.href).toMatch(/^https:\/\//);
-  });
-
-  it("does not make mental-health, deterministic, or fear-based claims", () => {
-    for (const prohibitedClaim of prohibitedLandingClaims) {
-      expect(allLandingCopy).not.toContain(prohibitedClaim);
+    expect(landingAudiences.map(item => item.href)).toEqual([
+      "/auth",
+      "/parents",
+      "/schools",
+    ]);
+    for (const audience of landingAudiences) {
+      expect(audience.story).toMatch(/^Imagine/);
+      expect(audience.points).toHaveLength(3);
     }
-    expect(allLandingCopy).toContain("at your own pace");
+  });
+  it("covers the full six-step journey and natural objections", () => {
+    expect(landingJourneySteps.map(item => item.id)).toEqual([
+      "discover",
+      "explore",
+      "experience",
+      "roadmap",
+      "opportunities",
+      "continue",
+    ]);
+    expect(landingQuestions).toHaveLength(5);
+    const copy = JSON.stringify({
+      landingCopy,
+      landingAudiences,
+      landingQuestions,
+    }).toLowerCase();
+    for (const claim of [
+      "guaranteed success",
+      "ferpa compliant",
+      "revolutionize",
+      "unlock your potential",
+      "improve your grades",
+    ])
+      expect(copy).not.toContain(claim);
+    expect(copy).toContain("at your own pace");
+    expect(copy).toContain("not a measure of your ability");
+  });
+  it("uses actual public career catalog descriptions", () => {
+    for (const example of landingCareerExamples) {
+      const actual = simulationCareerCatalog.find(
+        item => item.id === example.id
+      );
+      expect(actual).toMatchObject(example);
+      expect(Object.keys(example).sort()).toEqual(
+        [
+          "category",
+          "description",
+          "durationLabel",
+          "icon",
+          "id",
+          "name",
+          "simulationIntro",
+        ].sort()
+      );
+    }
+  });
+  it("uses the exact opening scenario without publishing hidden scoring", () => {
+    const opening = softwareV1Graph.nodes[softwareV1Graph.startNodeId];
+    expect(landingSimulationExcerpt).toEqual({
+      title: opening.title,
+      situation: opening.situation,
+      choices: opening.decisions.map(item => item.label),
+    });
+    expect(JSON.stringify(landingSimulationExcerpt)).not.toContain("signals");
   });
 });
