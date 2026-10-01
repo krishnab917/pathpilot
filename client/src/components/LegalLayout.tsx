@@ -20,7 +20,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
 
       <main className="mx-auto max-w-3xl px-5 pb-20 pt-10 sm:px-8">
         <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{title}</h1>
-        <div className="prose prose-slate mt-10 max-w-none dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-a:text-primary">
+        <div className="prose prose-slate mt-10 max-w-none dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-a:text-primary [&>h2]:mt-9 [&>h2]:text-xl [&>h2]:font-semibold [&>h2]:tracking-tight [&>p]:mt-4 [&>p]:leading-7 [&>ul]:mt-4 [&>ul]:list-disc [&>ul]:space-y-2 [&>ul]:pl-6 [&>ul]:leading-7">
           {children}
         </div>
       </main>
