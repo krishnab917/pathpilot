@@ -21,12 +21,12 @@ export const audienceLandingCopy: Record<"schools" | "counselors" | "parents", A
     description: "PathPilot is a career exploration tool built by students, for students. It brings career discovery, simulations, and personalized roadmaps together so students can explore what interests them and decide what to try next.",
     metaDescription: "Give students a structured way to explore careers, try simulations, and plan next steps with PathPilot, alongside your school's existing guidance.",
     cta: "Bring PathPilot to your school",
-    ctaHref: "mailto:support@pathpilotapp.com?subject=PathPilot%20for%20our%20school",
+    ctaHref: "mailto:krishna@k12worx.org?subject=PathPilot%20for%20our%20school",
     followUp: {
       title: "See where PathPilot could fit at your school.",
       description: "Tell us who you work with and how your school approaches career exploration. We can discuss a starting point and your questions about student use, privacy, and setup.",
       cta: "Bring PathPilot to your school",
-      href: "mailto:support@pathpilotapp.com?subject=PathPilot%20for%20our%20school",
+      href: "mailto:krishna@k12worx.org?subject=PathPilot%20for%20our%20school",
     },
     sections: [
       {
@@ -63,7 +63,7 @@ export const audienceLandingCopy: Record<"schools" | "counselors" | "parents", A
       title: "Start with the students you support.",
       description: "Tell us what students tend to ask and where they get stuck. We can walk through the student experience and discuss whether it fits your counseling or classroom work.",
       cta: "Talk to us about PathPilot",
-      href: "mailto:support@pathpilotapp.com?subject=PathPilot%20for%20counseling",
+      href: "mailto:krishna@k12worx.org?subject=PathPilot%20for%20counseling",
     },
     sections: [
       {

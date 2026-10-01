@@ -356,7 +356,7 @@ export default function Home() {
               </Link>
             </Button>
             <a
-              href="mailto:support@pathpilotapp.com?subject=PathPilot%20for%20our%20school"
+              href="mailto:krishna@k12worx.org?subject=PathPilot%20for%20our%20school"
               className="text-sm underline underline-offset-4"
             >
               Bring PathPilot to your school
@@ -389,7 +389,7 @@ export default function Home() {
               </Link>
             ))}
             <a
-              href="mailto:support@pathpilotapp.com"
+              href="mailto:krishna@k12worx.org"
               className="hover:text-primary"
             >
               Contact
