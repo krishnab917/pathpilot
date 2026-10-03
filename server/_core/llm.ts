@@ -1,6 +1,7 @@
 import { ENV } from "./env";
 import { createTimedAsyncCache } from "../ai/timed-async-cache";
 import { ProviderRequestError, requestProviderJson } from "../ai/provider-request";
+import { timeAiStage } from "../ai/request-timing";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -346,14 +347,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const result = await requestProviderJson(resolveChatCompletionsUrl(), {
+  const result = await timeAiStage("provider", () => requestProviderJson(resolveChatCompletionsUrl(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${ENV.llmApiKey}`,
     },
     body: JSON.stringify(payload),
-  }, params.timeoutMs);
+  }, params.timeoutMs));
 
   if (!result || typeof result !== "object" || !("choices" in result) ||
       !Array.isArray(result.choices) || !result.choices[0]?.message ||

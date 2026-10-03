@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getOptionalSupabaseServiceRoleKey, getSupabaseConfig } from "./supabase";
+import { timeAiStage } from "./ai/request-timing";
 
 export type AiRateLimitAction =
   | "mentor"
@@ -118,19 +119,19 @@ export function createAiRateLimiter(store: RateLimitStore = process.env.VITEST ?
       const leaseHash = hmac(`rate-limit-lease:v1:${input.action}:${input.userId}:${input.fingerprint}`);
       let leaseHeld = false;
       try {
-        const lease = await store.acquireLease({ leaseHash, ttlSeconds: 180 });
+        const lease = await timeAiStage("protection_lease", () => store.acquireLease({ leaseHash, ttlSeconds: 180 }));
         if (!lease.acquired) {
           console.info("[PathPilot] duplicate AI request rejected", { action: input.action });
           throw new RateLimitExceededError(lease.retryAfterSeconds);
         }
         leaseHeld = true;
         for (const window of policy) {
-          const result = await store.consume({
+          const result = await timeAiStage(window.name === "burst" ? "protection_burst" : "protection_daily", () => store.consume({
             keyHash: identityHash,
             action: `${input.action}:${window.name}`,
             windowSeconds: window.windowSeconds,
             maxRequests: window.maxRequests,
-          });
+          }));
           if (!result.allowed) {
             console.info("[PathPilot] AI rate limit exceeded", { action: input.action, window: window.name });
             throw new RateLimitExceededError(result.retryAfterSeconds);
@@ -141,7 +142,7 @@ export function createAiRateLimiter(store: RateLimitStore = process.env.VITEST ?
         if (error instanceof RateLimitExceededError || error instanceof RateLimiterUnavailableError) throw error;
         throw error;
       } finally {
-        if (leaseHeld) await store.releaseLease({ leaseHash });
+        if (leaseHeld) await timeAiStage("protection_release", () => store.releaseLease({ leaseHash }));
       }
     },
   };

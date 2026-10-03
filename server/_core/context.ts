@@ -9,11 +9,13 @@ export type TrpcContext = {
   res: CreateExpressContextOptions["res"];
   user: PathPilotUser | null;
   supabase: SupabaseClient | null;
+  requestTiming?: { receivedAt: number; authenticationMs: number; authenticated: boolean };
 };
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
+  const receivedAt = performance.now();
   let user: PathPilotUser | null = null;
   let supabase: SupabaseClient | null = null;
 
@@ -41,5 +43,6 @@ export async function createContext(
     res: opts.res,
     user,
     supabase,
+    requestTiming: { receivedAt, authenticationMs: performance.now() - receivedAt, authenticated: Boolean(user) },
   };
 }

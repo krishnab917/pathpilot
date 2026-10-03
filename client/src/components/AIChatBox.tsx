@@ -3,7 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { MentorMessageContent } from "@/components/MentorMessageContent";
-import { AIOperationStatus } from "@/components/AIOperationStatus";
+import { AiPendingStatus } from "@/components/AiPendingStatus";
 import { Loader2, Send, User, Sparkles } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
@@ -26,7 +26,7 @@ export type AIChatBoxProps = {
    * Callback when user sends a message.
    * Typically you'll call a tRPC mutation here to invoke the LLM.
    */
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string) => void | Promise<unknown>;
 
   /**
    * Whether the AI is currently generating a response
@@ -114,7 +114,7 @@ export type AIChatBoxProps = {
 export function AIChatBox({
   messages,
   onSendMessage,
-  isLoading = false,
+  isLoading: externalLoading = false,
   placeholder = "Type your message...",
   className,
   height = "600px",
@@ -122,6 +122,10 @@ export function AIChatBox({
   suggestedPrompts,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState("");
+  const sendLock = useRef(false);
+  const isLoading = externalLoading || sending;
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputAreaRef = useRef<HTMLFormElement>(null);
@@ -129,6 +133,7 @@ export function AIChatBox({
 
   // Filter out system messages
   const displayMessages = messages.filter((msg) => msg.role !== "system");
+  if (isLoading && pendingQuestion && !(displayMessages.at(-1)?.role === "user" && displayMessages.at(-1)?.content === pendingQuestion)) displayMessages.push({ role: "user", content: pendingQuestion });
 
   // Calculate min-height for last assistant message to push user message to top
   const [minHeightForLastMessage, setMinHeightForLastMessage] = useState(0);
@@ -166,19 +171,28 @@ export function AIChatBox({
     }
   };
 
+  const sendMessage = async (content: string) => {
+    if (!content || isLoading || sendLock.current) return;
+    sendLock.current = true;
+    setInput(content);
+    setPendingQuestion(content);
+    setSending(true);
+    scrollToBottom();
+    try {
+      await onSendMessage(content);
+      setInput(current => current.trim() === content ? "" : current);
+    } catch {
+      // The owning mutation renders a sanitized error; retain the draft for retry.
+    } finally {
+      sendLock.current = false;
+      setSending(false);
+      textareaRef.current?.focus();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedInput = input.trim();
-    if (!trimmedInput || isLoading) return;
-
-    onSendMessage(trimmedInput);
-    setInput("");
-
-    // Scroll immediately after sending
-    scrollToBottom();
-
-    // Keep focus on input
-    textareaRef.current?.focus();
+    void sendMessage(input.trim());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -212,7 +226,7 @@ export function AIChatBox({
                   {suggestedPrompts.map((prompt, index) => (
                     <button
                       key={index}
-                      onClick={() => onSendMessage(prompt)}
+                      onClick={() => void sendMessage(prompt)}
                       disabled={isLoading}
                       className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -291,7 +305,7 @@ export function AIChatBox({
                   <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
                     <Sparkles className="size-4 text-primary" />
                   </div>
-                  <AIOperationStatus title="AI response in progress" detail="Your question was sent to the mentor. This conversation will update when a response is ready." />
+                  <AiPendingStatus operation="mentor" />
                 </div>
               )}
             </div>
@@ -316,6 +330,7 @@ export function AIChatBox({
         />
         <Button
           type="submit"
+          aria-label="Send message"
           size="icon"
           disabled={!input.trim() || isLoading}
           className="shrink-0 h-[38px] w-[38px]"

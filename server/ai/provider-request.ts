@@ -1,3 +1,5 @@
+import { timeAiStage } from "./request-timing";
+
 export class ProviderRequestError extends Error {
   constructor(
     public readonly category: "timeout" | "http" | "network" | "invalid_response",
@@ -43,17 +45,17 @@ export async function requestProviderJson(
         if (controller.signal.aborted) throw new ProviderRequestError("timeout");
         let response: Response;
         try {
-          response = await fetch(url, { ...init, signal: controller.signal });
+          response = await timeAiStage("provider_headers", () => fetch(url, { ...init, signal: controller.signal }));
         } catch {
           if (controller.signal.aborted) throw new ProviderRequestError("timeout");
           if (attempt === 4) throw new ProviderRequestError("network");
           retryCount++;
-          await wait(backoffDelay(attempt));
+          await timeAiStage("provider_retry", () => wait(backoffDelay(attempt)));
           continue;
         }
         console.info("[AI provider] response", { status: response.status, retryCount, elapsedMs: Date.now() - started });
         if (response.ok) {
-          try { return await response.json(); }
+          try { return await timeAiStage("provider_body", () => response.json()); }
           catch { throw new ProviderRequestError(controller.signal.aborted ? "timeout" : "invalid_response"); }
         }
         // Never read/log an error body: it may echo private prompts or credentials.
@@ -67,7 +69,7 @@ export async function requestProviderJson(
         // Do not ignore Retry-After or retry sooner than the provider permits.
         if (delay >= budget - (Date.now() - started)) throw new ProviderRequestError("http", response.status);
         retryCount++;
-        await wait(delay);
+        await timeAiStage("provider_retry", () => wait(delay));
       }
       throw new ProviderRequestError("network");
     })()]);

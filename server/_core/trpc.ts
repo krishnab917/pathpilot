@@ -3,6 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { runWithSupabaseClient } from "../supabase";
+import { traceAiRequest } from "../ai/request-timing";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -23,7 +24,11 @@ const requireUser = t.middleware(async opts => {
   return runWithSupabaseClient(supabase, () => next({ ctx: { ...ctx, user, supabase } }));
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+const aiTiming = t.middleware(async ({ ctx, path, next }) => {
+  const operation = path === "pathpilot.mentor.send" ? "mentor" : path === "pathpilot.roadmap.generate" ? "roadmap" : null;
+  return operation ? traceAiRequest(operation, ctx.requestTiming, ctx.res, next) : next();
+});
+export const protectedProcedure = t.procedure.use(aiTiming).use(requireUser);
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

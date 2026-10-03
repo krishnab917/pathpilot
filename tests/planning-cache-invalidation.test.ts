@@ -69,7 +69,10 @@ describe("targeted planning cache invalidation", () => {
 
   it("refreshes behavioral summaries only when an adaptive simulation completes and avoids a redundant dashboard refetch after a Mentor message", () => {
     expect(simulationSource).toContain('if (response.simulation.status === "completed") utils.pathpilot.simulations.adaptive.behaviorSummary.invalidate()');
-    expect(utilitySections).toContain("utils.pathpilot.mentor.get.invalidate(); } });");
-    expect(utilitySections).not.toContain("utils.pathpilot.mentor.get.invalidate(); utils.pathpilot.dashboard.get.invalidate();");
+    const mentorSection = utilitySections.slice(utilitySections.indexOf("export function CompactMentor"));
+    expect(mentorSection).toContain("utils.pathpilot.mentor.get.invalidate()");
+    expect(mentorSection).toContain("utils.pathpilot.mentor.get.setData(");
+    expect(mentorSection).not.toContain("utils.pathpilot.dashboard.get.invalidate()");
+    expect(mentorSection).toContain("if (result.updatedGoal) void invalidatePlanningSummaries(utils)");
   });
 });
