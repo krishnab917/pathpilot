@@ -1,19 +1,12 @@
 import { useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Compass,
-  FlaskConical,
-  Target,
-  Trophy,
-} from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { LandingDiscoveryPreview } from "@/components/LandingDiscoveryPreview";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CareerSimulationSelector } from "@/components/CareerSimulationSelector";
-import {
-  CurrentPlanFocus,
-  DashboardJourneyPanel,
-} from "@/components/DashboardJourneyPanel";
+import { LandingOpportunitiesPreview } from "@/components/LandingOpportunitiesPreview";
+import { DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
 import { buildDashboardJourney } from "@/lib/dashboard-journey";
 import { landingJourneySteps } from "@/lib/landing-copy";
 import {
@@ -26,25 +19,9 @@ const previewJourney = buildDashboardJourney({
   hasResumableSimulation: false,
   hasRoadmap: true,
 });
-const opportunityCategories = [
-  {
-    title: "Internships",
-    description: "Explore work and learning experiences.",
-    icon: Compass,
-  },
-  {
-    title: "Competitions",
-    description: "Find a challenge to put your interests into practice.",
-    icon: Trophy,
-  },
-  {
-    title: "Research",
-    description: "Look for opportunities to investigate a question.",
-    icon: FlaskConical,
-  },
-];
 
 export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
+  const reduceMotion = useReducedMotion();
   const [step, setStep] = useState("discover");
   const [career, setCareer] = useState(landingCareerExamples[0].id);
   const currentIndex = landingJourneySteps.findIndex(item => item.id === step);
@@ -57,17 +34,17 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
       value={step}
       onValueChange={setStep}
       activationMode="manual"
-      className="mt-9 gap-0"
+      className="landing-walkthrough mt-9 gap-0"
     >
       <TabsList
         aria-label="PathPilot product walkthrough"
-        className="grid h-auto w-full grid-cols-2 gap-0 rounded-none border border-slate-200 bg-white p-0 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid h-auto w-full grid-cols-2 gap-0 rounded-none border border-border bg-card p-0 sm:grid-cols-3 lg:grid-cols-6"
       >
         {landingJourneySteps.map((item, index) => (
           <TabsTrigger
             key={item.id}
             value={item.id}
-            className="h-full justify-start whitespace-normal rounded-none border-0 border-b-2 border-transparent px-3 py-4 text-left text-xs data-[state=active]:border-primary data-[state=active]:bg-slate-50 data-[state=active]:text-primary data-[state=active]:shadow-none"
+            className="h-full justify-start whitespace-normal rounded-none border-0 border-b-2 border-transparent px-3 py-4 text-left text-xs data-[state=active]:border-primary data-[state=active]:bg-secondary data-[state=active]:text-primary data-[state=active]:shadow-none"
           >
             <span className="data-value shrink-0 text-[10px]">
               0{index + 1}
@@ -80,10 +57,15 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
         <TabsContent
           key={item.id}
           value={item.id}
-          className="m-0 border-x border-b border-slate-200 bg-white"
+          className="m-0 border-x border-b border-border bg-card"
         >
-          <div className="grid lg:min-h-[510px] lg:grid-cols-[0.7fr_1.3fr]">
-            <div className="border-b border-slate-200 p-5 sm:p-8 lg:border-b-0 lg:border-r">
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.24 }}
+            className="grid lg:min-h-[510px] lg:grid-cols-[0.7fr_1.3fr]"
+          >
+            <div className="border-b border-border p-5 sm:p-8 lg:border-b-0 lg:border-r">
               <p className="eyebrow">
                 Step 0{index + 1} · {item.label}
               </p>
@@ -93,69 +75,19 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
               <p className="mt-4 text-sm leading-7 text-muted-foreground">
                 {item.description}
               </p>
-              <p className="mt-6 border-t border-slate-200 pt-4 text-xs leading-6">
+              <p className="mt-6 border-t border-border pt-4 text-xs leading-6">
                 <span className="font-semibold">Then: </span>
                 {item.next}
               </p>
             </div>
-            <div className="min-w-0 bg-slate-50/50 p-5 sm:p-7">
+            <div className="min-w-0 bg-secondary/50 p-5 sm:p-7">
               {item.id === "discover" && (
-                <figure>
-                  <figcaption className="text-xs leading-5 text-muted-foreground">
-                    Topics from PathPilot's student onboarding
-                  </figcaption>
-                  <div className="mt-6 flex items-center gap-3">
-                    <Compass className="size-5 text-primary" />
-                    <p className="text-lg font-semibold">What pulls you in?</p>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Choose the subjects and fields that make you curious. More
-                    than one is welcome.
-                  </p>
-                  <ul
-                    aria-label="Example interests"
-                    className="mt-5 flex flex-wrap gap-2"
-                  >
-                    {[
-                      "Technology",
-                      "Science",
-                      "Business",
-                      "Medicine",
-                      "Engineering",
-                      "Arts",
-                      "Law",
-                      "Environment",
-                    ].map(topic => (
-                      <li
-                        key={topic}
-                        className="status-tag px-3 py-2 normal-case text-xs"
-                      >
-                        {topic}
-                      </li>
-                    ))}
-                  </ul>
-                  <dl className="mt-6 divide-y divide-slate-200 border-y border-slate-200 text-sm">
-                    {[
-                      ["Your context", "Grade, country, and education system"],
-                      ["Your strengths", "Skills you have started building"],
-                      ["Your activities", "Where you learn and contribute"],
-                      [
-                        "Your direction",
-                        "The kind of work that matters to you",
-                      ],
-                    ].map(([title, description]) => (
-                      <div
-                        key={title}
-                        className="grid gap-1 py-3 sm:grid-cols-[1fr_1.6fr]"
-                      >
-                        <dt className="font-medium">{title}</dt>
-                        <dd className="text-xs leading-5 text-muted-foreground">
-                          {description}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </figure>
+                <LandingDiscoveryPreview
+                  onExplore={id => {
+                    setCareer(id);
+                    setStep("explore");
+                  }}
+                />
               )}
               {item.id === "explore" && (
                 <div>
@@ -193,7 +125,7 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
                       (choice, choiceIndex) => (
                         <li
                           key={choice}
-                          className="flex gap-3 border-t border-slate-200 pt-3 text-xs leading-6"
+                          className="flex gap-3 border-t border-border pt-3 text-xs leading-6"
                         >
                           <span className="data-value text-primary">
                             0{choiceIndex + 1}
@@ -212,16 +144,16 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
               {item.id === "roadmap" && (
                 <div>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    Actual roadmap-focus component · Illustrative project step
+                    Illustrative roadmap step · See the full showcase below
                   </p>
-                  <CurrentPlanFocus
-                    title="Build a small project you can explain"
-                    description="Choose a simple problem, make a first version, and record what you learned."
-                    rationale="This example connects a technology interest to a manageable project. Your own roadmap uses your chosen career and saved context."
-                    cta="Build your own path"
-                    onClick={onStart}
-                  />
-                  <ol className="mt-6 space-y-4 border-l border-slate-300 pl-5">
+                  <h4 className="mt-5 text-lg font-semibold">
+                    Build a study planner
+                  </h4>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    Choose one useful task, make a first version, and record
+                    what you learned.
+                  </p>
+                  <ol className="mt-6 space-y-4 border-l border-border pl-5">
                     {[
                       ["Skill", "Learn something you can apply."],
                       ["Project", "Use it to make or investigate something."],
@@ -243,33 +175,9 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
                     Inside Opportunities · Browse by category, country, and
                     grade
                   </figcaption>
-                  <ul className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
-                    {opportunityCategories.map(
-                      ({ title, description, icon: Icon }) => (
-                        <li key={title} className="flex items-start gap-4 py-5">
-                          <Icon
-                            aria-hidden="true"
-                            className="mt-1 size-5 shrink-0 text-primary"
-                          />
-                          <div>
-                            <p className="text-sm font-semibold">{title}</p>
-                            <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                              {description}
-                            </p>
-                          </div>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                  <p className="mt-5 flex items-center gap-2 text-sm font-medium">
-                    <Target className="size-4 text-primary" />
-                    Save an opportunity. Make it a goal.
-                  </p>
-                  <p className="mt-2 text-xs leading-6 text-muted-foreground">
-                    Listings include source and eligibility details. Check
-                    current deadlines and availability with the organizer before
-                    acting.
-                  </p>
+                  <div className="mt-5">
+                    <LandingOpportunitiesPreview />
+                  </div>
                 </figure>
               )}
               {item.id === "continue" && (
@@ -289,10 +197,10 @@ export function LandingWalkthrough({ onStart }: { onStart: () => void }) {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         </TabsContent>
       ))}
-      <div className="flex items-center justify-between gap-3 border-x border-b border-slate-200 bg-white px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-x border-b border-border bg-card px-4 py-3">
         <Button
           variant="ghost"
           size="sm"

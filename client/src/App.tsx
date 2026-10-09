@@ -21,11 +21,13 @@ const SchoolsLanding = lazy(() =>
   import("./pages/AudienceLanding").then(module => ({ default: module.SchoolsLanding }))
 );
 const CounselorsLanding = lazy(() =>
-  import("./pages/AudienceLanding").then(module => ({ default: module.CounselorsLanding }))
+  import("./pages/AudienceExperience").then(module => ({ default: module.CounselorsExperience }))
 );
 const ParentsLanding = lazy(() =>
-  import("./pages/AudienceLanding").then(module => ({ default: module.ParentsLanding }))
+  import("./pages/AudienceExperience").then(module => ({ default: module.ParentsExperience }))
 );
+
+const StudentsLanding = lazy(() => import("./pages/AudienceExperience").then(module => ({ default: module.StudentsExperience })));
 
 function RouteLoadingFrame() {
   return <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-background dark:text-foreground"><header className="flex h-14 items-center border-b border-slate-200 bg-card px-5 dark:border-slate-700"><span className="text-sm font-semibold tracking-[-0.03em]">PathPilot</span></header><main className="mx-auto max-w-[1360px] px-5 py-8"><div className="max-w-xl"><p className="eyebrow">PathPilot</p><div className="mt-3 h-8 w-64 bg-slate-200 dark:bg-slate-800" /><div className="mt-3 h-4 w-full max-w-lg bg-slate-100 dark:bg-slate-900" /></div></main></div>;
@@ -36,6 +38,7 @@ function Router() {
     <Suspense fallback={<RouteLoadingFrame />}>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/students" component={StudentsLanding} />
         <Route path="/schools" component={SchoolsLanding} />
         <Route path="/counselors" component={CounselorsLanding} />
         <Route path="/parents" component={ParentsLanding} />

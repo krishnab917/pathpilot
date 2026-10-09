@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ProductPrimitives";
 import { AIOperationLifecycle } from "@/components/AIOperationStatus";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
   };
 
   return (
-    <section className="surface-panel p-5 sm:p-6" aria-labelledby="profile-analysis-title">
+    <><PageHeader eyebrow="Career discovery" title="Find a direction worth exploring" description="Review what fits, try the work, and decide what you want to explore next." /><section className="surface-panel p-5 sm:p-6" aria-labelledby="profile-analysis-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -110,7 +111,7 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
       {hasSavedAnalysis ? (
         <>
           {recommendedDirection ? (
-            <article className="mt-5 border border-primary/35 bg-primary/5 p-4 sm:p-5" aria-labelledby="recommended-direction-title">
+            <article className="surface-panel pp-guidance mt-5 bg-primary/5 p-4 sm:p-5" aria-labelledby="recommended-direction-title">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div className="min-w-0">
                   <p className="eyebrow">Recommended direction</p>
@@ -126,7 +127,7 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
           <div className="mt-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold">Explore all five directions</p><p className="text-xs text-muted-foreground">Compare the evidence before choosing your next action.</p></div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             {matches.map((match, index) => (
-              <article key={`${match.career.name}-${index}`} className="border border-slate-200 bg-card p-4 dark:border-slate-700">
+              <article key={`${match.career.name}-${index}`} className="surface-panel p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Direction {index + 1}</p>
@@ -147,6 +148,6 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
           Run an analysis when you are ready. You can refresh it later after adding new interests, skills, or activities.
         </div>
       ) : null}
-    </section>
+    </section></>
   );
 }

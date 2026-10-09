@@ -1,0 +1,308 @@
+/* Central color contract. C is the selected default; A/B remain reproducible review alternatives.
+ * data-palette exists for the local review harness, not a new user preference. */
+:root {
+  --primary: oklch(0.47 0.13 255);
+  --primary-foreground: oklch(0.99 0.01 255);
+  --chart-1: oklch(0.66 0.12 255);
+  --chart-2: oklch(0.57 0.13 255);
+  --chart-3: oklch(0.47 0.13 255);
+  --chart-4: oklch(0.39 0.11 255);
+  --chart-5: oklch(0.31 0.09 255);
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.2 0.012 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.012 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.012 250);
+  --secondary: oklch(0.97 0.004 250);
+  --secondary-foreground: oklch(0.3 0.014 250);
+  --muted: oklch(0.965 0.004 250);
+  --muted-foreground: oklch(0.5 0.014 250);
+  --accent: oklch(0.955 0.006 250);
+  --accent-foreground: oklch(0.2 0.012 250);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.006 250);
+  --input: oklch(0.9 0.006 250);
+  --ring: oklch(0.47 0.13 255);
+}
+
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [aria-pressed="true"] {
+  color: var(--selection-foreground);
+  background-color: var(--selection);
+  box-shadow: inset 0 -2px var(--selection-foreground);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [aria-pressed="true"]
+  > .bg-secondary {
+  background-color: var(--selection);
+}
+
+.dark {
+  --background: oklch(0.145 0.004 250);
+  --foreground: oklch(0.94 0.004 250);
+  --card: oklch(0.18 0.004 250);
+  --card-foreground: oklch(0.94 0.004 250);
+  --popover: oklch(0.18 0.004 250);
+  --popover-foreground: oklch(0.94 0.004 250);
+  --secondary: oklch(0.225 0.004 250);
+  --secondary-foreground: oklch(0.9 0.004 250);
+  --muted: oklch(0.235 0.004 250);
+  --muted-foreground: oklch(0.7 0.006 250);
+  --accent: oklch(0.26 0.006 250);
+  --accent-foreground: oklch(0.95 0.004 250);
+  --border: oklch(0.31 0.006 250);
+  --input: oklch(0.31 0.006 250);
+  --primary: oklch(0.72 0.12 255);
+  --primary-foreground: oklch(0.15 0.004 250);
+  --ring: oklch(0.72 0.12 255);
+}
+
+:root {
+  --selection: var(--accent);
+  --selection-foreground: var(--primary);
+  --progress: var(--primary);
+  --success: #047857;
+  --success-subtle: #ecfdf5;
+  --warning: #92400e;
+  --warning-subtle: #fffbeb;
+}
+.dark {
+  --success: #6ee7b7;
+  --success-subtle: #022c22;
+  --warning: #fcd34d;
+  --warning-subtle: #451a03;
+}
+
+:root[data-palette="B"] {
+  --background: #f8f7f4;
+  --foreground: #202833;
+  --card: #ffffff;
+  --card-foreground: #202833;
+  --popover: #ffffff;
+  --popover-foreground: #202833;
+  --primary: #315578;
+  --primary-foreground: #ffffff;
+  --secondary: #eeede9;
+  --secondary-foreground: #303a46;
+  --muted: #eeede9;
+  --muted-foreground: #59616a;
+  --accent: #e8eef4;
+  --accent-foreground: #294b6c;
+  --border: #d8d9d8;
+  --input: #818b93;
+  --ring: #315578;
+  --destructive: #a3363f;
+  --destructive-foreground: #ffffff;
+  --selection: #e3ebf4;
+  --selection-foreground: #294b6c;
+  --progress: #36755c;
+  --success: #2e694f;
+  --success-subtle: #e6f0e9;
+  --warning: #805916;
+  --warning-subtle: #faeed6;
+  --color-slate-50: #f8f7f4;
+  --color-slate-100: #f0efeb;
+  --color-slate-200: #dee1e2;
+  --color-slate-300: #c6cdd1;
+  --color-slate-400: #99a5ad;
+  --color-slate-500: #63727f;
+  --color-slate-600: #4c5d6b;
+  --color-slate-700: #354654;
+  --color-slate-800: #24333f;
+  --color-slate-900: #192731;
+  --color-slate-950: #101c25;
+}
+:root[data-palette="B"].dark {
+  --background: #171d25;
+  --foreground: #ecefeb;
+  --card: #202934;
+  --card-foreground: #ecefeb;
+  --popover: #293340;
+  --popover-foreground: #ecefeb;
+  --primary: #a5bed8;
+  --primary-foreground: #15283b;
+  --secondary: #2b3644;
+  --secondary-foreground: #e1e8ed;
+  --muted: #293340;
+  --muted-foreground: #b1bdc8;
+  --accent: #2c4157;
+  --accent-foreground: #bdd3e8;
+  --border: #43515f;
+  --input: #7b8c9d;
+  --ring: #a5bed8;
+  --destructive: #f2a2a9;
+  --destructive-foreground: #35151a;
+  --selection: #293e55;
+  --selection-foreground: #bdd3e8;
+  --progress: #88c3a4;
+  --success: #9bd3b4;
+  --success-subtle: #233e33;
+  --warning: #e6c080;
+  --warning-subtle: #493c27;
+}
+
+:root:not([data-palette]),
+:root[data-palette="C"] {
+  --background: #f7f5f0;
+  --foreground: #202b32;
+  --card: #fdfcf9;
+  --card-foreground: #202b32;
+  --popover: #fffdf9;
+  --popover-foreground: #202b32;
+  --primary: #284b63;
+  --primary-foreground: #ffffff;
+  --secondary: #edede6;
+  --secondary-foreground: #35413f;
+  --muted: #edede6;
+  --muted-foreground: #596360;
+  --accent: #e4eee9;
+  --accent-foreground: #285f58;
+  --border: #d4d9d2;
+  --input: #788980;
+  --ring: #285f58;
+  --destructive: #a3373e;
+  --destructive-foreground: #ffffff;
+  --selection: #e1ede8;
+  --selection-foreground: #285f58;
+  --progress: #337367;
+  --success: #276044;
+  --success-subtle: #e5efe6;
+  --warning: #795515;
+  --warning-subtle: #f8eed9;
+  --color-slate-50: #f7f5f0;
+  --color-slate-100: #eeece6;
+  --color-slate-200: #dddcd4;
+  --color-slate-300: #c9cbc6;
+  --color-slate-400: #a2aaa7;
+  --color-slate-500: #6b7979;
+  --color-slate-600: #516268;
+  --color-slate-700: #3b4e58;
+  --color-slate-800: #293a45;
+  --color-slate-900: #1e2b35;
+  --color-slate-950: #14212a;
+}
+:root:not([data-palette]).dark,
+:root[data-palette="C"].dark {
+  --background: #151c22;
+  --foreground: #ebefe9;
+  --card: #1d272e;
+  --card-foreground: #ebefe9;
+  --popover: #26323a;
+  --popover-foreground: #ebefe9;
+  --primary: #adc8db;
+  --primary-foreground: #162631;
+  --secondary: #29363c;
+  --secondary-foreground: #e1e9e4;
+  --muted: #29363c;
+  --muted-foreground: #afbbb9;
+  --accent: #28463f;
+  --accent-foreground: #a5d9c9;
+  --border: #41544f;
+  --input: #7b9289;
+  --ring: #a5d9c9;
+  --destructive: #f0a0a5;
+  --destructive-foreground: #36171b;
+  --selection: #28463f;
+  --selection-foreground: #a5d9c9;
+  --progress: #82c5ac;
+  --success: #9bccab;
+  --success-subtle: #263d32;
+  --warning: #e3c182;
+  --warning-subtle: #473d2c;
+}
+
+/* Shared semantic roles. Explicit A keeps the original control unchanged. */
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"]) {
+  --chart-1: var(--primary);
+  --chart-2: var(--progress);
+  --chart-3: var(--selection-foreground);
+  --chart-4: var(--muted-foreground);
+  --chart-5: var(--warning);
+  --color-blue-600: var(--primary);
+  --color-blue-700: var(--primary);
+  --color-emerald-50: var(--success-subtle);
+  --color-emerald-300: var(--success);
+  --color-emerald-600: var(--success);
+  --color-emerald-700: var(--success);
+  --color-emerald-950: var(--success-subtle);
+  --color-red-100: color-mix(in srgb, var(--destructive) 10%, var(--card));
+  --color-red-500: var(--destructive);
+  --color-amber-50: var(--warning-subtle);
+  --color-amber-100: var(--warning);
+  --color-amber-300: var(--warning);
+  --color-amber-400: var(--warning);
+  --color-amber-500: var(--warning);
+  --color-amber-600: var(--warning);
+  --color-amber-700: var(--warning);
+  --color-amber-900: var(--warning-subtle);
+  --color-amber-950: var(--warning-subtle);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  .pp-nav-item[aria-current="page"] {
+  color: var(--selection-foreground);
+  background: var(--selection);
+  border-color: var(--selection-foreground);
+  box-shadow: inset 3px 0 var(--selection-foreground);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [data-slot="tabs-trigger"][data-state="active"] {
+  background: var(--selection);
+  color: var(--selection-foreground);
+  box-shadow: inset 0 -2px var(--selection-foreground);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [data-slot="progress"] {
+  background: color-mix(in srgb, var(--progress) 18%, var(--card));
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [data-slot="progress-indicator"] {
+  background: var(--progress);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  [data-state="complete"]
+  > .pp-path-marker {
+  color: var(--success);
+  background: var(--success-subtle);
+  border-color: var(--success);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  .pp-feedback[data-tone="error"]
+  .pp-feedback-icon {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 10%, var(--card));
+}
+
+/* Compatibility for older utilities: a color's role matters more than its
+ * numeric shade. Keep the A review unchanged while migrating those surfaces. */
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  :is(.text-amber-950, .dark\:text-amber-100) {
+  color: var(--warning);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  .hover\:bg-amber-100:hover {
+  background-color: var(--warning-subtle);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  :is([data-slot="button"], [data-slot="badge"]).bg-destructive {
+  color: var(--destructive-foreground);
+  background-color: var(--destructive);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  :is([data-slot="button"], [data-slot="badge"]).bg-destructive:hover {
+  background-color: color-mix(in srgb, var(--destructive) 90%, var(--card));
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  .bg-blue-600.text-white {
+  color: var(--primary-foreground);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  :is(.bg-white, .bg-white\/80) {
+  background-color: var(--card);
+}
+:root:is(:not([data-palette]), [data-palette="B"], [data-palette="C"])
+  :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  border-color: var(--input);
+}

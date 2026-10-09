@@ -32,11 +32,11 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
   }, [content]);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#fcfcfd]">
+    <main className="min-h-screen overflow-hidden bg-background">
       <header className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Brand />
         <div className="flex items-center gap-3">
-          <Link href="/" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex">For students</Link>
+          <Link href="/students" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex">For students</Link>
           <Button variant="ghost" className="rounded-xl" asChild><Link href="/auth">Sign in</Link></Button>
         </div>
       </header>
@@ -50,7 +50,7 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
         </div>
       </section>
 
-      <section id="how-it-works" tabIndex={-1} className="border-y border-border/70 bg-white py-16 sm:py-20">
+      <section id="how-it-works" tabIndex={-1} className="border-y border-border/70 bg-card py-16 sm:py-20">
         <div className="mx-auto max-w-7xl space-y-12 px-5 sm:px-8">
           {content.sections.map((section, index) => (
             <article key={section.eyebrow} className={index > 0 ? "border-t border-slate-200 pt-10" : ""}>
@@ -60,7 +60,7 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
                 <p className="mt-4 text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">{section.description}</p>
               </div>
               {section.points && (
-                <dl className="mt-8 grid border border-slate-200 bg-white sm:grid-cols-2">
+                <dl className="mt-8 grid border border-slate-200 bg-card sm:grid-cols-2">
                   {section.points.map((point, pointIndex) => (
                     <div key={point.title} className={`border-slate-200 p-5 sm:p-6 ${pointIndex > 0 ? "border-t" : ""} ${pointIndex === 1 ? "sm:border-t-0" : ""} ${pointIndex % 2 === 1 ? "sm:border-l" : ""}`}>
                       <dt className="text-sm font-semibold">{point.title}</dt>
@@ -75,7 +75,7 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
-        <div className="border border-slate-200 bg-white px-6 py-8 sm:px-10 sm:py-10">
+        <div className="border border-slate-200 bg-card px-6 py-8 sm:px-10 sm:py-10">
           <div className="max-w-2xl">
             <p className="eyebrow">A next step, when you are ready</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-[-0.06em]">{content.followUp.title}</h2>

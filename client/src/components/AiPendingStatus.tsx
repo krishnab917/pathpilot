@@ -18,7 +18,7 @@ export function AiPendingStatus({ operation }: { operation: "mentor" | "roadmap"
       : operation === "mentor"
         ? "Using your saved context to prepare a useful answer."
         : "Your profile, career direction, and existing plans inform the milestones. The result is checked and saved before it appears.";
-  return <div role="status" aria-live="polite" className="my-3 flex items-start gap-3 border border-slate-200 bg-slate-50 px-3 py-3 text-xs dark:border-slate-700 dark:bg-slate-800">
+  return <div role="status" aria-live="polite" className="pp-feedback pp-guidance my-3 text-xs">
     <Loader2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary motion-safe:animate-spin" />
     <div><p className="font-semibold text-foreground">{operation === "mentor" ? "Thinking through your question…" : "Building your roadmap…"}</p><p className="mt-1 max-w-xl leading-5 text-muted-foreground">{detail}</p></div>
   </div>;

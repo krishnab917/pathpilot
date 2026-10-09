@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { MentorMessageContent } from "@/components/MentorMessageContent";
 import { AiPendingStatus } from "@/components/AiPendingStatus";
-import { Loader2, Send, User, Sparkles } from "lucide-react";
+import { Loader2, Send, User, MessageCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 /**
@@ -118,7 +118,7 @@ export function AIChatBox({
   placeholder = "Type your message...",
   className,
   height = "600px",
-  emptyStateMessage = "Start a conversation with AI",
+  emptyStateMessage = "What would help you move forward?",
   suggestedPrompts,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");
@@ -196,7 +196,7 @@ export function AIChatBox({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -206,7 +206,7 @@ export function AIChatBox({
     <div
       ref={containerRef}
       className={cn(
-        "flex flex-col bg-card text-card-foreground rounded-lg border shadow-sm",
+        "pp-mentor flex flex-col bg-card text-card-foreground rounded-lg border shadow-sm",
         className
       )}
       style={{ height }}
@@ -217,7 +217,7 @@ export function AIChatBox({
           <div className="flex h-full flex-col p-4">
             <div className="flex flex-1 flex-col items-center justify-center gap-6 text-muted-foreground">
               <div className="flex flex-col items-center gap-3">
-                <Sparkles className="size-12 opacity-20" />
+                <MessageCircle className="size-12 opacity-20" />
                 <p className="text-sm">{emptyStateMessage}</p>
               </div>
 
@@ -263,13 +263,13 @@ export function AIChatBox({
                   >
                     {message.role === "assistant" && (
                       <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Sparkles className="size-4 text-primary" />
+                        <MessageCircle className="size-4 text-primary" />
                       </div>
                     )}
 
                     <div
                       className={cn(
-                        "max-w-[80%] rounded-lg px-4 py-2.5",
+                        "pp-mentor-message max-w-[90%] sm:max-w-[85%] rounded-lg px-4 py-2.5",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-foreground"
@@ -303,7 +303,7 @@ export function AIChatBox({
                   }
                 >
                   <div className="size-8 shrink-0 mt-1 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="size-4 text-primary" />
+                    <MessageCircle className="size-4 text-primary" />
                   </div>
                   <AiPendingStatus operation="mentor" />
                 </div>
@@ -321,6 +321,7 @@ export function AIChatBox({
       >
         <Textarea
           ref={textareaRef}
+          aria-label="Message your career mentor"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

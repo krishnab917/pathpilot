@@ -1,0 +1,392 @@
+/* PathPilot foundation. Keep colors semantic so public and workspace UI share themes. */
+:root {
+  --radius: 0.625rem;
+  --pp-space-unit: 0.25rem;
+  --pp-control-height: 2.5rem;
+  --pp-control-compact: 2.125rem;
+  --pp-page-width: 80rem;
+  --pp-sidebar-width: 15rem;
+  --pp-page-title: clamp(1.75rem, 2.5vw, 2.25rem);
+  --pp-panel-radius: 0.75rem;
+  --pp-shadow-panel: 0 1px 2px rgb(15 23 42 / 0.035);
+  --pp-shadow-overlay: 0 16px 48px rgb(15 23 42 / 0.14);
+  --pp-motion-fast: 140ms;
+  --pp-motion-content: 220ms;
+  --pp-motion-page: 320ms;
+  --pp-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  :where(
+    button,
+    a,
+    input,
+    textarea,
+    select,
+    summary,
+    [tabindex]
+  ):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+  :where(button, a, input, textarea, select, summary) {
+    transition:
+      color var(--pp-motion-fast) var(--pp-ease),
+      background-color var(--pp-motion-fast) var(--pp-ease),
+      border-color var(--pp-motion-fast) var(--pp-ease),
+      box-shadow var(--pp-motion-fast) var(--pp-ease);
+  }
+  :where(button:disabled, [aria-disabled="true"]) {
+    cursor: not-allowed;
+  }
+  :where(select, textarea) {
+    border-radius: var(--radius);
+  }
+  :where(input, textarea, select) {
+    accent-color: var(--primary);
+  }
+}
+
+@layer components {
+  .pp-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .pp-page-header h1 {
+    font-size: var(--pp-page-title);
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -0.045em;
+    margin-top: 0.5rem;
+  }
+  .pp-page-header p:not(.eyebrow) {
+    max-width: 42rem;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--muted-foreground);
+  }
+  .pp-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .pp-feedback {
+    display: flex;
+    align-items: start;
+    gap: 0.875rem;
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--pp-panel-radius);
+    background: var(--card);
+  }
+  .pp-feedback[data-tone="error"] {
+    border-inline-start: 3px solid var(--destructive);
+  }
+  .pp-feedback[data-tone="loading"] {
+    background: var(--secondary);
+  }
+  .pp-feedback-icon {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    border-radius: var(--radius);
+    color: var(--primary);
+    background: var(--accent);
+  }
+  .pp-progress {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 7rem;
+  }
+  .pp-progress-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .pp-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    width: 100%;
+    border-radius: var(--radius);
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .pp-nav-item:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+  .pp-nav-item[aria-current="page"] {
+    color: var(--primary);
+    background: color-mix(in oklch, var(--primary) 8%, var(--card));
+    border-color: color-mix(in oklch, var(--primary) 18%, var(--border));
+    box-shadow: inset 3px 0 var(--primary);
+  }
+  .pp-workspace-main {
+    min-height: 100vh;
+  }
+  .pp-workspace-content {
+    max-width: var(--pp-page-width);
+    margin-inline: auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+  .pp-workspace-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 3.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+  .pp-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pp-timeline-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-bottom: 1.75rem;
+  }
+  .pp-timeline-item:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 2.25rem;
+    bottom: 0;
+    left: 1.0625rem;
+    width: 2px;
+    background: var(--border);
+  }
+  .pp-path-marker {
+    display: grid;
+    place-items: center;
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-state="current"] > .pp-path-marker {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 10%, transparent);
+  }
+  [data-state="complete"] > .pp-path-marker {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .pp-action-row {
+    padding: 1.25rem;
+    transition: background-color var(--pp-motion-fast) var(--pp-ease);
+  }
+  .pp-action-row:hover {
+    background: color-mix(in oklch, var(--accent) 35%, var(--card));
+  }
+  .pp-guidance {
+    border-inline-start: 3px solid var(--primary);
+  }
+  .pp-auth-surface {
+    background: var(--background);
+  }
+  .pp-mentor {
+    max-height: 75dvh;
+    min-height: 28rem;
+    overflow: hidden;
+  }
+  .pp-mentor-message {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .pp-responsive-table tbody tr {
+    transition: background-color var(--pp-motion-fast) var(--pp-ease);
+  }
+  .pp-responsive-table tbody tr:hover {
+    background: var(--secondary);
+  }
+  .status-tag {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    background: var(--secondary);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+  .utility-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .utility-link:disabled {
+    opacity: 0.5;
+  }
+  @media (min-width: 640px) {
+    .pp-workspace-content {
+      padding: 2rem 1.5rem 4rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .pp-workspace-main {
+      margin-left: var(--pp-sidebar-width);
+    }
+    .pp-workspace-content {
+      padding-inline: 2.5rem;
+    }
+    .pp-workspace-bar {
+      padding-inline: 2.5rem;
+    }
+  }
+  @media (max-width: 639px) {
+    .pp-responsive-table,
+    .pp-responsive-table tbody {
+      display: block;
+      min-width: 0;
+      width: 100%;
+    }
+    .pp-responsive-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .pp-responsive-table tr {
+      display: block;
+      padding: 1rem;
+    }
+    .pp-responsive-table td {
+      display: block;
+      max-width: none;
+      padding: 0.375rem 0;
+      text-align: left;
+    }
+    .pp-responsive-table td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.6875rem;
+      color: var(--muted-foreground);
+      margin-bottom: 0.25rem;
+    }
+    .pp-responsive-table td:last-child > div {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+    .pp-mentor {
+      min-height: 26rem;
+      max-height: 80dvh;
+    }
+  }
+}
+
+/* Slot contracts style existing Radix/shadcn primitives, including portal content. */
+select:not([multiple]) {
+  min-height: var(--pp-control-height);
+  border-radius: var(--radius);
+}
+:where([data-slot="button"]) {
+  min-height: var(--pp-control-compact);
+  transition-duration: var(--pp-motion-fast);
+}
+:where([data-slot="button"]):active:not(:disabled) {
+  transform: translateY(1px);
+}
+:where([data-slot="input"], [data-slot="select-trigger"]) {
+  min-height: var(--pp-control-height);
+  background-color: var(--card);
+}
+:where(
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"]
+) {
+  max-height: 90dvh;
+  overflow-y: auto;
+  border-radius: var(--pp-panel-radius);
+  box-shadow: var(--pp-shadow-overlay);
+}
+:where(
+  [data-slot="dropdown-menu-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"]
+) {
+  box-shadow: var(--pp-shadow-overlay);
+}
+:where([data-slot="tabs-trigger"])[data-state="active"] {
+  box-shadow: var(--pp-shadow-panel);
+}
+:where([data-slot="progress-indicator"]) {
+  transition: transform var(--pp-motion-content) var(--pp-ease);
+}
+@media (max-width: 639px) {
+  .pp-responsive-table {
+    min-width: 0;
+  }
+  .pp-responsive-table td {
+    max-width: none;
+    text-align: left;
+  }
+  .pp-responsive-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 1rem;
+  }
+  .pp-responsive-table td:first-child,
+  .pp-responsive-table td[data-label="Progress"],
+  .pp-responsive-table td:last-child {
+    grid-column: 1 / -1;
+  }
+  .pp-responsive-table td:first-child::before,
+  .pp-responsive-table td[data-label="Progress"]::before {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  :where([data-slot="button"], .utility-link, select) {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  :where([data-slot="button"]):active {
+    transform: none;
+  }
+}

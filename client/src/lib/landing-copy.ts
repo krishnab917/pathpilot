@@ -3,7 +3,7 @@ export const landingCopy = {
     titleLead: "Discover your career.",
     titleAccent: "Build the path to reach it.",
     description:
-      "Explore careers, try the decisions behind the job titles, and turn what you learn into a personal roadmap. PathPilot gives students a place to start—and a next step to come back to.",
+      "PathPilot connects career exploration with a plan students can act on. Discover directions, find opportunities, and build projects and experiences to carry into college applications.",
     cta: "Start exploring",
   },
   problem: {
@@ -20,19 +20,46 @@ export const landingCopy = {
   },
 } as const;
 
+export const landingOutcomes = [
+  [
+    "A clearer direction",
+    "Career suggestions with reasons to investigate them, plus simulations that help you consider what the work feels like.",
+  ],
+  [
+    "A plan you can return to",
+    "A saved roadmap of skills, projects, and experience milestones. Choose what fits and turn the next step into a goal.",
+  ],
+  [
+    "Experiences to pursue",
+    "Project ideas and guidance to help you move from being interested in a field to trying something in it.",
+  ],
+  [
+    "Opportunities worth checking",
+    "Internship, competition, and research listings to explore. Review the organizer's eligibility and dates before applying.",
+  ],
+  [
+    "A starting point for college preparation",
+    "Build projects and record your work so you have concrete experiences to reflect on when explaining your interests.",
+  ],
+  [
+    "Progress you can keep track of",
+    "Goals, project milestones, and saved notes keep the next action in view. Ask Mentor for help thinking through a step when you get stuck.",
+  ],
+] as const;
+
 export const landingAudiences = [
   {
     id: "students",
-    label: "I'm a student",
+    label: "Student",
     invitation: "Explore your future",
     reason: "You're figuring out what comes next.",
     title: "You don't need to know your future yet.",
     description:
-      "You might have a few interests, several possible careers, or no clear answer. Start there. Explore different kinds of work before deciding which direction deserves more of your time.",
+      "Leave with a few directions worth exploring and a reason to explore each one. Try the work in a simulation, then choose a skill, project, or experience from your roadmap to pursue at your own pace.",
     points: [
-      "Find career directions connected to your interests and experience.",
-      "Try simulations and reflect on the decisions you made.",
-      "Choose a roadmap step, project, or opportunity to pursue at your own pace.",
+      "See career suggestions with reasons tied to your interests and experience.",
+      "Return to your simulation choices and compare what you found interesting or difficult.",
+      "Build around that direction with a roadmap, projects, opportunities, goals, and Mentor support. Keep work you can reflect on as you prepare for college.",
     ],
     storyTitle: "Maya likes technology. But what kind of work?",
     story:
@@ -43,42 +70,42 @@ export const landingAudiences = [
   },
   {
     id: "parents",
-    label: "I'm a parent",
+    label: "Parent",
     invitation: "Help your student find direction",
     reason: "You're helping a student figure out what comes next.",
     title: "Help them explore without choosing for them.",
     description:
-      "You want to be helpful without making every conversation about the future feel like a test. PathPilot gives your student something to try independently—and something specific you can talk about together.",
+      "When your student shows you a career they explored or a project they want to try, you have something concrete to discuss. Look at their workspace together and help turn an interest into an experience without choosing their direction for them.",
     points: [
-      "Invite them to follow a curiosity, rather than pick a lifelong career.",
-      "Ask what surprised them in a simulation or career description.",
-      "Help them choose a manageable next step while they keep ownership.",
+      "Understand the directions they are considering and what caught their attention.",
+      "Discuss a skill to practice, a project to build, or an opportunity to check. See how those steps can become experiences to reflect on for college.",
+      "Review what they choose to show you. PathPilot does not provide a separate parent monitoring account.",
     ],
     storyTitle: "From ‘I don't know’ to a conversation you can have.",
     story:
       "Imagine a parent whose student keeps saying they don't know what they want to do. They sit down together to look at PathPilot. The student chooses a career to explore on their own, then shows their parent a simulation decision that made them stop and think.",
     next: "Instead of asking for a final career choice, the parent asks what the student would like to learn next. They look at a roadmap suggestion together and discuss whether it fits the student's time and interests.",
-    cta: "See PathPilot for parents",
-    href: "/parents",
+    cta: "See how it works for students",
+    href: "/students",
   },
   {
     id: "educators",
-    label: "I'm a counselor or school leader",
+    label: "School / Counselor",
     invitation: "Give students a place to start",
     reason: "You're helping students navigate what's next.",
-    title: "More to explore between conversations.",
+    title: "Give students a place to start. And a next step to discuss.",
     description:
-      "Students arrive with different interests and different levels of certainty. PathPilot gives them a structured starting point, so you can build a conversation around something they have explored. Your judgment and knowledge of the student stay central.",
+      "Introduce a repeatable sequence for advisory, a careers lesson, or preparation for an appointment: explore a direction, try a scenario, review a plan, and choose an experience. Students can work independently while your guidance connects their plans to real school and local options.",
     points: [
-      "Introduce career exploration during advisory or a careers lesson.",
-      "Invite students to bring a simulation reflection to an appointment.",
-      "Review a suggested roadmap step together and connect it to local options.",
+      "Use career suggestions and simulation reflections as a starting point for discussion.",
+      "Help students turn personalized milestones and opportunity listings into manageable next steps.",
+      "Students can share a revocable, seven-day report of planning counts and current focus. It does not give staff access to their private workspace.",
     ],
     storyTitle: "One starting point. Different student conversations.",
     story:
       "Imagine a counselor preparing to meet students with a wide range of interests. Before their appointments, they invite each student to explore one career in PathPilot and bring a question. One student wants to discuss a difficult simulation choice; another wants help making a project idea realistic.",
     next: "The counselor uses those starting points to guide the conversation. PathPilot provides exploration material; the counselor helps students interpret it in the context of their circumstances and school options.",
-    cta: "Explore PathPilot for schools",
+    cta: "Bring PathPilot to your students",
     href: "/schools",
   },
 ] as const;

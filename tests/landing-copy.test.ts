@@ -23,7 +23,7 @@ describe("landing-page narrative", () => {
     ]);
     expect(landingAudiences.map(item => item.href)).toEqual([
       "/auth",
-      "/parents",
+      "/students",
       "/schools",
     ]);
     for (const audience of landingAudiences) {

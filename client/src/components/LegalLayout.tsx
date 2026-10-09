@@ -8,7 +8,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#fcfcfd]">
+    <div className="min-h-screen bg-background">
       <header className="mx-auto flex h-20 max-w-5xl items-center justify-between px-5 sm:px-8">
         <Brand />
         <Link href="/">

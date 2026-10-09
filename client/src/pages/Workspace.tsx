@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ProductPrimitives";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { CurrentPlanFocus, DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
@@ -153,7 +154,7 @@ function WorkspaceStartupFrame({
     nav.find(item => item.id === section)?.label ?? "Overview";
   return (
     <div className="workspace-shell min-h-screen text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[var(--pp-sidebar-width)] flex-col overflow-y-auto border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
         <Brand />
         <div className="mt-8">
           <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -166,9 +167,9 @@ function WorkspaceStartupFrame({
                 <div
                   key={item.id}
                   className={cn(
-                    "flex h-9 items-center gap-3 px-2.5 text-sm font-medium",
+                    "pp-nav-item",
                     item.id === section
-                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                      ? "bg-accent text-primary"
                       : "text-muted-foreground"
                   )}
                 >
@@ -188,12 +189,13 @@ function WorkspaceStartupFrame({
           </p>
         </div>
       </aside>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[var(--pp-sidebar-width)] lg:hidden">
         <Brand compact />
         <span className="text-xs text-muted-foreground">Loading</span>
       </header>
-      <main className="min-h-screen lg:ml-[232px]">
-        <div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+      <main className="pp-workspace-main">
+        <div className="pp-workspace-bar"><span>Workspace <ChevronRight aria-hidden="true" className="mx-2 inline size-3" /><span className="font-medium text-foreground">{nav.find(item => item.id === section)?.label}</span></span><span className="hidden sm:inline">Explore · Build · Keep moving</span></div>
+        <div className="pp-workspace-content">
           <WorkspaceSectionSkeleton section={section} />
         </div>
       </main>
@@ -244,12 +246,7 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "flex h-9 w-full items-center gap-3 rounded-sm px-2.5 text-sm font-medium",
-        active
-          ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-          : "text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-800"
-      )}
+      className="pp-nav-item"
     >
       <Icon className="size-4" />
       <span>{item.label}</span>
@@ -302,32 +299,7 @@ function SignOutButton({
     </div>
   );
 }
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
-          {title}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      {action}
-    </div>
-  );
-}
+const SectionHeader = PageHeader;
 
 export default function Workspace() {
   const { isAuthenticated, loading, user, logout } = useAuth();
@@ -488,7 +460,7 @@ export default function Workspace() {
     <button
       type="button"
       onClick={() => toggleTheme?.()}
-      className="grid size-8 place-items-center border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      className="grid size-10 place-items-center rounded-md border border-border bg-secondary text-muted-foreground hover:text-foreground"
       aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"}
     >
       {theme === "dark" ? (
@@ -506,7 +478,7 @@ export default function Workspace() {
       >
         Skip to workspace content
       </a>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[var(--pp-sidebar-width)] flex-col overflow-y-auto border-r border-slate-200 bg-card px-3 pb-4 pt-5 dark:border-slate-700 lg:flex">
         <div className="flex items-center justify-between">
           <Brand />
           {themeControl}
@@ -533,7 +505,7 @@ export default function Workspace() {
           </div>
         </div>
       </aside>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[232px] lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-card px-4 dark:border-slate-700 lg:ml-[var(--pp-sidebar-width)] lg:hidden">
         <Brand compact />
         <div className="flex items-center gap-2">
           {themeControl}
@@ -604,9 +576,10 @@ export default function Workspace() {
       <main
         id="workspace-content"
         tabIndex={-1}
-        className="min-h-screen lg:ml-[232px]"
+        className="pp-workspace-main"
       >
-        <div className="mx-auto max-w-[1360px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+        <div className="pp-workspace-bar"><span>Workspace <ChevronRight aria-hidden="true" className="mx-2 inline size-3" /><span className="font-medium text-foreground">{nav.find(item => item.id === section)?.label}</span></span><span className="hidden sm:inline">Explore · Build · Keep moving</span></div>
+        <div className="pp-workspace-content">
           {content}
         </div>
       </main>
@@ -648,7 +621,7 @@ function Overview({
       <SectionHeader
         eyebrow="PathPilot overview"
         title="Workspace"
-        description="A compact view of the signals, commitments, and actions shaping your career direction."
+        description="Your current direction, the next action, and the work that moves you forward."
         action={
           <div className="border border-slate-200 bg-card px-3 py-2 text-right dark:border-slate-700">
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -661,7 +634,7 @@ function Overview({
         }
       />
       <DashboardJourneyPanel journey={journey} onNavigate={onNavigate} />
-      <div className="grid border border-slate-200 bg-card md:grid-cols-3 dark:border-slate-700">
+      <div className="surface-panel grid overflow-hidden md:grid-cols-3">
         <MetricCard
           icon={Target}
           label="Readiness"
@@ -903,6 +876,7 @@ function SettingsView() {
                       <Input
                         value={confirmText}
                         onChange={e => setConfirmText(e.target.value)}
+                        aria-label="Type DELETE to confirm account deletion"
                         placeholder="DELETE"
                         className="uppercase"
                       />
