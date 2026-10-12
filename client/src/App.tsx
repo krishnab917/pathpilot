@@ -4,6 +4,8 @@ import { Route, Switch } from "wouter";
 import { lazy, Suspense } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { PageMetadata } from "./components/PageMetadata";
+const Resources = lazy(() => import("./pages/Resources"));
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -38,6 +40,9 @@ function Router() {
     <Suspense fallback={<RouteLoadingFrame />}>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/resources" component={Resources} />
+        <Route path="/resources/explore-careers-in-high-school" component={Resources} />
+        <Route path="/career-simulations" component={Resources} />
         <Route path="/students" component={StudentsLanding} />
         <Route path="/schools" component={SchoolsLanding} />
         <Route path="/counselors" component={CounselorsLanding} />
@@ -61,5 +66,5 @@ function Router() {
 }
 
 export default function App() {
-  return <ErrorBoundary><ThemeProvider defaultTheme="light" switchable><TooltipProvider><Toaster position="top-right" closeButton /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>;
+  return <ErrorBoundary><ThemeProvider defaultTheme="light" switchable><TooltipProvider><PageMetadata /><Toaster position="top-right" closeButton /><Router /></TooltipProvider></ThemeProvider></ErrorBoundary>;
 }

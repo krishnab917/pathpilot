@@ -19,8 +19,20 @@
       "destination": "/api/manus-storage/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(students|parents|counselors|schools|privacy|terms|support|accessibility|resources|career-simulations)(/)?",
+      "destination": "/$1/index.html"
+    },
+    {
+      "source": "/resources/explore-careers-in-high-school(/)?",
+      "destination": "/resources/explore-careers-in-high-school/index.html"
+    },
+    {
+      "source": "/(auth(?:/update-password)?|onboarding|app(?:/[^/]+)?|share/[^/]+|portfolio/[^/]+)(/)?",
+      "destination": "/app-shell.html"
     }
   ]
 }

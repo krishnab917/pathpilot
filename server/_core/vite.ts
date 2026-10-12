@@ -3,6 +3,7 @@ import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
+import { normalizePagePath } from "../../shared/public-seo";
 
 export async function setupVite(app: Express, server: Server) {
   const [{ createServer: createViteServer }, { default: viteConfig }] =
@@ -47,11 +48,12 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-export function serveStatic(app: Express) {
+export function serveStatic(app: Express, outputDirectory?: string) {
   const distPath =
-    process.env.NODE_ENV === "development"
+    outputDirectory ??
+    (process.env.NODE_ENV === "development"
       ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "public");
+      : path.resolve(import.meta.dirname, "public"));
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
@@ -60,8 +62,24 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Public directories are served above. Private routes must use the empty,
+  // noindex shell rather than the newly prerendered public homepage.
+  app.use("*", (req, res, next) => {
+    const route = normalizePagePath(req.originalUrl);
+    if (
+      route === "/api" ||
+      route.startsWith("/api/") ||
+      route.startsWith("/manus-storage/")
+    )
+      return next();
+    const applicationRoute =
+      /^\/(auth(?:\/update-password)?|onboarding|app(?:\/[^/]+)?|share\/[^/]+|portfolio\/[^/]+)$/.test(
+        route
+      );
+    res
+      .status(applicationRoute ? 200 : 404)
+      .sendFile(
+        path.resolve(distPath, applicationRoute ? "app-shell.html" : "404.html")
+      );
   });
 }

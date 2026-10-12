@@ -23,9 +23,10 @@ import {
 import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useEffect, type ComponentPropsWithoutRef } from "react";
+import { type ComponentPropsWithoutRef } from "react";
 import "./landing-page.css";
 import { audienceExperiences, audienceOrder } from "@/lib/audience-experiences";
+import { ResourceLinks } from "./Resources";
 
 function StoryLink({
   target,
@@ -63,13 +64,6 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const startHref = isAuthenticated ? "/app" : "/auth";
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = "PathPilot | Discover your career. Build your path.";
-    return () => {
-      document.title = previousTitle;
-    };
-  }, []);
 
   return (
     <MotionConfig
@@ -472,6 +466,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+        <ResourceLinks />
         <footer className="border-t border-border">
           <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
             <div>

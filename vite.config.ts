@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
+import { robots, sitemap } from "./shared/public-seo";
 
 const configuredAllowedHosts = (
   process.env.VITE_ALLOWED_HOSTS ??
@@ -13,7 +14,43 @@ const configuredAllowedHosts = (
   .map(host => host.trim())
   .filter(Boolean);
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin()];
+let analyticsConfigured = false;
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  {
+    name: "pathpilot-crawler-files",
+    configResolved(config: import("vite").ResolvedConfig) {
+      analyticsConfigured = Boolean(
+        config.env.VITE_ANALYTICS_ENDPOINT &&
+          config.env.VITE_ANALYTICS_WEBSITE_ID
+      );
+    },
+    transformIndexHtml: {
+      order: "pre" as const,
+      handler(html: string) {
+        return analyticsConfigured
+          ? html
+          : html.replace(
+              /<script\s+defer\s+src="%VITE_ANALYTICS_ENDPOINT%\/umami"\s+data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"><\/script>/,
+              ""
+            );
+      },
+    },
+    configureServer(server: import("vite").ViteDevServer) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url !== "/robots.txt" && req.url !== "/sitemap.xml")
+          return next();
+        res.setHeader(
+          "Content-Type",
+          req.url === "/robots.txt" ? "text/plain" : "application/xml"
+        );
+        res.end(req.url === "/robots.txt" ? robots(true) : sitemap());
+      });
+    },
+  },
+];
 
 export default defineConfig({
   plugins,
@@ -28,6 +65,7 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname, "client"),
   publicDir: path.resolve(import.meta.dirname, "client", "public"),
   build: {
+    manifest: true,
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },

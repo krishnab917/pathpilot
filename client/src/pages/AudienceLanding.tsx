@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { audienceLandingCopy, type AudienceLandingContent } from "./audience-landing-copy";
 import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { useEffect } from "react";
 
 function audienceAction(href: string, label: string) {
   const children = <>{label}<ArrowRight aria-hidden="true" className="ml-2 size-4 shrink-0" /></>;
@@ -11,25 +10,6 @@ function audienceAction(href: string, label: string) {
 }
 
 function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = `PathPilot | ${content.audience}`;
-    let description = document.querySelector('meta[name="description"]');
-    const previousDescription = description?.getAttribute("content");
-    const createdDescription = !description;
-    if (!description) {
-      description = document.createElement("meta");
-      description.setAttribute("name", "description");
-      document.head.appendChild(description);
-    }
-    description.setAttribute("content", content.metaDescription);
-    return () => {
-      document.title = previousTitle;
-      if (createdDescription) description.remove();
-      else if (previousDescription !== null && previousDescription !== undefined) description.setAttribute("content", previousDescription);
-      else description.removeAttribute("content");
-    };
-  }, [content]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-background">
