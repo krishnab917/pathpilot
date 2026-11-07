@@ -57,6 +57,8 @@ export function CareerSimulationSelector({ careers, value, onChange }: { careers
 
   const categories = useMemo(() => Array.from(new Set(careers.map(career => career.category))), [careers]);
   const visible = careers.filter(career => (category === "all" || career.category === category) && `${career.name} ${career.category} ${career.description}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const selected = careers.find(career => career.id === value);
+  const selectionHidden = Boolean(selected && !visible.some(career => career.id === value));
 
   return <section aria-label="Choose a career simulation" className="mt-5 space-y-3">
     <div className="flex flex-col gap-2 sm:flex-row">
@@ -74,5 +76,8 @@ export function CareerSimulationSelector({ careers, value, onChange }: { careers
       })}
     </div>
     {!visible.length && <p className="border-l-2 border-slate-300 bg-slate-50 p-3 text-xs leading-5 text-muted-foreground dark:bg-slate-800">No supported simulation matches this search. Clear the filters or explore a listed career; PathPilot will not substitute an unrelated simulation.</p>}
+    <div role="status" aria-label="Selected simulation" className="border-t border-border pt-3 text-sm leading-6">
+      {selected ? <><p><strong>Selected: {selected.name}.</strong> Start simulation opens this career, not the search results.</p>{selectionHidden && <><p className="text-muted-foreground">Your selection is outside the current filters. Choose another career to change it.</p><button type="button" className="utility-link mt-2 min-h-11" onClick={() => { setQuery(""); setCategory("all"); }}>Show selected career</button></>}</> : <p>Choose a career before starting.</p>}
+    </div>
   </section>;
 }

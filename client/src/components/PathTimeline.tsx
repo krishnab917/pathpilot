@@ -56,7 +56,7 @@ export function PathTimeline({
                       : "Upcoming"}
                 </span>
               </div>
-              <h3 className="mt-3 text-base font-semibold tracking-tight">
+              <h3 className="mt-3 text-lg font-medium leading-snug tracking-tight">
                 {step.title}
               </h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">

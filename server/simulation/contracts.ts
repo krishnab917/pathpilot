@@ -1,3 +1,5 @@
+import type { PublicWorkTask, WorkReceipt, WorkTask } from "../../shared/simulation-work";
+
 export const traitKeys = ["analytical_thinking", "problem_solving", "systems_thinking", "attention_to_detail", "collaboration", "communication", "ownership", "adaptability", "ethical_reasoning", "long_term_thinking"] as const;
 export type TraitKey = typeof traitKeys[number];
 export type ContextTag = "technical" | "uncertainty" | "time_pressure" | "interpersonal" | "ethical" | "resource_constraint" | "failure" | "planning" | "execution";
@@ -35,12 +37,13 @@ export type ScenarioNode = {
   contexts: ContextTag[];
   difficulty: 1 | 2 | 3;
   decisions: DecisionDefinition[];
+  work?: WorkTask;
   terminal?: boolean;
   terminalOutcome?: TerminalOutcomeCategory;
 };
-export type SimulationGraph = { id: string; title: string; startNodeId: string; nodes: Record<string, ScenarioNode> };
+export type SimulationGraph = { id: string; title: string; startNodeId: string; nodes: Record<string, ScenarioNode>; nextStep?: string };
 
-export type DecisionRecord = { nodeId: string; decisionId: string; contexts: ContextTag[]; difficulty: number; selectedAt: string };
+export type DecisionRecord = { nodeId: string; decisionId: string; contexts: ContextTag[]; difficulty: number; selectedAt: string; work?: WorkReceipt };
 export type BehavioralEvidence = TraitSignal & { nodeId: string; decisionId: string; difficulty: number };
 export type BehavioralEvent = { id: string; nodeId: string; decisionId: string; message: string; kind: ConsequenceDefinition["kind"]; contexts: ContextTag[]; occurredAt: string };
 export type TraitResult = { trait: TraitKey; score: number; confidence: ConfidenceLevel; evidenceCount: number; contexts: ContextTag[] };
@@ -49,4 +52,4 @@ export type BehavioralProfile = { traits: TraitResult[]; patterns: string[]; con
 export type CompatibilityResult = { careerName: string; score: number; confidence: ConfidenceLevel; reason: string; alignedTraits: TraitKey[]; growthTraits: TraitKey[]; limitedMapping?: boolean };
 export type AdaptiveResults = { behavioralProfile: BehavioralProfile; compatibility: CompatibilityResult[]; summary: string; recommendedNextSteps: string[] };
 
-export type PublicScenario = { id: string; title: string; situation: string; decisionNumber: number; expectedDecisionRange: string; decisions: Array<{ id: string; label: string }> };
+export type PublicScenario = { work?: PublicWorkTask; id: string; title: string; situation: string; decisionNumber: number; expectedDecisionRange: string; decisions: Array<{ id: string; label: string }> };

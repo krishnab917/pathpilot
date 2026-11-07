@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { resolveSupportedCareer, simulationCareerCatalog } from "../server/simulation/catalog";
-import { getSimulationGraph } from "../server/simulation/engine";
+import { getWorkSimulationGraph } from "../server/simulation/engine";
 
 describe("canonical career resolver security boundary", () => {
-  it("resolves exactly the fifteen catalog IDs and canonical names to their own dedicated graph", () => {
-    expect(simulationCareerCatalog).toHaveLength(15);
-    expect(new Set(simulationCareerCatalog.map(career => career.id)).size).toBe(15);
+  it("resolves exactly the twenty-five catalog IDs and canonical names to their own dedicated graph", () => {
+    expect(simulationCareerCatalog).toHaveLength(25);
+    expect(new Set(simulationCareerCatalog.map(career => career.id)).size).toBe(25);
     for (const career of simulationCareerCatalog) {
       expect(resolveSupportedCareer(career.id)?.id).toBe(career.id);
       expect(resolveSupportedCareer(career.name)?.id).toBe(career.id);
-      expect(getSimulationGraph(career.id).id).toBe(career.id === "software-engineer" ? "software-systems-v1" : `${career.id}-v1`);
+      expect(getWorkSimulationGraph(career.id).id).toBe(`${career.id}-work-v1`);
     }
   });
 

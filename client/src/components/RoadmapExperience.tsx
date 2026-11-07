@@ -1,3 +1,4 @@
+import { resolveDiscoveryCareer } from "@shared/career-taxonomy";
 import { PageHeader, FeedbackState } from "@/components/ProductPrimitives";
 import { PathTimeline } from "@/components/PathTimeline";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,7 @@ export function RoadmapExperience({ matches, roadmap }: { matches: Matches; road
   const simulationId = simulationIdFromRoadmapSearch(search);
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState(() => resolveDiscoveryCareer(new URLSearchParams(search).get("career"))?.name ?? "");
   const [confirmCareerChange, setConfirmCareerChange] = useState(false);
   const [chooseCareerOpen, setChooseCareerOpen] = useState(false);
   const [stage, setStage] = useState<"idle" | "generating" | "ready" | "error">("idle");

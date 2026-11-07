@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToPipeableStream } from "react-dom/server";
 import { PassThrough } from "node:stream";
-import { mkdirSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync, cpSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
@@ -317,6 +317,7 @@ describe("isolated real-screen palette review", () => {
     ];
     if (output) {
       mkdirSync(output, { recursive: true });
+      cpSync("client/public/fonts", join(output, "fonts"), { recursive: true });
       const css = readdirSync("dist/public/assets")
         .filter(file => file.endsWith(".css"))
         .map(file => readFileSync(join("dist/public/assets", file), "utf8"))
@@ -359,7 +360,7 @@ describe("isolated real-screen palette review", () => {
       if (output)
         writeFileSync(
           join(output, `${screen}.html`),
-          `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet"><title>PathPilot palette review · ${screen}</title><style>body{margin:0}.review-tools{position:relative;z-index:100;padding:12px 20px;background:var(--card);color:var(--foreground);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;font:13px system-ui}.review-tools select{background:var(--background);color:var(--foreground);padding:6px;border:1px solid var(--input)}.review-tools a{color:var(--primary)}.feature-card{opacity:1}</style></head><body><div class="review-tools"><strong>Color review · fixture data · read-only</strong><label>Palette <select id="palette"><option>A</option><option>B</option><option>C</option></select></label><label>Theme <select id="theme"><option>light</option><option>dark</option></select></label><label>Screen <select id="screen">${screens.map(s => `<option ${s === screen ? "selected" : ""}>${s}</option>`).join("")}</select></label></div>${html}<script>const p=new URLSearchParams(location.search);const palette=document.getElementById('palette'),theme=document.getElementById('theme');palette.value=p.get('palette')||'A';theme.value=p.get('theme')||'light';function apply(){document.documentElement.dataset.palette=palette.value;document.documentElement.classList.toggle('dark',theme.value==='dark');history.replaceState(null,'','?palette='+palette.value+'&theme='+theme.value)}palette.onchange=theme.onchange=apply;apply();document.getElementById('screen').onchange=e=>location.href=e.target.value+'.html?palette='+palette.value+'&theme='+theme.value;document.querySelectorAll('main button').forEach(b=>b.addEventListener('click',e=>e.preventDefault()));</script></body></html>`
+          `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"><title>PathPilot palette review · ${screen}</title><style>body{margin:0}.review-tools{position:relative;z-index:100;padding:12px 20px;background:var(--card);color:var(--foreground);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;font:13px system-ui}.review-tools select{background:var(--background);color:var(--foreground);padding:6px;border:1px solid var(--input)}.review-tools a{color:var(--primary)}.feature-card{opacity:1}</style></head><body><div class="review-tools"><strong>Color review · fixture data · read-only</strong><label>Palette <select id="palette"><option>A</option><option>B</option><option>C</option></select></label><label>Theme <select id="theme"><option>light</option><option>dark</option></select></label><label>Screen <select id="screen">${screens.map(s => `<option ${s === screen ? "selected" : ""}>${s}</option>`).join("")}</select></label></div>${html}<script>const p=new URLSearchParams(location.search);const palette=document.getElementById('palette'),theme=document.getElementById('theme');palette.value=p.get('palette')||'A';theme.value=p.get('theme')||'light';function apply(){document.documentElement.dataset.palette=palette.value;document.documentElement.classList.toggle('dark',theme.value==='dark');history.replaceState(null,'','?palette='+palette.value+'&theme='+theme.value)}palette.onchange=theme.onchange=apply;apply();document.getElementById('screen').onchange=e=>location.href=e.target.value+'.html?palette='+palette.value+'&theme='+theme.value;document.querySelectorAll('main button').forEach(b=>b.addEventListener('click',e=>e.preventDefault()));</script></body></html>`
         );
     }
   });

@@ -1,3 +1,4 @@
+import { fetchSourceHtml } from "./fetch-source";
 export const NASA_SPACE_APPS_URL = "https://www.spaceappschallenge.org/";
 const datePattern = /november\s+14\s*(?:-|–|to)\s*15\s*,\s*2026/i;
 const audiencePattern = /all ages,?\s+skill levels/i;
@@ -64,7 +65,5 @@ export function parseNasaSpaceAppsPage(html: string, verifiedAt = new Date()): V
 }
 
 export async function fetchNasaSpaceAppsRecord(fetcher: typeof fetch = fetch) {
-  const response = await fetcher(NASA_SPACE_APPS_URL, { headers: { Accept: "text/html,application/xhtml+xml" } });
-  if (!response.ok) throw new Error(`NASA Space Apps source request failed (${response.status}).`);
-  return parseNasaSpaceAppsPage(await response.text());
+  return parseNasaSpaceAppsPage(await fetchSourceHtml(NASA_SPACE_APPS_URL, fetcher));
 }

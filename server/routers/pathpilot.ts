@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { draftProfileSchema, completedProfileSchema } from "../../shared/discovery-intake";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
@@ -67,7 +68,8 @@ import {
 import { invokeLLM, listLLMModels } from "../_core/llm";
 import { timeAiStage, timeAiSync } from "../ai/request-timing";
 import { PROVIDER_TIMEOUT_MS, ProviderRequestError } from "../ai/provider-request";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, publicProcedure, publicDataProcedure, router } from "../_core/trpc";
+import { safeHttpUrl } from "../../shared/safe-url";
 import { CareerGuidanceValidationError, retryValidatedGuidance, withCareerGuidanceTimeout } from "../career-guidance";
 import { buildSimulationFeedback, calculateSimulationScores, hasExactlyFiveUniqueCareerMatches } from "../pathpilot.helpers";
 import { countryOptions, getNationalEducationContext, isCanonicalPlanningCountry } from "../roadmap/national-context";
@@ -76,15 +78,18 @@ import { requiresRoadmapCareerChangeConfirmation } from "../roadmap/career-chang
 import { canReuseActiveRoadmap } from "../roadmap/reuse";
 import { getSimulationGraph, getSimulationGraphById } from "../simulation/engine";
 import { getSimulationCareer, resolveSupportedCareer, simulationCareerCatalog } from "../simulation/catalog";
+import { careerTaxonomy, resolveDiscoveryReference } from "../discovery-catalog";
 import { buildMentorContext, mentorContextNeeds } from "../mentor-context";
 import { buildDecisionReview, presentTerminalOutcome } from "../simulation/presentation";
 import { cacheProjectGuidance, getCachedProjectGuidance, invalidateProjectGuidanceCache, PROJECT_GUIDANCE_CACHE_VERSION, projectGuidanceInputHash } from "../ai-result-cache";
 import { cancelDerivedAnalysis, getDerivedAnalysisStatus, requestDerivedAnalysis, retryDerivedAnalysis } from "../derived-analysis";
 import { aiRateLimiter, RateLimitExceededError, RateLimiterUnavailableError, type AiRateLimitAction } from "../rate-limit";
+import { admitDerivedSubmission, admitPublicDataRead, admitSourceRefresh } from "../endpoint-quotas";
 
 const selectionSchema = z.array(z.string().trim().min(1).max(80)).min(1).max(12);
 const prioritySchema = z.enum(["low", "medium", "high"]);
-const resourceSchema = z.object({ label: z.string().trim().min(1).max(120), url: z.string().url().max(500) });
+const webUrlSchema = z.string().url().max(500).refine(value => Boolean(safeHttpUrl(value)), "Use an HTTP or HTTPS link without credentials.");
+const resourceSchema = z.object({ label: z.string().trim().min(1).max(120), url: webUrlSchema });
 const milestoneSchema = z.object({
   year: z.number().int().min(1).max(8),
   title: z.string().trim().min(1).max(180),
@@ -309,7 +314,7 @@ function projectWorkspaceContext(project: NonNullable<Awaited<ReturnType<typeof 
 
 async function clearProjectGuidanceCache(userId: string, projectId: string) {
   try { await invalidateProjectGuidanceCache(userId, projectId); }
-  catch (error) { console.error("[PathPilot] project guidance cache invalidation failed", error); }
+  catch (error) { console.error("[PathPilot] project guidance cache invalidation failed"); }
 }
 
 function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStudentProfile>>>) {
@@ -325,10 +330,13 @@ function profileContext(profile: NonNullable<Awaited<ReturnType<typeof getStuden
   ].join("\n");
 }
 
+import { workSubmissionSchema } from "../../shared/simulation-work";
+import { workDebrief } from "../simulation/work-graphs";
+
 function adaptiveSimulationResponse(simulation: any) {
   const graph = getSimulationGraphById(simulation.scenarioGraphId) ?? getSimulationGraph(simulation.career);
   const decisionReview = buildDecisionReview(graph, simulation.decisionHistory, simulation.behavioralEvents ?? []);
-  const publicSimulation = { id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score, responseTimingOptIn: simulation.responseTimingOptIn, terminalOutcome: simulation.status === "completed" ? presentTerminalOutcome(graph, simulation.currentNodeId) : null, latestConsequence: simulation.behavioralEvents?.at(-1) ?? null, decisionReview };
+  const publicSimulation = { workDebrief: workDebrief(graph, simulation.decisionHistory), id: simulation.id, career: simulation.career, title: simulation.title, status: simulation.status, createdAt: simulation.createdAt, updatedAt: simulation.updatedAt, completedAt: simulation.completedAt, decisionCount: simulation.decisionHistory.length, resultSummary: simulation.resultSummary, behavioralProfile: simulation.behavioralProfile, compatibilityResults: simulation.compatibilityResults, technicalScore: simulation.technicalScore, leadershipScore: simulation.leadershipScore, careerCompatibilityScore: simulation.careerCompatibilityScore, score: simulation.score, responseTimingOptIn: simulation.responseTimingOptIn, terminalOutcome: simulation.status === "completed" ? presentTerminalOutcome(graph, simulation.currentNodeId) : null, latestConsequence: simulation.behavioralEvents?.at(-1) ?? null, decisionReview };
   return { simulation: publicSimulation, scenario: simulation.status === "completed" ? null : getAdaptivePublicScenario(simulation) };
 }
 
@@ -336,17 +344,8 @@ export const pathpilotRouter = router({
   profile: router({
     get: protectedProcedure.query(({ ctx }) => getStudentProfile(ctx.user.id)),
     getDraft: protectedProcedure.query(({ ctx }) => getOnboardingDraft(ctx.user.id)),
-    saveDraft: protectedProcedure.input(z.object({ currentStep: z.number().int().min(0).max(4), profile: z.object({ grade: z.string().max(16), location: z.string().max(160), countryCode: z.string().regex(/^[A-Z]{2}$/).nullable().optional(), educationSystem: z.string().max(180).nullable().optional(), interests: z.array(z.string().max(80)).max(12), skills: z.array(z.string().max(80)).max(12), activities: z.array(z.string().max(80)).max(12), careerPreferences: z.array(z.string().max(80)).max(12) }) })).mutation(({ ctx, input }) => saveOnboardingDraft(ctx.user.id, input.currentStep, input.profile)),
-    completeOnboarding: protectedProcedure.input(z.object({
-      grade: z.string().trim().min(1).max(16),
-      location: z.string().trim().min(2).max(160),
-      countryCode: z.string().regex(/^[A-Z]{2}$/),
-      educationSystem: z.string().trim().min(2).max(180),
-      interests: selectionSchema,
-      skills: selectionSchema,
-      activities: selectionSchema,
-      careerPreferences: selectionSchema,
-    })).mutation(({ ctx, input }) => saveStudentProfile(ctx.user.id, input)),
+    saveDraft: protectedProcedure.input(z.object({ currentStep: z.number().int().min(0).max(4), profile: draftProfileSchema }).strict()).mutation(({ ctx, input }) => saveOnboardingDraft(ctx.user.id, input.currentStep, input.profile)),
+    completeOnboarding: protectedProcedure.input(completedProfileSchema).mutation(({ ctx, input }) => saveStudentProfile(ctx.user.id, input)),
     countryOptions: protectedProcedure.query(() => countryOptions),
     updateCountry: protectedProcedure.input(z.object({ countryCode: z.string().regex(/^[A-Z]{2}$/).refine(isCanonicalPlanningCountry, "Choose a supported planning country."), educationSystem: z.string().trim().min(2).max(180) })).mutation(({ ctx, input }) => updateStudentCountryContext(ctx.user.id, input.countryCode, input.educationSystem)),
   }),
@@ -357,8 +356,14 @@ export const pathpilotRouter = router({
 
   derivedAnalysis: router({
     status: protectedProcedure.query(({ ctx }) => getDerivedAnalysisStatus(ctx.user.id)),
-    request: protectedProcedure.mutation(({ ctx }) => requestDerivedAnalysis(ctx.user.id)),
-    retry: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => retryDerivedAnalysis(ctx.user.id, input.id)),
+    request: protectedProcedure.mutation(async ({ ctx }) => {
+      await admitDerivedSubmission(ctx.res, ctx.user.id);
+      return requestDerivedAnalysis(ctx.user.id);
+    }),
+    retry: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+      await admitDerivedSubmission(ctx.res, ctx.user.id);
+      return retryDerivedAnalysis(ctx.user.id, input.id);
+    }),
     cancel: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => cancelDerivedAnalysis(ctx.user.id, input.id)),
   }),
 
@@ -385,7 +390,7 @@ export const pathpilotRouter = router({
               timeoutMs: providerDeadline - Date.now(),
               model,
               messages: [
-                { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Every recommended career must be one of these exact supported PathPilot careers: ${simulationCareerCatalog.map(career => career.name).join("; ")}. Salary ranges must be described as location-dependent estimates, not guarantees. Keep every text field to one concise sentence or phrase. Return exactly the required minimum list sizes: 3 required skills, 2 daily responsibilities, 2 related careers, 1 current strength, 1 skill to build, and 2 next steps. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct, supported, and every required field is complete." : ""}` },
+                { role: "system", content: `You are PathPilot's career discovery engine for high-school students. Give encouraging, specific, age-appropriate educational guidance. Do not claim certainty about outcomes. Recommend exactly five distinct realistic careers based only on the supplied profile. Every recommended career must be one of these exact supported PathPilot careers: ${careerTaxonomy.map(career => career.name).join("; ")}. Salary ranges must be described as location-dependent estimates, not guarantees. Keep every text field to one concise sentence or phrase. Return exactly the required minimum list sizes: 3 required skills, 2 daily responsibilities, 2 related careers, 1 current strength, 1 skill to build, and 2 next steps. Return only the requested JSON.${attempt ? " This is a validation retry: ensure all five career names are distinct, supported, and every required field is complete." : ""}` },
                 { role: "user", content: `Analyze this student profile:\n${profileContext(profile)}` },
               ],
               response_format: { type: "json_schema", json_schema: { name: "career_discovery", strict: true, schema: discoveryJsonSchema } },
@@ -400,7 +405,7 @@ export const pathpilotRouter = router({
               throw new CareerGuidanceValidationError(`The model response did not satisfy the career-discovery contract at: ${fields}.`);
             }
             if (!hasExactlyFiveUniqueCareerMatches(parsed.data.matches)) throw new CareerGuidanceValidationError("The model response did not contain five unique career names.");
-            const canonicalMatches = parsed.data.matches.map(match => ({ ...match, name: resolveSupportedCareer(match.name)?.name ?? "" }));
+            const canonicalMatches = parsed.data.matches.map(match => ({ ...match, name: resolveDiscoveryReference(match.name)?.name ?? "" }));
             if (canonicalMatches.some(match => !match.name) || !hasExactlyFiveUniqueCareerMatches(canonicalMatches)) throw new CareerGuidanceValidationError("The model response included an unsupported or duplicate career.");
             console.info("[AI validation]", { action: "profile_analysis", passed: true });
             return canonicalMatches;
@@ -447,7 +452,10 @@ export const pathpilotRouter = router({
   }),
 
   sharedReport: router({
-    get: publicProcedure.input(z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })).query(({ input }) => getSharedPlanningReport(input.token)),
+    get: publicProcedure.input(z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })).query(async ({ ctx, input }) => {
+      await admitPublicDataRead(ctx.res, ctx.req);
+      return getSharedPlanningReport(input.token);
+    }),
   }),
 
   opportunities: router({
@@ -465,19 +473,21 @@ export const pathpilotRouter = router({
     createGoal: protectedProcedure.input(z.object({ opportunityId: z.string().uuid() })).mutation(({ ctx, input }) => createGoalFromVerifiedOpportunity(ctx.user.id, input.opportunityId)),
     refreshNasaSource: protectedProcedure.mutation(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the verified source." });
+      await admitSourceRefresh(ctx.res);
       try {
         return await refreshNasaSpaceAppsOpportunity();
       } catch (error) {
-        console.error("[PathPilot] NASA source refresh failed", error);
+        console.error("[PathPilot] NASA source refresh failed");
         throw new TRPCError({ code: "BAD_GATEWAY", message: "The official source could not be refreshed. The last verified record remains unchanged." });
       }
     }),
     refreshCuratedCatalog: protectedProcedure.mutation(async ({ ctx }) => {
       if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only a PathPilot administrator can refresh the curated catalog." });
+      await admitSourceRefresh(ctx.res);
       try {
         return await refreshCuratedOpportunityCatalog();
       } catch (error) {
-        console.error("[PathPilot] curated opportunity refresh failed", error);
+        console.error("[PathPilot] curated opportunity refresh failed");
         throw new TRPCError({ code: "BAD_GATEWAY", message: "The popular opportunity directories could not be refreshed. Existing records remain available." });
       }
     }),
@@ -486,7 +496,7 @@ export const pathpilotRouter = router({
   roadmap: router({
     get: protectedProcedure.query(({ ctx }) => getActiveRoadmap(ctx.user.id)),
     preflight: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), confirmCareerChange: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
-      const targetCareer = resolveSupportedCareer(input.targetCareer);
+      const targetCareer = resolveDiscoveryReference(input.targetCareer);
       if (!targetCareer) throw new TRPCError({ code: "BAD_REQUEST", message: "This career does not currently have a dedicated PathPilot roadmap." });
       const profile = await getStudentProfile(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
@@ -495,7 +505,7 @@ export const pathpilotRouter = router({
       return { profileReady: true };
     }),
     generate: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), confirmCareerChange: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
-      const targetCareer = resolveSupportedCareer(input.targetCareer);
+      const targetCareer = resolveDiscoveryReference(input.targetCareer);
       if (!targetCareer) throw new TRPCError({ code: "BAD_REQUEST", message: "This career does not currently have a dedicated PathPilot roadmap." });
       const [profile, latestSimulation, goals, projects, activeRoadmap] = await timeAiStage("context", () => Promise.all([getStudentProfile(ctx.user.id), getLatestCompletedAdaptiveSimulation(ctx.user.id), listGoals(ctx.user.id), listProjects(ctx.user.id), getActiveRoadmap(ctx.user.id)]));
       if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before generating a roadmap." });
@@ -533,7 +543,7 @@ export const pathpilotRouter = router({
     }),
     create: protectedProcedure.input(z.object({ targetCareer: z.string().trim().min(2).max(180), confirmCareerChange: z.boolean().default(false), milestones: z.array(milestoneSchema).min(1).max(30) }))
       .mutation(async ({ ctx, input }) => {
-        const targetCareer = resolveSupportedCareer(input.targetCareer);
+        const targetCareer = resolveDiscoveryReference(input.targetCareer);
         if (!targetCareer) throw new TRPCError({ code: "BAD_REQUEST", message: "This career does not currently have a dedicated PathPilot roadmap." });
         const activeRoadmap = await getActiveRoadmap(ctx.user.id);
         if (requiresRoadmapCareerChangeConfirmation(activeRoadmap?.targetCareer, targetCareer.name) && !input.confirmCareerChange) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Changing your active roadmap career requires your explicit confirmation." });
@@ -572,15 +582,15 @@ export const pathpilotRouter = router({
         const profile = await getStudentProfile(ctx.user.id);
         if (!profile) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Complete onboarding before starting a simulation." });
         const resumable = await getResumableAdaptiveSimulation(ctx.user.id);
-        return adaptiveSimulationResponse(resumable ?? await createAdaptiveSimulation(ctx.user.id, career.id, input.responseTimingOptIn));
+        return adaptiveSimulationResponse(resumable?.career === career.name ? resumable : await createAdaptiveSimulation(ctx.user.id, career.id, input.responseTimingOptIn));
       }),
       setTimingOptIn: protectedProcedure.input(z.object({ id: z.string().uuid(), optIn: z.boolean() })).mutation(async ({ ctx, input }) => setSimulationTimingOptIn(ctx.user.id, input.id, input.optIn)),
-      choose: protectedProcedure.input(z.object({ id: z.string().uuid(), decisionId: z.string().trim().min(2).max(80), responseTimeMs: z.number().int().min(0).max(1_800_000).optional() })).mutation(async ({ ctx, input }) => {
+      choose: protectedProcedure.input(z.object({ id: z.string().uuid(), decisionId: z.string().trim().min(2).max(80), work: workSubmissionSchema.optional(), responseTimeMs: z.number().int().min(0).max(1_800_000).optional() })).mutation(async ({ ctx, input }) => {
         try {
-          return adaptiveSimulationResponse(await chooseAdaptiveSimulationDecision(ctx.user.id, input.id, input.decisionId, input.responseTimeMs));
+          return adaptiveSimulationResponse(await chooseAdaptiveSimulationDecision(ctx.user.id, input.id, input.decisionId, input.responseTimeMs, input.work));
         } catch (error) {
           if (error instanceof Error && error.message === "Simulation not found.") throw new TRPCError({ code: "NOT_FOUND", message: error.message });
-          if (error instanceof Error && (error.message.includes("not available") || error.message.includes("already complete"))) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+          if (error instanceof Error && (error.message.includes("not available") || error.message.includes("already complete") || error.message.startsWith("Work incomplete:"))) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
           throw error;
         }
       }),
@@ -662,9 +672,9 @@ export const pathpilotRouter = router({
 
   projects: router({
     list: protectedProcedure.query(({ ctx }) => listProjects(ctx.user.id)),
-    create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: z.string().url().max(500).optional(), liveUrl: z.string().url().max(500).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
+    create: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(180), description: z.string().trim().min(10).max(4000), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20), githubLink: webUrlSchema.optional(), liveUrl: webUrlSchema.optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).default("in_progress"), progress: z.number().int().min(0).max(100).default(0), startDate: z.string().date().optional(), completionDate: z.string().date().optional(), careerId: z.string().uuid().optional(), goalIds: z.array(z.string().uuid()).max(20).optional() })).mutation(({ ctx, input }) => createProject(ctx.user.id, input)),
     createFromRoadmapMilestone: protectedProcedure.input(z.object({ milestoneId: z.string().uuid() })).mutation(({ ctx, input }) => createProjectFromRoadmapMilestone(ctx.user.id, input.milestoneId)),
-    update: protectedProcedure.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(4000).optional(), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional(), startDate: z.string().date().nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(async ({ ctx, input }) => { const project = await updateProject(ctx.user.id, input.id, input); await clearProjectGuidanceCache(ctx.user.id, input.id); return project; }),
+    update: protectedProcedure.input(z.object({ id: z.string().uuid(), name: z.string().trim().min(2).max(180).optional(), description: z.string().trim().min(10).max(4000).optional(), scopeStatement: z.string().trim().min(1).max(2000).nullable().optional(), projectNotes: z.string().trim().min(1).max(6000).nullable().optional(), skills: z.array(z.string().trim().min(1).max(80)).max(20).optional(), status: z.enum(["idea", "in_progress", "completed", "archived"]).optional(), progress: z.number().int().min(0).max(100).optional(), githubLink: webUrlSchema.nullable().optional(), liveUrl: webUrlSchema.nullable().optional(), startDate: z.string().date().nullable().optional(), completionDate: z.string().date().nullable().optional() })).mutation(async ({ ctx, input }) => { const project = await updateProject(ctx.user.id, input.id, input); await clearProjectGuidanceCache(ctx.user.id, input.id); return project; }),
     createMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().min(2).max(180), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).default("not_started"), progress: z.number().int().min(0).max(100).default(0), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).default(0) })).mutation(async ({ ctx, input }) => { const milestone = await createProjectWorkspaceMilestone(ctx.user.id, input.projectId, input); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return milestone; }),
     updateMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), details: z.string().trim().min(1).max(2000).nullable().optional(), status: z.enum(["not_started", "in_progress", "completed"]).optional(), progress: z.number().int().min(0).max(100).optional(), targetDate: z.string().date().nullable().optional(), sortOrder: z.number().int().min(0).max(999).optional() })).mutation(async ({ ctx, input }) => { const milestone = await updateProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id, input); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return milestone; }),
     deleteMilestone: protectedProcedure.input(z.object({ projectId: z.string().uuid(), id: z.string().uuid() })).mutation(async ({ ctx, input }) => { const result = await deleteProjectWorkspaceMilestone(ctx.user.id, input.projectId, input.id); await clearProjectGuidanceCache(ctx.user.id, input.projectId); return result; }),
@@ -678,7 +688,7 @@ export const pathpilotRouter = router({
           const cached = await getCachedProjectGuidance(ctx.user.id, input.projectId, inputHash);
           const parsedCached = projectGuidanceSchema.safeParse(cached);
           if (parsedCached.success) return { ...parsedCached.data, cacheStatus: "cached" as const, cacheVersion: PROJECT_GUIDANCE_CACHE_VERSION };
-        } catch (error) { console.error("[PathPilot] project guidance cache read failed", error); }
+        } catch (error) { console.error("[PathPilot] project guidance cache read failed"); }
       }
       try {
         return await runLimitedAiRequest(ctx, "project_guidance", aiRequestFingerprint(input.projectId, inputHash), async () => {
@@ -693,7 +703,7 @@ export const pathpilotRouter = router({
         const parsed = projectGuidanceSchema.safeParse(JSON.parse(contentFrom(response)));
         console.info("[AI validation]", { action: "project_guidance", passed: parsed.success });
         if (!parsed.success) throw new Error("The project guidance response failed validation.");
-        try { await cacheProjectGuidance(ctx.user.id, input.projectId, inputHash, parsed.data); } catch (error) { console.error("[PathPilot] project guidance cache write failed", error); }
+        try { await cacheProjectGuidance(ctx.user.id, input.projectId, inputHash, parsed.data); } catch (error) { console.error("[PathPilot] project guidance cache write failed"); }
           return { ...parsed.data, cacheStatus: "fresh" as const, cacheVersion: PROJECT_GUIDANCE_CACHE_VERSION };
         });
       } catch (error) {
@@ -707,10 +717,13 @@ export const pathpilotRouter = router({
     mine: protectedProcedure.query(({ ctx }) => getPortfolioWorkspace(ctx.user.id)),
     saveProfile: protectedProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/), displayName: z.string().trim().min(1).max(80), introduction: z.string().trim().min(1).max(1000).nullable().optional() })).mutation(({ ctx, input }) => upsertPortfolioProfile(ctx.user.id, input)),
     createDraftFromProject: protectedProcedure.input(z.object({ projectId: z.string().uuid() })).mutation(({ ctx, input }) => createPortfolioDraftFromProject(ctx.user.id, input.projectId)),
-    updateProject: protectedProcedure.input(z.object({ id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), summary: z.string().trim().min(10).max(4000).optional(), technologies: z.array(z.string().trim().min(1).max(80)).max(20).optional(), repositoryUrl: z.string().url().max(500).nullable().optional(), liveUrl: z.string().url().max(500).nullable().optional() })).mutation(({ ctx, input }) => updatePortfolioProject(ctx.user.id, input.id, input)),
+    updateProject: protectedProcedure.input(z.object({ id: z.string().uuid(), title: z.string().trim().min(2).max(180).optional(), summary: z.string().trim().min(10).max(4000).optional(), technologies: z.array(z.string().trim().min(1).max(80)).max(20).optional(), repositoryUrl: webUrlSchema.nullable().optional(), liveUrl: webUrlSchema.nullable().optional() })).mutation(({ ctx, input }) => updatePortfolioProject(ctx.user.id, input.id, input)),
     publish: protectedProcedure.input(z.object({ id: z.string().uuid(), confirmed: z.literal(true) })).mutation(({ ctx, input }) => publishPortfolioProject(ctx.user.id, input.id)),
     unpublish: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(({ ctx, input }) => unpublishPortfolioProject(ctx.user.id, input.id)),
-    public: publicProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/) })).query(({ input }) => getPublicPortfolio(input.handle)),
+    public: publicDataProcedure.input(z.object({ handle: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,47}$/) })).query(async ({ ctx, input }) => {
+      await admitPublicDataRead(ctx.res, ctx.req);
+      return getPublicPortfolio(input.handle);
+    }),
   }),
   account: router({
     delete: protectedProcedure.input(z.object({ confirmed: z.literal(true) }))

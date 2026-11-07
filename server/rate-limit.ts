@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getOptionalSupabaseServiceRoleKey, getSupabaseConfig } from "./supabase";
 import { timeAiStage } from "./ai/request-timing";
+import { isIsolatedTest, protectionSecret, SecurityConfigurationError } from "./security-config";
 
 export type AiRateLimitAction =
   | "mentor"
@@ -54,15 +55,15 @@ export class RateLimiterUnavailableError extends Error {
   }
 }
 
-function limiterSecret() {
-  return process.env.JWT_SECRET ?? "pathpilot-local-rate-limit-secret";
+export function protectionHash(value: string) {
+  try { return createHmac("sha256", protectionSecret()).update(value).digest("hex"); }
+  catch (error) {
+    if (error instanceof SecurityConfigurationError) console.error("[PathPilot] request protection configuration invalid; verify private JWT_SECRET (32+ random bytes)");
+    throw new RateLimiterUnavailableError();
+  }
 }
 
-function hmac(value: string) {
-  return createHmac("sha256", limiterSecret()).update(value).digest("hex");
-}
-
-function createSupabaseRateLimitStore(): RateLimitStore {
+export function createSupabaseRateLimitStore(): RateLimitStore {
   const serviceRoleKey = getOptionalSupabaseServiceRoleKey();
   if (!serviceRoleKey) {
     return {
@@ -75,30 +76,36 @@ function createSupabaseRateLimitStore(): RateLimitStore {
   const client = createClient(getSupabaseConfig().url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
+  async function rpc(name: string, args: Record<string, unknown>) {
+    try { return await client.rpc(name, args).abortSignal(AbortSignal.timeout(5000)); }
+    catch { throw new RateLimiterUnavailableError(); }
+  }
   return {
     async consume(input) {
-      const { data, error } = await client.rpc("consume_pathpilot_rate_limit", {
+      const { data, error } = await rpc("consume_pathpilot_rate_limit", {
         p_key_hash: input.keyHash,
         p_action: input.action,
         p_window_seconds: input.windowSeconds,
         p_max_requests: input.maxRequests,
       });
       const row = Array.isArray(data) ? data[0] : data;
-      if (error || !row || typeof row.allowed !== "boolean" || typeof row.retry_after_seconds !== "number") throw new RateLimiterUnavailableError();
+      if (error || !row || typeof row.allowed !== "boolean" || !Number.isSafeInteger(row.retry_after_seconds) || row.retry_after_seconds < 0) throw new RateLimiterUnavailableError();
       return { allowed: row.allowed, retryAfterSeconds: row.retry_after_seconds };
     },
     async acquireLease(input) {
-      const { data, error } = await client.rpc("acquire_pathpilot_rate_limit_lease", {
+      const { data, error } = await rpc("acquire_pathpilot_rate_limit_lease", {
         p_lease_hash: input.leaseHash,
         p_ttl_seconds: input.ttlSeconds,
       });
       const row = Array.isArray(data) ? data[0] : data;
-      if (error || !row || typeof row.acquired !== "boolean" || typeof row.retry_after_seconds !== "number") throw new RateLimiterUnavailableError();
+      if (error || !row || typeof row.acquired !== "boolean" || !Number.isSafeInteger(row.retry_after_seconds) || row.retry_after_seconds < 0) throw new RateLimiterUnavailableError();
       return { acquired: row.acquired, retryAfterSeconds: row.retry_after_seconds };
     },
     async releaseLease(input) {
-      const { error } = await client.rpc("release_pathpilot_rate_limit_lease", { p_lease_hash: input.leaseHash });
-      if (error) console.warn("[PathPilot] rate-limit lease release failed");
+      try {
+        const { error } = await rpc("release_pathpilot_rate_limit_lease", { p_lease_hash: input.leaseHash });
+        if (error) console.warn("[PathPilot] rate-limit lease release failed");
+      } catch { console.warn("[PathPilot] rate-limit lease release failed"); }
     },
   };
 }
@@ -111,12 +118,14 @@ function createPermissiveTestStore(): RateLimitStore {
   };
 }
 
-export function createAiRateLimiter(store: RateLimitStore = process.env.VITEST ? createPermissiveTestStore() : createSupabaseRateLimitStore()) {
+export function createAiRateLimiter(store: RateLimitStore =
+  isIsolatedTest()
+    ? createPermissiveTestStore() : createSupabaseRateLimitStore()) {
   return {
     async run<T>(input: { userId: string; action: AiRateLimitAction; fingerprint: string }, operation: () => Promise<T>) {
       const policy = AI_RATE_LIMIT_POLICIES[input.action];
-      const identityHash = hmac(`rate-limit:v1:${input.action}:${input.userId}`);
-      const leaseHash = hmac(`rate-limit-lease:v1:${input.action}:${input.userId}:${input.fingerprint}`);
+      const identityHash = protectionHash(`rate-limit:v1:${input.action}:${input.userId}`);
+      const leaseHash = protectionHash(`rate-limit-lease:v1:${input.action}:${input.userId}:${input.fingerprint}`);
       let leaseHeld = false;
       try {
         const lease = await timeAiStage("protection_lease", () => store.acquireLease({ leaseHash, ttlSeconds: 180 }));

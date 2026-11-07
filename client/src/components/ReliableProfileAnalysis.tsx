@@ -6,6 +6,8 @@ import { trpc } from "@/lib/trpc";
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { CareerExplorer, type ExplorationProfile } from "./CareerExplorer";
+import { legacySignals } from "@shared/career-matching";
 
 type CareerMatch = {
   career: {
@@ -31,7 +33,9 @@ function safeFailureMessage(error?: unknown) {
   return "PathPilot couldn’t finish your profile analysis. Your saved profile is unchanged. Please try again.";
 }
 
-export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] }) {
+export function ReliableProfileAnalysis({ matches, profile }: { matches: CareerMatch[]; profile?: ExplorationProfile | null }) {
+  const [includeHistory, setIncludeHistory] = useState(false);
+  const history = trpc.pathpilot.simulations.adaptive.behaviorSummary.useQuery(undefined, { enabled: includeHistory, retry: false });
   const [state, setState] = useState<AnalysisState>(matches.length === 5 ? "complete" : "idle");
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -64,7 +68,10 @@ export function ReliableProfileAnalysis({ matches }: { matches: CareerMatch[] })
   };
 
   return (
-    <><PageHeader eyebrow="Career discovery" title="Find a direction worth exploring" description="Review what fits, try the work, and decide what you want to explore next." /><section className="surface-panel p-5 sm:p-6" aria-labelledby="profile-analysis-title">
+    <><PageHeader eyebrow="Career discovery" title="Find a direction worth exploring" description="Review what fits, try the work, and decide what you want to explore next." />
+    <div className="space-y-2"><Button variant="outline" onClick={() => setIncludeHistory(value => !value)} aria-pressed={includeHistory}>{includeHistory ? "Stop using saved simulation summary" : "Include my saved simulation summary"}</Button>{includeHistory && history.isLoading ? <p role="status" className="text-sm">Loading your existing observations…</p> : null}{includeHistory && history.error ? <p role="alert" className="text-sm text-destructive">Your saved observations could not be loaded. You can still explore using your stated interests.</p> : null}{includeHistory && !history.isLoading && !history.error && !history.data ? <p className="text-sm text-muted-foreground">No completed simulation summary yet. You can explore now without completing one.</p> : null}</div>
+    <CareerExplorer profile={profile} historySignals={includeHistory ? legacySignals(history.data) : []} />
+    <section className="surface-panel p-5 sm:p-6" aria-labelledby="profile-analysis-title">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

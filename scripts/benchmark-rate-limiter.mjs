@@ -1,12 +1,22 @@
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { createAiRateLimiter } from "../server/rate-limit.ts";
 
-const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const limiterSecret = process.env.JWT_SECRET ?? "pathpilot-local-rate-limit-secret";
+const url = process.env.RATE_LIMIT_BENCHMARK_URL;
+const serviceRoleKey = process.env.RATE_LIMIT_BENCHMARK_SERVICE_ROLE_KEY;
+const limiterSecret = process.env.RATE_LIMIT_BENCHMARK_SIGNING_SECRET;
 
-if (!url || !serviceRoleKey) throw new Error("Server-only Supabase configuration is required for this benchmark.");
+if (process.env.NODE_ENV === "production" || process.env.VERCEL ||
+    process.env.RATE_LIMIT_BENCHMARK_DISPOSABLE !== "true" || !url || !serviceRoleKey ||
+    !limiterSecret || limiterSecret.trim().length < 32) throw new Error("Explicit disposable local benchmark configuration is required.");
+const target = new URL(url);
+if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || target.username || target.password) {
+  throw new Error("The rate-limit benchmark is restricted to a local disposable database.");
+}
+// Isolate every value used by the limiter from ambient application credentials.
+process.env.SUPABASE_URL = url;
+process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRoleKey;
+process.env.JWT_SECRET = limiterSecret;
+const { createAiRateLimiter } = await import("../server/rate-limit.ts");
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
@@ -16,6 +26,7 @@ const hash = (value) => createHmac("sha256", limiterSecret).update(value).digest
 const counterHashes = Array.from({ length: 16 }, (_, index) => hash(`rate-limit-benchmark:${runId}:counter:${index}`));
 const limiterUsers = Array.from({ length: 16 }, (_, index) => `rate-limit-benchmark:${runId}:user:${index}`);
 const leaseHashes = limiterUsers.map(userId => hash(`rate-limit-lease:v1:mentor:${userId}:benchmark`));
+const identityHashes = limiterUsers.map(userId => hash(`rate-limit:v1:mentor:${userId}`));
 
 function summarize(label, samples) {
   const ordered = [...samples].sort((left, right) => left - right);
@@ -62,7 +73,7 @@ try {
   console.log(JSON.stringify({ run: "synthetic-only", results }, null, 2));
 } finally {
   const [windowCleanup, leaseCleanup] = await Promise.all([
-    supabase.from("pathpilot_rate_limit_windows").delete().in("key_hash", counterHashes),
+    supabase.from("pathpilot_rate_limit_windows").delete().in("key_hash", [...counterHashes, ...identityHashes]),
     supabase.from("pathpilot_rate_limit_leases").delete().in("lease_hash", leaseHashes),
   ]);
   if (windowCleanup.error || leaseCleanup.error) throw new Error("Rate-limit benchmark cleanup did not complete.");

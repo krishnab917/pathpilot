@@ -2,16 +2,16 @@
 
 ## Toolchain and commands
 
-Baseline verified on macOS with Node 22.16.0 and pnpm 10.4.1. The packageManager field pins pnpm 10.4.1; the separate pnpm dev dependency resolves to 10.18.0. Global pnpm 11 warned that it ignores package.json overrides and patchedDependencies; use the exact launcher below.
+Use Node 22.16+ and pnpm 10.34.9. The October security pass updates the package-manager pin and its published tarball integrity within pnpm 10, retaining the lockfile and Wouter patch. Use the exact launcher below.
 
 ```sh
-npx --yes pnpm@10.4.1 install --frozen-lockfile
+npx --yes pnpm@10.34.9 install --frozen-lockfile
 cp .env.example .env
 # Fill configuration privately, then:
-npx --yes pnpm@10.4.1 dev
-npx --yes pnpm@10.4.1 check
-npx --yes pnpm@10.4.1 build
-npx --yes pnpm@10.4.1 start
+npx --yes pnpm@10.34.9 dev
+npx --yes pnpm@10.34.9 check
+npx --yes pnpm@10.34.9 build
+npx --yes pnpm@10.34.9 start
 ```
 
 Run from the repository root. Express loads `.env` through `dotenv/config`. Vite uses the root env directory. Runtime-only Supabase variables cannot supply missing VITE variables to an already-built browser bundle: rebuild after changing public configuration.
@@ -29,7 +29,7 @@ Run from the repository root. Express loads `.env` through `dotenv/config`. Vite
 | NEXT_PUBLIC_SUPABASE_URL          | Server URL compatibility fallback                                                   | Optional; same project; this is not a Next.js application                                                                |
 | NEXT_PUBLIC_SUPABASE_ANON_KEY     | Server public-key compatibility fallback                                            | Optional; same project                                                                                                   |
 | SUPABASE_SERVICE_ROLE_KEY         | Server catalog persistence, privileged RPCs, rate limits, worker; integration tests | Required for complete feature set; Supabase server-only service-role credential                                          |
-| JWT_SECRET                        | Server rate-limiter HMAC secret                                                     | Set a strong locally generated secret for deployment; keep consistent across replicas; not the current login signing key |
+| JWT_SECRET                        | Server rate-limiter/quota HMAC secret                                               | Required on production/preview and unclassified runtimes: private random value of at least 32 UTF-8 bytes; identical across replicas; not the Supabase login signing key. Never rotate as part of deployment without coordination. |
 | LLM_API_KEY                       | Server-only AI provider credential                                                  | Required for career discovery, roadmap generation, mentor chat and project guidance                                      |
 | LLM_API_BASE_URL                  | OpenAI-compatible provider base URL                                                 | Optional; defaults to `https://api.openai.com`; may include or omit `/v1`                                                |
 | LLM_MODEL                         | Deterministic model used by AI workflows                                            | Optional; defaults to `gpt-5-mini`; set explicitly for the chosen provider                                               |
@@ -46,27 +46,27 @@ Run from the repository root. Express loads `.env` through `dotenv/config`. Vite
 | VITE_ANALYTICS_ENDPOINT           | Browser Umami script base URL                                                       | Optional product integration; analytics administrator; currently missing values cause build warnings                     |
 | VITE_ANALYTICS_WEBSITE_ID         | Browser analytics site identifier                                                   | Optional product integration; analytics administrator                                                                    |
 | DATABASE_URL                      | Legacy Drizzle MySQL CLI                                                            | Not needed by active Supabase runtime; only for a deliberately retained legacy database                                  |
-| VITEST                            | Test runner marker selecting permissive mock rate limiter                           | Set by Vitest; do not set in development or production servers                                                           |
+| VITEST                            | Strict isolated-test marker; hosted environments cannot activate the mock limiter   | Set by Vitest; do not set in development or production servers                                                           |
 
 `SUPABASE_KEY` is not a supported variable. `BUILT_IN_FORGE_API_URL`, `BUILT_IN_FORGE_API_KEY`, `VITE_FRONTEND_FORGE_API_URL`, `VITE_FRONTEND_FORGE_API_KEY`, `VITE_APP_ID`, `OAUTH_SERVER_URL` and `OWNER_OPEN_ID` are not used by the migrated source. The worker token is a request-body value, not an environment variable in current code; it must be provisioned in a scheduler secret store separately.
 
 ## Tests and formatting
 
 ```sh
-npx --yes pnpm@10.4.1 test
+npx --yes pnpm@10.34.9 test
 ```
 
-This currently fails in a credential-free checkout. Three live files are `supabase-config.test.ts`, `supabase-service-role.test.ts`, `supabase-rls.test.ts`. The RLS suite creates and deletes temporary accounts and application rows. The two credential checks require a hosted `https://*.supabase.co` URL and would need adaptation for local Supabase.
+This runs offline by default. Three live files are excluded: `supabase-config.test.ts`, `supabase-service-role.test.ts`, `supabase-rls.test.ts`. The RLS suite creates and deletes temporary accounts and application rows. To run live tests, explicitly set `RUN_SUPABASE_INTEGRATION=1` and `SUPABASE_TEST_DISPOSABLE=1`, and use a disposable local origin or matching `SUPABASE_TEST_PROJECT_REF`. Both server/browser origins must match. The two credential checks still require a hosted URL; use a designated disposable hosted project for the complete live suite. Never point these tests at production.
 
-For a bounded offline baseline, use public synthetic values and explicitly exclude only the live integration files:
+For an offline baseline, use public synthetic values; the explicit exclusions below are redundant but remain supported:
 
 ```sh
-VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=offline-test-placeholder npx --yes pnpm@10.4.1 exec vitest run --exclude tests/supabase-config.test.ts --exclude tests/supabase-service-role.test.ts --exclude tests/supabase-rls.test.ts
+VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=offline-test-placeholder npx --yes pnpm@10.34.9 exec vitest run --exclude tests/supabase-config.test.ts --exclude tests/supabase-service-role.test.ts --exclude tests/supabase-rls.test.ts
 ```
 
-These values only allow the imported browser client to initialize; they are not working credentials or database validation. The migration plan calls for proper offline mocks and a separate explicit integration command.
+These values only allow the imported browser client to initialize; they are not working credentials or database validation. See `docs/security-remediation-report.md` for the optional isolated PostgreSQL verification, local-only benchmark settings, environment classification, unresolved findings and deployment prerequisites.
 
-No lint command/configuration exists. `npx --yes pnpm@10.4.1 exec prettier --check README.md DEVELOPMENT.md ARCHITECTURE.md AGENTS.md docs/MANUS_MIGRATION_AUDIT.md docs/REPOSITORY_INVENTORY.md` checks the new documentation's formatting, not application lint. `pnpm format` modifies all files, so avoid it for scoped migration work.
+No lint command/configuration exists. `npx --yes pnpm@10.34.9 exec prettier --check README.md DEVELOPMENT.md ARCHITECTURE.md AGENTS.md docs/MANUS_MIGRATION_AUDIT.md docs/REPOSITORY_INVENTORY.md` checks the new documentation's formatting, not application lint. `pnpm format` modifies all files, so avoid it for scoped migration work.
 
 ## Database and deployment
 
@@ -75,7 +75,7 @@ The active database is Supabase PostgreSQL, with 31 SQL migration files, Auth sc
 After configuring the existing Supabase project values outside git, run the read-only continuity check:
 
 ```sh
-npx --yes pnpm@10.4.1 db:verify:supabase
+npx --yes pnpm@10.34.9 db:verify:supabase
 ```
 
 For full schema metadata, run `supabase/read-only-continuity-check.sql` in the existing Supabase project's SQL editor. It reads tables, columns, policies, indexes, functions, triggers and aggregate record counts without modifying data. Record the outcome in `docs/DATABASE_CONTINUITY_REPORT.md`.

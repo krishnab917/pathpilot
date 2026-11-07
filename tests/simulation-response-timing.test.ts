@@ -47,7 +47,7 @@ describe("optional simulation response timing", () => {
     expect(mocks.setSimulationTimingOptIn).toHaveBeenCalledWith(userId, simulationId, false);
 
     await appRouter.createCaller(context).pathpilot.simulations.adaptive.choose({ id: simulationId, decisionId: "ask-peer", responseTimeMs: 1200 });
-    expect(mocks.chooseAdaptiveSimulationDecision).toHaveBeenCalledWith(userId, simulationId, "ask-peer", 1200);
+    expect(mocks.chooseAdaptiveSimulationDecision).toHaveBeenCalledWith(userId, simulationId, "ask-peer", 1200, undefined);
   });
 
   it("never returns private timing events in the public simulation projection", async () => {

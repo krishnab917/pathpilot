@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { audienceLandingCopy, type AudienceLandingContent } from "./audience-landing-copy";
 import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { useEffect } from "react";
 
 function audienceAction(href: string, label: string) {
   const children = <>{label}<ArrowRight aria-hidden="true" className="ml-2 size-4 shrink-0" /></>;
@@ -11,25 +10,6 @@ function audienceAction(href: string, label: string) {
 }
 
 function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = `PathPilot | ${content.audience}`;
-    let description = document.querySelector('meta[name="description"]');
-    const previousDescription = description?.getAttribute("content");
-    const createdDescription = !description;
-    if (!description) {
-      description = document.createElement("meta");
-      description.setAttribute("name", "description");
-      document.head.appendChild(description);
-    }
-    description.setAttribute("content", content.metaDescription);
-    return () => {
-      document.title = previousTitle;
-      if (createdDescription) description.remove();
-      else if (previousDescription !== null && previousDescription !== undefined) description.setAttribute("content", previousDescription);
-      else description.removeAttribute("content");
-    };
-  }, [content]);
 
   return (
     <main className="min-h-screen overflow-hidden bg-background">
@@ -41,10 +21,10 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-5 pb-16 pt-12 sm:px-8 sm:pb-20 sm:pt-20">
+      <section className="mx-auto max-w-7xl px-5 pb-12 pt-10 sm:px-8 sm:pb-16 sm:pt-14">
         <div className="mx-auto max-w-4xl text-center">
           <p className="eyebrow">{content.audience}</p>
-          <h1 className="mt-4 text-balance text-4xl font-semibold tracking-[-0.075em] sm:text-6xl">{content.title}</h1>
+          <h1 className="pp-editorial-title mt-4 text-[length:var(--pp-type-display)]">{content.title}</h1>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">{content.description}</p>
           <Button size="lg" className="mt-8 h-auto min-h-12 max-w-full whitespace-normal rounded-xl px-6 py-3" asChild>{audienceAction(content.ctaHref, content.cta)}</Button>
         </div>
@@ -56,7 +36,7 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
             <article key={section.eyebrow} className={index > 0 ? "border-t border-slate-200 pt-10" : ""}>
               <div className="max-w-2xl">
                 <p className="eyebrow">{section.eyebrow}</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.06em] sm:text-4xl">{section.title}</h2>
+                <h2 className="pp-section-title mt-3">{section.title}</h2>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">{section.description}</p>
               </div>
               {section.points && (
@@ -78,7 +58,7 @@ function AudienceLandingPage({ content }: { content: AudienceLandingContent }) {
         <div className="border border-slate-200 bg-card px-6 py-8 sm:px-10 sm:py-10">
           <div className="max-w-2xl">
             <p className="eyebrow">A next step, when you are ready</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.06em]">{content.followUp.title}</h2>
+            <h2 className="pp-section-title mt-3">{content.followUp.title}</h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">{content.followUp.description}</p>
             <Button className="mt-6 h-auto min-h-10 max-w-full whitespace-normal rounded-xl px-4 py-2" asChild>{audienceAction(content.followUp.href, content.followUp.cta)}</Button>
           </div>

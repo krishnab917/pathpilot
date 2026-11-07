@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./typography.css";
 @import "./design-system.css";
 @import "./color-system.css";
 
@@ -45,7 +46,7 @@
 
 @layer base {
   * { @apply border-border outline-ring/50; }
-  body { @apply bg-background text-foreground; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.01em; }
+  body { @apply bg-background text-foreground; font-family: var(--pp-font-body); }
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [type="button"]:not(:disabled), [type="submit"]:not(:disabled), [type="reset"]:not(:disabled), a[href], select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled) { @apply cursor-pointer; }
 }
 
@@ -53,8 +54,8 @@
   .container { width: 100%; margin-inline: auto; padding-inline: 1rem; }
   .flex { min-height: 0; min-width: 0; }
   .surface-panel { border: 1px solid var(--border); border-radius: var(--pp-panel-radius); background: var(--card); box-shadow: var(--pp-shadow-panel); }
-  .eyebrow { @apply text-[10px] font-semibold uppercase tracking-[0.15em] text-primary; }
-  .field-label { @apply text-xs font-semibold text-foreground; }
+  .eyebrow { @apply font-semibold uppercase text-primary; font-size: 0.6875rem; line-height: 1.6; letter-spacing: 0.12em; }
+  .field-label { @apply block font-medium text-foreground; font-size: var(--pp-type-label); line-height: 1.5; }
   .icon-tile { @apply grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary; }
   .feature-card { opacity: 0; animation: feature-card-fade var(--pp-motion-content) var(--pp-ease) forwards !important; }
   .feature-card:nth-child(2) { animation-delay: 45ms !important; }

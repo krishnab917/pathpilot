@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 
 const mocks = vi.hoisted(() => ({ createPortfolioDraftFromProject: vi.fn(), publishPortfolioProject: vi.fn(), getPublicPortfolio: vi.fn() }));
@@ -16,11 +16,14 @@ const context: TrpcContext = { user: { id: userId, email: "student@example.com",
 
 describe("portfolio publication router", () => {
   beforeEach(() => {
+    vi.stubEnv("SUPABASE_URL", "https://portfolio.invalid");
+    vi.stubEnv("SUPABASE_ANON_KEY", "offline-public-fixture");
     vi.clearAllMocks();
     mocks.createPortfolioDraftFromProject.mockResolvedValue({ id: portfolioProjectId, isPublished: false });
     mocks.publishPortfolioProject.mockResolvedValue({ id: portfolioProjectId, isPublished: true });
     mocks.getPublicPortfolio.mockResolvedValue(null);
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   it("creates a private portfolio draft only through the signed-in project owner", async () => {
     await expect(appRouter.createCaller(context).pathpilot.portfolio.createDraftFromProject({ projectId })).resolves.toMatchObject({ id: portfolioProjectId, isPublished: false });

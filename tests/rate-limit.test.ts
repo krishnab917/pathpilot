@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { randomBytes } from "node:crypto";
 import { AI_RATE_LIMIT_POLICIES, createAiRateLimiter, RateLimitExceededError, RateLimiterUnavailableError, type RateLimitStore } from "../server/rate-limit";
 
 function memoryStore(): RateLimitStore & { consumed: Array<{ keyHash: string; action: string }>; leases: Set<string> } {
@@ -25,6 +26,30 @@ function memoryStore(): RateLimitStore & { consumed: Array<{ keyHash: string; ac
 }
 
 describe("shared authenticated AI rate limits", () => {
+  it("signs deterministically for the same key and changes identifiers when the key changes", async () => {
+    const store = memoryStore();
+    const limiter = createAiRateLimiter(store);
+    try {
+      vi.stubEnv("JWT_SECRET", randomBytes(32).toString("hex"));
+      await limiter.run({ userId: "example-owner", action: "mentor", fingerprint: "one" }, async () => true);
+      await limiter.run({ userId: "example-owner", action: "mentor", fingerprint: "two" }, async () => true);
+      expect(store.consumed[0].keyHash).toBe(store.consumed[2].keyHash);
+      vi.stubEnv("JWT_SECRET", randomBytes(32).toString("hex"));
+      await limiter.run({ userId: "example-owner", action: "mentor", fingerprint: "three" }, async () => true);
+      expect(store.consumed[4].keyHash).not.toBe(store.consumed[0].keyHash);
+    } finally { vi.unstubAllEnvs(); }
+  });
+  it("does not enable a permissive store on hosted runtimes even when VITEST is set", async () => {
+    const operation = vi.fn(async () => true);
+    try {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("VERCEL", "1");
+      vi.stubEnv("VITEST", "true");
+      vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+      await expect(createAiRateLimiter().run({ userId: "example-owner", action: "mentor", fingerprint: "one" }, operation)).rejects.toBeInstanceOf(RateLimiterUnavailableError);
+      expect(operation).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
   it("permits normal Mentor use, returns a retry duration at the burst boundary, and releases completed leases", async () => {
     const store = memoryStore();
     const limiter = createAiRateLimiter(store);

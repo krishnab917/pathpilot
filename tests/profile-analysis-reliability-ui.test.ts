@@ -14,7 +14,7 @@ const workspaceSource = readFileSync(
 describe("Profile Analysis reliability UI", () => {
   it("uses the isolated reliable section in the workspace", () => {
     expect(workspaceSource).toContain('import { ReliableProfileAnalysis } from "@/components/ReliableProfileAnalysis";');
-    expect(workspaceSource).toContain("discover: <ReliableProfileAnalysis matches={dashboard.data.matches} />");
+    expect(workspaceSource).toContain("discover: <ReliableProfileAnalysis matches={dashboard.data.matches} profile={dashboard.data.profile} />");
   });
 
   it("shows progressive stages and keeps valid saved analysis visible instead of rerunning it automatically", () => {
