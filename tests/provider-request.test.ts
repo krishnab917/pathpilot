@@ -47,6 +47,12 @@ describe("bounded provider requests (offline fetch)", () => {
     await expect(requestProviderJson("https://provider.invalid", {})).rejects.toMatchObject({ category: "invalid_response" });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+  it("rejects an oversized provider body without logging it or retrying", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ content: "x".repeat(2 * 1024 * 1024 + 1) })));
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestProviderJson("https://provider.invalid", {})).rejects.toMatchObject({ category: "invalid_response" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("bounds network retries and sanitizes network errors", async () => {
     const fetch = vi.fn().mockRejectedValue(new Error("PRIVATE_SENTINEL"));
     vi.stubGlobal("fetch", fetch);

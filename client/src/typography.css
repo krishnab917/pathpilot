@@ -1,0 +1,51 @@
+/* Locally hosted, OFL-licensed Latin subsets. Other scripts use system fallbacks. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/dm-sans-latin-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-variable.woff2") format("woff2");
+}
+
+:root {
+  --pp-font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --pp-font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --pp-type-display: clamp(2.5rem, 4vw, 3.75rem);
+  --pp-type-section: clamp(2rem, 3.5vw, 3rem);
+  --pp-type-label: 0.8125rem;
+  --pp-type-meta: 0.75rem;
+  --pp-reading-width: 62ch;
+}
+
+@layer base {
+  body {
+    font-family: var(--pp-font-body);
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.pp-editorial-title,
+.pp-section-title {
+  font-family: var(--pp-font-display);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.14;
+}
+.pp-section-title {
+  font-size: var(--pp-type-section);
+}

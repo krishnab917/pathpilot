@@ -40,6 +40,7 @@ describe("candidate semantic palette contrast", () => {
           ["success", "success-subtle"],
           ["warning", "warning-subtle"],
           ["destructive", "card"],
+          ["destructive-foreground", "destructive"],
         ]) {
           expect(
             contrast(tokens[fg], tokens[bg]),

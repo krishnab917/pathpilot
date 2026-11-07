@@ -1,0 +1,34 @@
+name: Security and offline regression checks
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_ANON_KEY: offline-ci-test-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: offline-ci-test-placeholder
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.34.9
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/security-scan.mjs --history
+      - run: pnpm check
+      - run: pnpm test
+      - run: npm install --prefix "$RUNNER_TEMP/pathpilot-sql" --no-save --ignore-scripts @electric-sql/pglite@0.4.1
+      - run: node scripts/verify-security-migrations.mjs "$RUNNER_TEMP/pathpilot-sql/node_modules/@electric-sql/pglite/dist/index.js"
+      - run: pnpm build
+      - run: node scripts/security-scan.mjs --built
+      - run: pnpm audit --prod --audit-level high

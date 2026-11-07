@@ -78,21 +78,19 @@ export async function notifyOwner(
       method: "POST",
       headers,
       body: JSON.stringify({ title, content }),
+      signal: AbortSignal.timeout(10_000),
+      redirect: "error",
     });
 
     if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${
-          detail ? `: ${detail}` : ""
-        }`
-      );
+      await response.body?.cancel().catch(() => undefined);
+      console.warn("[Notification] request rejected", { status: response.status });
       return false;
     }
 
     return true;
-  } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
+  } catch {
+    console.warn("[Notification] request failed");
     return false;
   }
 }

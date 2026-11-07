@@ -2,15 +2,26 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
-import { runWithSupabaseClient } from "../supabase";
+import { createPublicSupabase, runWithSupabaseClient } from "../supabase";
 import { traceAiRequest } from "../ai/request-timing";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      message: error.code === "INTERNAL_SERVER_ERROR"
+        ? "PathPilot could not complete this request. Please try again." : shape.message,
+      data: { ...shape.data, stack: undefined },
+    };
+  },
 });
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
+// Public portfolio reads still execute under anonymous RLS, never service_role.
+export const publicDataProcedure = t.procedure.use(({ next }) =>
+  runWithSupabaseClient(createPublicSupabase(), () => next()));
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;

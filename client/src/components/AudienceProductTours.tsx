@@ -42,7 +42,7 @@ export function AudienceSection({
   const reduced = useReducedMotion();
   return (
     <section id={id} tabIndex={-1} className="audience-feature scroll-mt-24">
-      <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28">
+      <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-20">
         <div className="landing-section-heading">
           <p className="eyebrow">{label}</p>
           <h2>

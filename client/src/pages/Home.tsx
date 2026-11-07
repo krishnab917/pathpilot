@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/accordion";
 import { LandingWalkthrough } from "@/components/LandingWalkthrough";
 import { LandingOpportunitiesPreview } from "@/components/LandingOpportunitiesPreview";
+import { LandingPlanExcerpt } from "@/components/LandingPlanExcerpt";
 import {
   LandingActionJourney,
   LandingRoadmapShowcase,
@@ -23,9 +24,10 @@ import {
 import { scrollToLandingJourney } from "@/lib/landing-scroll";
 import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useEffect, type ComponentPropsWithoutRef } from "react";
+import { type ComponentPropsWithoutRef } from "react";
 import "./landing-page.css";
 import { audienceExperiences, audienceOrder } from "@/lib/audience-experiences";
+import { ResourceLinks } from "./Resources";
 
 function StoryLink({
   target,
@@ -63,13 +65,6 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const startHref = isAuthenticated ? "/app" : "/auth";
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = "PathPilot | Discover your career. Build your path.";
-    return () => {
-      document.title = previousTitle;
-    };
-  }, []);
 
   return (
     <MotionConfig
@@ -113,7 +108,7 @@ export default function Home() {
         <section
           id="product-overview"
           aria-label="PathPilot product overview"
-          className="landing-hero px-5 pb-16 pt-8 sm:px-8 sm:pt-14"
+          className="landing-hero px-5 pb-12 pt-8 sm:px-8 sm:pt-10"
         >
           <div className="landing-focused-hero mx-auto max-w-7xl">
             <div className="landing-hero-intro min-w-0">
@@ -126,10 +121,10 @@ export default function Home() {
                   {landingCopy.hero.titleAccent}
                 </span>
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+              <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
                 {landingCopy.hero.description}
               </p>
-              <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <div className="mt-7 flex flex-wrap gap-3">
                 <Button size="lg" className="rounded-xl" asChild>
                   <StoryLink target="audiences">
                     Find your PathPilot experience
@@ -151,19 +146,18 @@ export default function Home() {
               <p className="mt-4 text-xs text-muted-foreground">
                 A place to find a direction, or start building on one.
               </p>
-              <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Roadmaps make the next steps concrete. Projects and goals keep
-                the work moving. AI Mentor offers guidance and reflection along
-                the way. Together, they help students build meaningful
-                experiences and strengthen the substance of their college
-                applications, without promising admissions results.
+              <p className="mt-5 max-w-xl text-sm leading-6 text-muted-foreground">
+                Roadmaps, projects, goals, and AI Mentor help turn exploration
+                into experiences you can reflect on in college applications,
+                without promising admissions results.
               </p>
             </div>
+            <LandingPlanExcerpt />
           </div>
           <div
             id="audiences"
             tabIndex={-1}
-            className="mx-auto mt-14 max-w-7xl scroll-mt-8 pt-6"
+            className="mx-auto mt-10 max-w-7xl scroll-mt-8 pt-6"
           >
             <h2 className="text-xl font-semibold tracking-tight">
               Who are you exploring PathPilot for?
@@ -248,7 +242,7 @@ export default function Home() {
           <p className="eyebrow">
             02 / Discover → Explore → Simulate → Reflect
           </p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.05em] sm:text-6xl">
+          <h2 className="pp-section-title mt-4 max-w-3xl">
             Figure out what's worth exploring. Then try it.
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
@@ -265,7 +259,7 @@ export default function Home() {
           <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 md:grid-cols-2 md:gap-16">
             <div>
               <p className="eyebrow">More than a career suggestion</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+              <h2 className="pp-section-title mt-4">
                 What do you actually leave with?
               </h2>
               <p className="mt-5 text-base leading-8 text-muted-foreground">
@@ -323,7 +317,7 @@ export default function Home() {
                 <div>
                   <h2
                     id={audience.id + "-title"}
-                    className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl"
+                    className="pp-section-title"
                   >
                     {audience.title}
                   </h2>
@@ -383,7 +377,7 @@ export default function Home() {
         ))}
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
           <p className="eyebrow">Why PathPilot</p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+          <h2 className="pp-section-title mt-4">
             Exploration that gives you somewhere to go.
           </h2>
           <div className="mt-9 grid gap-8 md:grid-cols-3">
@@ -425,7 +419,7 @@ export default function Home() {
           <div className="mx-auto grid max-w-7xl gap-8 px-5 py-16 sm:px-8 md:grid-cols-[0.7fr_1.3fr] md:gap-16">
             <div>
               <p className="eyebrow">A few natural questions</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+              <h2 className="pp-section-title mt-4">
                 Before you begin.
               </h2>
             </div>
@@ -444,8 +438,8 @@ export default function Home() {
           </div>
         </section>
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
-          <div className="rounded-[32px] bg-foreground px-6 py-12 text-center text-background sm:p-16">
-            <h2 className="mx-auto max-w-2xl text-balance text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+          <div className="rounded-xl bg-foreground px-6 py-10 text-center text-background sm:p-12">
+            <h2 className="pp-section-title mx-auto max-w-2xl text-balance">
               {landingCopy.closing.title}
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-sm leading-7 opacity-80">
@@ -472,6 +466,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+        <ResourceLinks />
         <footer className="border-t border-border">
           <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
             <div>

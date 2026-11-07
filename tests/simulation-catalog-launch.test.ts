@@ -3,7 +3,7 @@ import type { TrpcContext } from "../server/_core/context";
 import { getAdaptivePublicScenario } from "../server/db";
 import { appRouter } from "../server/routers";
 import { simulationCareerCatalog } from "../server/simulation/catalog";
-import { getSimulationGraph, initialSimulationState } from "../server/simulation/engine";
+import { getWorkSimulationGraph, initialSimulationState } from "../server/simulation/engine";
 
 const mocks = vi.hoisted(() => ({
   getStudentProfile: vi.fn(),
@@ -31,7 +31,7 @@ const context: TrpcContext = {
 
 function savedSimulation(careerId: string, id = "22222222-2222-4222-8222-222222222222") {
   const career = simulationCareerCatalog.find(item => item.id === careerId)!;
-  const graph = getSimulationGraph(careerId);
+  const graph = getWorkSimulationGraph(careerId);
   const state = initialSimulationState(graph);
   return {
     id,
@@ -69,10 +69,10 @@ describe("curated simulation catalog launch", () => {
     mocks.createAdaptiveSimulation.mockImplementation(async (_userId: string, careerId: string) => savedSimulation(careerId));
   });
 
-  it("returns exactly the fifteen supported careers through the protected catalog", async () => {
+  it("returns exactly the twenty-five supported careers through the protected catalog", async () => {
     const catalog = await appRouter.createCaller(context).pathpilot.simulations.adaptive.catalog();
 
-    expect(catalog).toHaveLength(15);
+    expect(catalog).toHaveLength(25);
     expect(catalog.map(item => item.id)).toEqual(simulationCareerCatalog.map(item => item.id));
   });
 
@@ -83,18 +83,29 @@ describe("curated simulation catalog launch", () => {
     expect(mocks.createAdaptiveSimulation).not.toHaveBeenCalled();
   });
 
+  it("resumes the selected career without substituting a different unfinished career", async () => {
+    mocks.getResumableAdaptiveSimulation.mockResolvedValue(savedSimulation("software-engineer"));
+    const caller = appRouter.createCaller(context);
+    const resumed = await caller.pathpilot.simulations.adaptive.start({ careerId: "software-engineer" });
+    expect(resumed.simulation.career).toBe("Software Engineer");
+    expect(mocks.createAdaptiveSimulation).not.toHaveBeenCalled();
+    const selected = await caller.pathpilot.simulations.adaptive.start({ careerId: "teacher" });
+    expect(selected.simulation.career).toBe("Teacher");
+    expect(mocks.createAdaptiveSimulation).toHaveBeenCalledWith(userId, "teacher", false);
+  });
+
   it("launches every supported ID with its own dedicated graph rather than a substituted environment", async () => {
     const caller = appRouter.createCaller(context);
 
     for (const [index, career] of simulationCareerCatalog.entries()) {
       const response = await caller.pathpilot.simulations.adaptive.start({ careerId: career.id });
-      const graph = getSimulationGraph(career.id);
+      const graph = getWorkSimulationGraph(career.id);
 
       expect(mocks.createAdaptiveSimulation).toHaveBeenCalledWith(userId, career.id, false);
       expect(response.simulation.career).toBe(career.name);
       expect(response.scenario?.id).toBe(graph.startNodeId);
       expect(response.scenario?.title).toBe(graph.nodes[graph.startNodeId]?.title);
-      expect(graph.id).toBe(index === 0 ? "software-systems-v1" : `${career.id}-v1`);
+      expect(graph.id).toBe(`${career.id}-work-v1`);
     }
   });
 
@@ -103,7 +114,7 @@ describe("curated simulation catalog launch", () => {
     const doctor = savedSimulation("doctor-physician", "33333333-3333-4333-8333-333333333333");
 
     expect(software.scenarioGraphId).not.toBe(doctor.scenarioGraphId);
-    expect(getAdaptivePublicScenario(software).id).toBe(getSimulationGraph("software-engineer").startNodeId);
-    expect(getAdaptivePublicScenario(doctor).id).toBe(getSimulationGraph("doctor-physician").startNodeId);
+    expect(getAdaptivePublicScenario(software).id).toBe(getWorkSimulationGraph("software-engineer").startNodeId);
+    expect(getAdaptivePublicScenario(doctor).id).toBe(getWorkSimulationGraph("doctor-physician").startNodeId);
   });
 });

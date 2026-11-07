@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /onboarding
-Disallow: /app
-Disallow: /share/*
-Disallow: /portfolio/*
-Disallow: /auth/update-password
-
-Sitemap: https://pathpilotapp.com/sitemap.xml

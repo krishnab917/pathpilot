@@ -268,17 +268,18 @@ export function AIChatBox({
                     )}
 
                     <div
+                      data-role={message.role}
                       className={cn(
-                        "pp-mentor-message max-w-[90%] sm:max-w-[85%] rounded-lg px-4 py-2.5",
+                        "pp-mentor-message rounded-lg px-4 py-2.5",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          : "text-foreground"
                       )}
                     >
                       {message.role === "assistant" ? (
                         <MentorMessageContent content={message.content} />
                       ) : (
-                        <p className="whitespace-pre-wrap text-sm">
+                        <p className="whitespace-pre-wrap text-[0.9375rem] leading-7">
                           {message.content}
                         </p>
                       )}
@@ -317,7 +318,7 @@ export function AIChatBox({
       <form
         ref={inputAreaRef}
         onSubmit={handleSubmit}
-        className="flex gap-2 p-4 border-t bg-background/50 items-end"
+        className="pp-mentor-composer flex border-t items-end"
       >
         <Textarea
           ref={textareaRef}
@@ -334,7 +335,7 @@ export function AIChatBox({
           aria-label="Send message"
           size="icon"
           disabled={!input.trim() || isLoading}
-          className="shrink-0 h-[38px] w-[38px]"
+          className="shrink-0 size-11"
         >
           {isLoading ? (
             <Loader2 className="size-4 animate-spin" />

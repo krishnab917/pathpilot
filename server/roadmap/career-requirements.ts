@@ -1,4 +1,6 @@
 import { getNationalEducationContext } from "./national-context";
+import { simulationCareerActions } from "./simulation-career-actions";
+import { resolveDiscoveryCareer } from "../../shared/career-taxonomy";
 
 export type RecommendationKind = "primary" | "explore";
 export type CareerRecommendationMetadata = {
@@ -141,7 +143,18 @@ const profiles: Record<string, CareerRequirementAction[]> = {
 
 export function getCareerRequirementActions(career: string): CareerRequirementAction[] {
   const key = normalize(career);
-  return profiles[key] ?? (key === "machine learning engineer" ? profiles["ai machine learning engineer"] : []);
+  const existing = profiles[key] ?? simulationCareerActions[key] ?? (key === "machine learning engineer" ? profiles["ai machine learning engineer"] : undefined);
+  if (existing) return existing;
+  const reference = resolveDiscoveryCareer(career);
+  if (!reference) return [];
+  return reference.nextSteps.map((step, index) => ({
+    id: `${reference.id}-explore-${index}`, kind: "explore", requirementId: `${reference.id}-explore-${index}`,
+    requirementLabel: index ? "Verify local training routes" : "Try a small work sample", category: index ? "experience" : "project", priority: "medium", estimatedHours: index ? 2 : 3,
+    coverageTerms: [step], title: () => step,
+    description: () => index ? reference.training : `Practice ${reference.skills.join(" and ")} through a safe beginner artifact. This does not qualify you for professional practice.`,
+    gap: () => "No matching exploration step is recorded in the supplied planning context.",
+    tip: "Discuss what you learned with a counselor; verify local prerequisites before committing to training.",
+  }));
 }
 
 export function actionIsCovered(action: CareerRequirementAction, evidence: string[]) {

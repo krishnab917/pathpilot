@@ -72,7 +72,6 @@ export function parseBnlHighSchoolResearchPage(html: string, verifiedAt = new Da
 }
 
 export async function fetchBnlHighSchoolResearchRecord(fetcher: typeof fetch = fetch) {
-  const response = await fetcher(BNL_HSRP_URL, { headers: { Accept: "text/html,application/xhtml+xml" } });
-  if (!response.ok) throw new Error(`BNL source request failed (${response.status}).`);
-  return parseBnlHighSchoolResearchPage(await response.text());
+  const { fetchSourceHtml } = await import("./fetch-source");
+  return parseBnlHighSchoolResearchPage(await fetchSourceHtml(BNL_HSRP_URL, fetcher));
 }

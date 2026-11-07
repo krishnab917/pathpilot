@@ -34,6 +34,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import "./landing-page.css";
 import "./audience-experience.css";
 
+import { ResourceLinks } from "./Resources";
+
 export function AudienceRoleSwitcher({ audience }: { audience: Audience }) {
   const reduced = useReducedMotion();
   return (
@@ -233,23 +235,9 @@ export function AudienceExperience({ audience }: { audience: Audience }) {
     ),
   };
   useEffect(() => {
-    const priorTitle = document.title;
-    document.title = `PathPilot for ${config.label === "Parent" ? "Parents" : config.label === "Counselor" ? "Counselors" : "Students"} | Discover, build, prepare`;
-    const existing = document.querySelector('meta[name="description"]');
-    const meta = existing ?? document.createElement("meta");
-    const old = meta.getAttribute("content");
-    meta.setAttribute("name", "description");
-    meta.setAttribute("content", config.description);
-    if (!existing) document.head.appendChild(meta);
     // Full audience navigation starts with its own story, never an old scroll offset.
     window.scrollTo({ top: 0, behavior: "instant" });
     heading.current?.focus({ preventScroll: true });
-    return () => {
-      document.title = priorTitle;
-      if (!existing) meta.remove();
-      else if (old === null) meta.removeAttribute("content");
-      else meta.setAttribute("content", old);
-    };
   }, [config]);
   return (
     <MotionConfig
@@ -332,7 +320,7 @@ export function AudienceExperience({ audience }: { audience: Audience }) {
         ))}
         <section className="audience-final mx-auto max-w-5xl px-5 py-24 text-center sm:px-8">
           <p className="eyebrow">A next step, when you are ready</p>
-          <h2 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h2 className="pp-section-title mt-5">
             {config.final}
           </h2>
           <Button asChild size="lg" className="mt-8">
@@ -349,6 +337,7 @@ export function AudienceExperience({ audience }: { audience: Audience }) {
             </p>
           )}
         </section>
+        <ResourceLinks />
         <footer className="border-t border-border px-5 py-10 sm:px-8">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6">
             <Brand compact />

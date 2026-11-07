@@ -1,4 +1,6 @@
 import { getNationalEducationContext } from "./roadmap/national-context";
+import { intakeMatchingInput, readIntake, startingFields } from "../shared/discovery-intake";
+import { careerTaxonomy, careerFields, fieldDetails } from "../shared/career-taxonomy";
 
 export const mentorContextLimits = {
   conversationMessages: 6,
@@ -20,7 +22,7 @@ type MentorHistoryMessage = { role: "user" | "assistant"; content: string };
 
 export type MentorContextInput = {
   request: string;
-  profile: { grade: string; countryCode?: string | null; careerPreferences?: string[] } | null;
+  profile: { grade: string; countryCode?: string | null; careerPreferences?: string[]; interests?: string[]; skills?: string[]; activities?: string[]; discoveryIntake?: unknown } | null;
   roadmap: { targetCareer: string; completionPercentage: number; milestones: MentorMilestone[] } | null;
   goals: MentorGoal[];
   projects: MentorProject[];
@@ -50,7 +52,10 @@ const dateLabel = (value: Date | string | null | undefined) => {
 };
 
 function requestNeedsCareerProfile(request: string) {
-  return /\b(career|direction|explore|fit|path|simulation|scenario|decision)\b/i.test(request);
+  const normalize = (value: string) => ` ${value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const text = normalize(request);
+  return /\b(careers?|directions?|explor\w*|interests?|preferences?|onboarding|recommend\w*|fit|paths?|simulation|scenario|decision|culinary|cooking|baking|trades|teaching|nursing|arts)\b/i.test(request) ||
+    [...careerFields, ...careerTaxonomy.flatMap(career => [career.name, career.subfield])].some(term => text.includes(normalize(term)));
 }
 
 function requestNeedsProjects(request: string) {
@@ -130,6 +135,38 @@ export function buildMentorContext(input: MentorContextInput): BuiltMentorContex
       status: boundedText(project.status, 32),
       progress: Math.max(0, Math.min(100, Math.round(Number(project.progress) || 0))),
     }));
+  }
+  if (needs.careerProfile) {
+    const intake = readIntake(input.profile?.discoveryIntake);
+    // Validate the structured object and bound legacy lists before the shared
+    // matching engine sees them. Never forward the raw profile or intake blob.
+    const profile = {
+      interests: boundedList(input.profile?.interests, 12, 80),
+      skills: boundedList(input.profile?.skills, 12, 80),
+      activities: boundedList(input.profile?.activities, 12, 80),
+      careerPreferences: boundedList(input.profile?.careerPreferences, 12, 80),
+      ...(intake ? { discoveryIntake: intake } : {}),
+    };
+    context.exploration_summary = {
+      context_version: "discovery-intake-context-v1",
+      interpretation: "Self-reported, editable interests and preferences; not fixed traits or aptitude scores. Personalize the starting point, never restrict the destination. Support exploration outside these fields. Missing answers mean unknown, not inability. These suggestions use onboarding only, not simulation scores or predictions of success.",
+      declared_interests: profile.interests,
+      self_reported_skills: profile.skills,
+      self_reported_activities: profile.activities,
+      selected_fields: intake?.fields.map(field => fieldDetails[field].label) ?? [],
+      work_preferences: intake?.preferences ?? {},
+      motivations: intake?.motivations ?? [],
+      enjoyed_subjects: intake?.subjects ?? [],
+      training_pathways: intake?.pathways ?? [],
+      exploration_goal: intake?.direction ?? "not recorded",
+      career_ideas: intake?.direction === "ideas" ? intake.careers : profile.careerPreferences,
+      starting_fields: startingFields(intakeMatchingInput(profile)).map(item => ({
+        field: item.label, evidence: item.evidence,
+        reasons: boundedList(item.reasons, 4), cautions: boundedList(item.cautions, 4),
+        unknown_dimensions: item.missing, next_step: boundedText(item.nextStep),
+      })),
+      history_scope: "Only the supplied current roadmap and, when requested, latest completed simulation summary are available. No browsing history is inferred.",
+    };
   }
   if (needs.simulation && input.simulation) {
     context.simulation_summary = {

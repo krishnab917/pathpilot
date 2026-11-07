@@ -23,6 +23,20 @@ function discoveryClient(rpc: ReturnType<typeof vi.fn>, profileData: unknown = n
 describe("verified opportunity repository", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("uses multi-field onboarding without saved matches and keeps unaligned browsing unfiltered", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+    mocks.client = discoveryClient(rpc, { interests: ["aviation"], career_preferences: ["Baker"], discovery_intake: { version: "discovery-intake-v1", fields: ["sport", "trades"] } });
+    await searchVerifiedOpportunities(userId, { alignedOnly: true, search: "culinary" });
+    expect(rpc).toHaveBeenLastCalledWith("list_discoverable_opportunities", expect.objectContaining({
+      filter_domains: expect.arrayContaining(["sport", "trades", "engineering", "hospitality", "transport"]),
+      ranking_domains: expect.arrayContaining(["hospitality", "transport"]), filter_search: "culinary",
+    }));
+    await searchVerifiedOpportunities(userId, { alignedOnly: false });
+    expect(rpc).toHaveBeenLastCalledWith("list_discoverable_opportunities", expect.objectContaining({ filter_domains: null }));
+    expect(mocks.client.from("student_profiles").eq).toHaveBeenCalledWith("user_id", userId);
+    expect(mocks.client.from("career_matches").eq).toHaveBeenCalledWith("user_id", userId);
+  });
+
   it("returns source-attributed opportunities through the paginated database discovery function", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [{ id: opportunityId, title: "Verified event", summary: "A source-attributed opportunity.", category: "competition", participation_mode: "hybrid", location_label: "Global", source_date_label: null, career_domains: [], country_codes: [], eligible_grades: [], start_at: "2026-11-14T00:00:00Z", end_at: "2026-11-15T23:59:59Z", registration_opens_at: null, application_deadline_at: null, eligibility_summary: "Review the official requirements.", application_url: "https://example.org/apply", source_url: "https://example.org", source_name: "Official organizer", verified_at: "2026-08-16T00:00:00Z", student_status: null, total_count: 1 }], error: null });
     mocks.client = discoveryClient(rpc);

@@ -51,7 +51,8 @@ describe("audience product experiences", () => {
       expect(choices).toContain(`href="${audienceExperiences[role].route}"`);
       expect(choices).toContain(audienceExperiences[role].label);
     }
-    expect(html).toContain("strengthen the substance of their college");
+    expect(html).toContain("experiences you can reflect on in college applications");
+    expect(html).toContain("Illustrative plan · Not a student record");
     expect(html).toContain("without promising admissions results");
   });
   it("orders the actual DOM by audience priorities without dropping any capability", () => {

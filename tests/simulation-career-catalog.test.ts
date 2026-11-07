@@ -8,9 +8,9 @@ import {
 import { buildAdaptiveResults } from "../server/simulation/engine";
 
 describe("curated career simulation catalog", () => {
-  it("defines exactly fifteen supported career simulations with complete selection metadata", () => {
-    expect(simulationCareerCatalog).toHaveLength(15);
-    expect(new Set(simulationCareerCatalog.map(career => career.id)).size).toBe(15);
+  it("defines exactly twenty-five supported career simulations with complete selection metadata", () => {
+    expect(simulationCareerCatalog).toHaveLength(25);
+    expect(new Set(simulationCareerCatalog.map(career => career.id)).size).toBe(25);
     expect(new Set(simulationCareerCatalog.map(career => career.icon)).size).toBe(15);
     for (const career of simulationCareerCatalog) {
       expect(career.name).not.toBe("");
@@ -35,6 +35,8 @@ describe("curated career simulation catalog", () => {
       "entrepreneur-startup-founder",
       "product-manager",
       "financial-analyst",
+      "supply-chain-analyst",
+      "accountant",
     ]);
     expect(relatedSimulationCareers("aerospace-engineer-astronaut").map(career => career.id)).toContain("mechanical-engineer");
   });
@@ -47,7 +49,7 @@ describe("curated career simulation catalog", () => {
       { trait: "attention_to_detail", direction: 1, weight: 3, context: "technical", nodeId: "software-review", decisionId: "test", difficulty: 3 },
     ]);
 
-    expect(result.compatibility).toHaveLength(15);
+    expect(result.compatibility).toHaveLength(25);
     expect(result.compatibility.map(item => item.careerName)).toContain("Software Engineer");
     expect(result.compatibility.map(item => item.careerName)).toContain("Doctor / Physician");
     expect(result.compatibility[0]?.careerName).not.toBe("Doctor / Physician");

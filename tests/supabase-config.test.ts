@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { assertDisposableSupabase } from "./disposable-supabase";
+assertDisposableSupabase();
 
 describe("configured Supabase public API", () => {
   it("accepts the configured public project credential", async () => {

@@ -1,4 +1,5 @@
 import { CalendarDays, MapPin } from "lucide-react";
+import { safeHttpUrl } from "@shared/safe-url";
 
 export type OpportunityRecordDetails = {
   title: string;
@@ -70,7 +71,7 @@ export function OpportunityRecord({
           <span className="status-tag">Saved</span>
         )}
       </div>
-      <Heading className="mt-3 text-base font-semibold">
+      <Heading className="mt-3 text-lg font-medium leading-snug tracking-[-0.015em]">
         {opportunity.title}
       </Heading>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -144,7 +145,7 @@ export function OpportunityRecord({
           Listed by{" "}
           <a
             className="utility-link"
-            href={opportunity.sourceUrl}
+            href={safeHttpUrl(opportunity.sourceUrl)}
             target="_blank"
             rel="noreferrer"
           >
