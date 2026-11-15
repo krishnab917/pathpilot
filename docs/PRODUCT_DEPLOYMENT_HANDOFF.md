@@ -57,6 +57,8 @@ Initial read-only tsx inspection hit a sandbox IPC permission error; it was reru
 
 ## Important unresolved release gates
 
+November 15 remediation update: the three implementation defects below are now fixed and locally regression-tested; see [PRODUCTION_READINESS_FIXES.md](PRODUCTION_READINESS_FIXES.md) for exact code, 720 passing tests, SQL/independent-connection evidence and migration rollout. Their hosted rollout remains a gate. The descriptions below preserve the original audit evidence, not the current implementation state.
+
 1. **Structured intake is not used by every recommendation path.** The deterministic ranker and Mentor consume it, but `server/routers/pathpilot.ts:320-331` builds `profileContext` only from legacy grade/location/interests/skills/activities/careerPreferences. `discovery.analyze` supplies that to the provider even though its allowlist includes all 108 names. Structured field selections, work preferences and pathways can therefore be absent from AI-generated guidance. Extend the bounded context and regression-test cache invalidation/provider input before claiming uniformly personalized analysis. No speculative prompt change was made during this audit.
 2. **Roadmap replacement is nontransactional.** `tests/roadmap-failure-audit.test.ts` deliberately characterizes residual archived plans/empty replacements after intermediate failure. Passing those tests does not mean this defect is fixed. A reviewed transaction/RPC rollout is needed.
 3. **Database intake validation is weaker than API validation.** `20261031_discovery_intake.sql` checks nullable object and version only. Direct owner-authorized REST writes can bypass nested list/size restrictions; RLS isolation alone does not validate content. Design a forward constraint/validation migration after reviewing existing rows. Onboarding profile upsert and draft deletion are also separate writes; a deletion error can follow a committed profile save.
@@ -65,6 +67,8 @@ Initial read-only tsx inspection hit a sandbox IPC permission error; it was reru
 6. **External and privacy gates:** staged AI provider/live response coverage, listing workflow fixtures, Mentor mutation idempotency/confirmation, leaked-password protection setting, school consent/retention/provider review and COPPA/FERPA applicability remain owner decisions/verification. No legal compliance claim is made.
 
 These gaps must not be hidden behind green CI. Source integration is complete; a blanket full-product release approval is not warranted until the responsible owners resolve or explicitly accept the remaining risks.
+
+Current status of items 1–3: bounded structured discovery context plus private cache versioning is implemented; roadmap replacement now uses an owner-scoped atomic RPC; nested intake/profile/draft checks are in forward migration `20261115232537_production_readiness.sql`. That migration must be compatibility-reviewed and applied before the RPC caller is deployed. Existing rows are not rewritten. The separate profile-save/draft-delete behavior is unchanged. Items 4–6 remain open. Production dependency audit reports two low-severity advisories, no high/critical findings; existing bundle-size warnings remain.
 
 ## Migration and configuration handoff
 

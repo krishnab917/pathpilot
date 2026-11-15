@@ -7,8 +7,8 @@ import { buildBaseline, loadPlan, manifest } from '../scripts/staging-migrations
 describe('staging migration manifest', () => {
   it('includes every historical file exactly once with backward dependencies and hashes', () => {
     const plan = loadPlan();
-    expect(plan).toHaveLength(35);
-    expect(new Set(plan.map(entry => entry.name)).size).toBe(35);
+    expect(plan).toHaveLength(36);
+    expect(new Set(plan.map(entry => entry.name)).size).toBe(36);
     for (const entry of plan) {
       expect(entry.sourceHash).toMatch(/^[a-f0-9]{64}$/);
       expect(entry.sourceHash).toBe(createHash('sha256').update(readFileSync(new URL(`../supabase/migrations/${entry.name}.sql`, import.meta.url))).digest('hex'));

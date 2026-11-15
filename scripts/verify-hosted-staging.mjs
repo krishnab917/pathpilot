@@ -24,7 +24,7 @@ function check(value, label) { assert.ok(value, label); passed++; console.log(`P
 const projects = cli(['projects', 'list']).projects;
 check(projects.some(p => p.id === ref && p.name === 'pathpilot-staging' && p.organization_id === 'ucxtorsbwsxvfyaemhks'), 'staging identity');
 const ledger = query('select project_ref,checksum,jsonb_array_length(manifest) n from pathpilot_staging.baseline')[0];
-check(ledger.project_ref === ref && ledger.n === 35 && buildBaseline(ref).includes(ledger.checksum), 'reviewed 35-migration fingerprint');
+check(ledger.project_ref === ref && ledger.n === 36 && buildBaseline(ref).includes(ledger.checksum), 'reviewed 36-migration fingerprint (older staging needs explicit forward reconciliation)');
 check(query("select count(*)::int n from pg_class where relnamespace='public'::regnamespace and relkind in ('r','p') and not relrowsecurity")[0].n === 0, 'all public tables protected by RLS');
 check(query("select count(*)::int n from pg_policies where policyname in ('project_goal_target_owner','mentor_conversation_target_owner','guidance_project_target_owner','project_roadmap_target_owner','recommendation_targets_owner') and permissive='RESTRICTIVE'")[0].n === 5, 'five restrictive target-owner policies');
 check(query("select count(*)::int n from pg_trigger where tgname='guard_derived_analysis_job' and tgenabled='O'")[0].n === 1, 'queue ownership trigger');
@@ -50,7 +50,7 @@ async function request(path, token, method = 'GET', body, adminRequest = false) 
 }
 const accounts = [];
 try {
-  for (const [label, field] of [['A', 'arts'], ['B', 'trades']]) {
+  for (const [label, field] of [['A', 'creative'], ['B', 'trades']]) {
     const email = `pathpilot-staging-${randomUUID()}@example.com`;
     const password = randomBytes(32).toString('base64url');
     const created = await request('/auth/v1/admin/users', admin, 'POST', { email, password, email_confirm: true }, true);
@@ -64,7 +64,7 @@ try {
     account.intake = { version: 'discovery-intake-v1', fields: [field], preferences: { practical: 1 }, motivations: [], subjects: [], pathways: ['apprenticeship'], direction: 'open', careers: [] };
     const profile = await request('/rest/v1/student_profiles', account.token, 'POST', { user_id: account.id, grade: '10', location: 'Synthetic staging', interests: [field], career_preferences: ['Explore'], discovery_intake: account.intake });
     check(profile.ok && profile.data?.[0]?.user_id === account.id, `${label} owner profile write`);
-    const draft = await request('/rest/v1/onboarding_drafts', account.token, 'POST', { user_id: account.id, current_step: 2, payload: { interests: [field], discoveryIntake: account.intake } });
+    const draft = await request('/rest/v1/onboarding_drafts', account.token, 'POST', { user_id: account.id, current_step: 2, payload: { grade: '', location: '', interests: [field], skills: [], activities: [], careerPreferences: [], discoveryIntake: account.intake } });
     check(draft.ok, `${label} owner draft write`);
   }
   for (const account of accounts) {
@@ -102,16 +102,16 @@ try {
     const persisted = await request(`/rest/v1/student_profiles?user_id=eq.${account.id}`, account.token);
     check(persisted.ok && isDeepStrictEqual(persisted.data[0].discovery_intake, cleared), `${account.label} preferences restored and training remains cleared`);
     check(persisted.data[0].interests[0] === account.field && persisted.data[0].grade === '10' && persisted.data[0].career_preferences[0] === 'Explore', `${account.label} legacy fields preserved`);
-    for (const invalid of [[], {}, { version: 'invalid' }]) {
+    for (const invalid of [[], {}, { version: 'invalid' }, { ...account.intake, preferences: { practical: 9 } }, { ...account.intake, subjects: ['x'.repeat(81)] }, { ...account.intake, extra: true }]) {
       const rejected = await request(`/rest/v1/student_profiles?user_id=eq.${account.id}`, account.token, 'PATCH', { discovery_intake: invalid });
-      check(rejected.status === 400 && rejected.data?.code === '23514', `${account.label} invalid intake outer shape/version rejected`);
+      check(rejected.status === 400 && rejected.data?.code === '23514', `${account.label} invalid intake shape/version/nested content rejected`);
     }
   }
   for (const table of ['student_profiles', 'onboarding_drafts']) {
     const result = await request(`/rest/v1/${table}`, null);
     check(result.status === 401 && result.data?.code === '42501', `anonymous ${table} denied`);
   }
-  console.log(`PASS: ${passed} hosted assertions. Browser/tRPC behavior and nested database validation are NOT verified by this script.`);
+  console.log(`PASS: ${passed} hosted assertions. Browser/tRPC behavior is NOT verified by this script.`);
 } catch (error) {
   // Assertion labels contain no response bodies, tokens, email addresses, or passwords.
   console.error('FAIL:', error instanceof assert.AssertionError ? error.message : 'Hosted request failed; sensitive output withheld.');

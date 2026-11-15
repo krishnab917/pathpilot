@@ -54,7 +54,7 @@ try {
   // Supabase platform stubs are ONLY in this ephemeral test, never in baseline output.
   await db.exec(platform);
   await db.exec(buildBaseline(ref));
-  check((await db.query('select jsonb_array_length(manifest) n from pathpilot_staging.baseline')).rows[0].n === 35, 'All 35 histories recorded');
+  check((await db.query('select jsonb_array_length(manifest) n from pathpilot_staging.baseline')).rows[0].n === loadPlan().length, 'All histories recorded');
   const initial = await snapshot();
   await db.exec(buildBaseline(ref));
   check(initial === await snapshot(), 'Repeated initialization leaves schema unchanged');
@@ -74,7 +74,7 @@ try {
   for (const owner of [a,b]) {
     await db.exec(`set role authenticated; set request.jwt.claim.sub='${owner}';
       insert into public.student_profiles(user_id,grade,location,interests) values('${owner}','10','Synthetic','["art"]');
-      insert into public.onboarding_drafts(user_id,current_step,payload) values('${owner}',2,'{"interests":["art"]}'); reset role;`);
+      insert into public.onboarding_drafts(user_id,current_step,payload) values('${owner}',2,'{"grade":"","location":"","interests":["art"],"skills":[],"activities":[],"careerPreferences":[]}'); reset role;`);
   }
   for (const [owner, other] of [[a,b],[b,a]]) {
     await db.exec(`set role authenticated; set request.jwt.claim.sub='${owner}';`);
@@ -101,9 +101,7 @@ try {
   await reject('select * from public.student_profiles', '42501');
   await reject('select * from public.onboarding_drafts', '42501');
   await db.exec('reset role');
-  // Explicitly record the database-only nested validation gap; do not claim strict Zod runs in REST.
-  await db.exec(`update public.student_profiles set discovery_intake='{"version":"discovery-intake-v1","preferences":"invalid"}' where user_id='${a}';`);
-  check((await db.query(`select discovery_intake from public.student_profiles where user_id='${a}'`)).rows[0].discovery_intake.preferences === 'invalid', 'Known nested validation gap reproduced');
+  await reject(`update public.student_profiles set discovery_intake='{"version":"discovery-intake-v1","preferences":"invalid"}' where user_id='${a}';`, '23514');
   await db.exec(`update public.student_profiles set discovery_intake=null where user_id='${a}';`);
   const beforeRows = JSON.stringify((await db.query('select * from public.student_profiles order by user_id')).rows);
   await db.exec(buildBaseline(ref));
@@ -119,11 +117,11 @@ try {
     await legacy.exec(loadPlan()[0].sql);
     await legacy.exec(`insert into auth.users values('${a}'); insert into public.student_profiles(user_id,grade,location) values('${a}','10','Synthetic');`);
     const before = (await legacy.query("select to_jsonb(p) as row from public.student_profiles p")).rows[0].row;
-    await legacy.exec(loadPlan().at(-1).sql);
+    await legacy.exec(loadPlan().find(item => item.sql.includes('add column if not exists discovery_intake')).sql);
     const after = (await legacy.query("select to_jsonb(p)-'discovery_intake' as row from public.student_profiles p")).rows[0].row;
     check(JSON.stringify(before) === JSON.stringify(after), 'Onboarding migration preserves legacy rows');
   } finally { await legacy.close(); }
-  console.log(`PASS: 35 migrations compiled/executed; ${checks} isolated PostgreSQL assertions. NOT live Supabase/Auth/PostgREST verification.`);
+  console.log(`PASS: ${loadPlan().length} migrations compiled/executed; ${checks} isolated PostgreSQL assertions. NOT live Supabase/Auth/PostgREST verification.`);
 } catch (error) {
   // Only authored SQL and synthetic data enter this isolated process; never accepts credentials.
   console.error('FAIL:', { code: error.code, message: error.message });

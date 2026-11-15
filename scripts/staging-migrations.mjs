@@ -42,6 +42,7 @@ export const manifest = [
   ['20261026_security_ownership', [4,6,7,14,19,23,24,29,32], 'Restrictive target policies, queue trigger and worker replacement'],
   ['20261027_private_discovery_details', [32,33], 'Private match details/backfill and owner replacement RPC'],
   ['20261031_discovery_intake', [1,33], 'Nullable versioned intake JSON; application validates nested fields'],
+  ['20261115232537_production_readiness', [1,3,6,33,35], 'Atomic owner roadmap replacement and nested profile/draft intake validation'],
 ];
 const hash = value => createHash('sha256').update(value).digest('hex');
 export function loadPlan() {

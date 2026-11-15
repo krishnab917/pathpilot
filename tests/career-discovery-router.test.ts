@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../server/_core/context";
 import { simulationCareerCatalog } from "../server/simulation/catalog";
+import { discoveryContextVersion, discoveryIntakeContext } from "../server/discovery-intake-context";
+import { emptyIntake } from "../shared/discovery-intake";
 
 const mocks = vi.hoisted(() => ({ invokeLLM: vi.fn(), listLLMModels: vi.fn(), getStudentProfile: vi.fn(), getCareerMatches: vi.fn(), getActiveRoadmap: vi.fn(), getLatestCompletedAdaptiveSimulation: vi.fn(), listGoals: vi.fn(), listProjects: vi.fn(), replaceCareerMatches: vi.fn() }));
 
@@ -39,8 +41,23 @@ describe("pathpilot.discovery.analyze", () => {
     expect(mocks.replaceCareerMatches).toHaveBeenCalledWith(userId, matches);
   });
 
+  it.each([undefined, { version: "discovery-intake-v1" }, { ...emptyIntake(), fields: ["hospitality"], motivations: ["Creativity"], subjects: ["Food science"], careers: ["Chef"], direction: "ideas", preferences: { practical: 1 }, pathways: ["apprenticeship"] }])("sends validated intake and deterministic references on each provider attempt %#", async discoveryIntake => {
+    const submitted = { ...profile, discoveryIntake };
+    mocks.getStudentProfile.mockResolvedValue(submitted);
+    mocks.invokeLLM.mockResolvedValueOnce(response({ matches: [] })).mockResolvedValueOnce(response({ matches }));
+    await appRouter.createCaller(context).pathpilot.discovery.analyze();
+    expect(mocks.getStudentProfile).toHaveBeenCalledWith(userId);
+    for (const [request] of mocks.invokeLLM.mock.calls) {
+      const prompt = request.messages.find((message: { role: string }) => message.role === "user").content;
+      expect(prompt).toContain(JSON.stringify(discoveryIntakeContext(submitted)));
+      expect(prompt).not.toContain(userId);
+      expect(prompt).not.toContain(profile.location);
+    }
+    expect(mocks.invokeLLM).toHaveBeenCalledTimes(2);
+  });
+
   it("reuses a current five-career analysis without invoking the model or consuming a generation path", async () => {
-    const saved = matches.map(match => ({ career: { name: match.name, description: match.description }, generatedAt: new Date(profile.updatedAt) }));
+    const saved = matches.map(match => ({ contextVersion: discoveryContextVersion, career: { name: match.name, description: match.description }, generatedAt: new Date(profile.updatedAt) }));
     mocks.getCareerMatches.mockResolvedValue(saved);
     await expect(appRouter.createCaller(context).pathpilot.discovery.analyze()).resolves.toEqual(saved);
     expect(mocks.invokeLLM).not.toHaveBeenCalled();
@@ -52,6 +69,14 @@ describe("pathpilot.discovery.analyze", () => {
     await expect(appRouter.createCaller(context).pathpilot.discovery.analyze()).rejects.toMatchObject({ code: "BAD_GATEWAY", message: "Career guidance is temporarily unavailable. Please try again shortly." });
     expect(mocks.invokeLLM).toHaveBeenCalledTimes(2);
     expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
+  });
+
+  it("regenerates a legacy cached analysis instead of treating it as intake-aware", async () => {
+    mocks.getCareerMatches.mockResolvedValue(matches.map(match => ({ generatedAt: profile.updatedAt, career: { name: match.name } })));
+    mocks.invokeLLM.mockResolvedValue(response({ matches }));
+    await appRouter.createCaller(context).pathpilot.discovery.analyze();
+    expect(mocks.invokeLLM).toHaveBeenCalledTimes(1);
+    expect(mocks.replaceCareerMatches).toHaveBeenCalledWith(userId, matches);
   });
 
   it("returns the safe gateway error without a second provider call when the AI provider fails", async () => {

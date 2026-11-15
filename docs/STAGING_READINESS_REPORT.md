@@ -1,5 +1,18 @@
 # Staging readiness report
 
+## November 15 readiness-fix checkpoint (supersedes current-code claims below)
+
+| Deliverable | Status | Evidence |
+| --- | --- | --- |
+| New 36-file baseline | PASS | 66 isolated SQL assertions; source checksums and deterministic generation tests |
+| Strict intake and atomic roadmap SQL | PASS locally | 64 PostgreSQL/WASM assertions, plus 6 real local independent-backend concurrency assertions |
+| Full offline regression | PASS | 720 tests, 133 suites; type-check and both build targets pass |
+| Hosted forward migration | NOT STARTED | No hosted schema or student data modified; owner-approved compatibility review required |
+| Fresh hosted JWT/RLS/REST verification | BLOCKED | Current deployed staging schema is not verified with the new migration; old 35-file ledger must not be relabeled as a fresh 36-file baseline |
+| Real provider/counselor review | BLOCKED | External configuration and human review required |
+
+See [PRODUCTION_READINESS_FIXES.md](PRODUCTION_READINESS_FIXES.md). Historical hosted results below remain historical; they do not verify the new functions or constraints.
+
 November 4, 2026 (hosted initialization November 5 UTC). Branch `codex/complete-overview-audiences`, HEAD `f67a26329c074d1ab0b5427f9a8d4f4bece73fbc`. The owner-created staging project is now initialized. No commit, push, deployment or production data access/modification occurred.
 
 ## Resumed hosted verification — current status

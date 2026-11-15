@@ -31,6 +31,7 @@ describe("private discovery persistence boundary", () => {
   it("sends only authored content through service_role and private generated fields through owner RPC", async () => {
     const { calls, run } = setup(); const result = await run();
     expect(result[0].career.description).toBe("PRIVATE_DISCOVERY_SENTINEL");
+    expect(result[0].contextVersion).toBe("structured-intake-v1");
     const shared = calls.filter(call => call.path.endsWith("/careers"));
     expect(shared).toHaveLength(5);
     expect(JSON.stringify(shared)).not.toContain("PRIVATE_DISCOVERY_SENTINEL");
@@ -63,6 +64,7 @@ describe("private discovery persistence boundary", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json([{ id: "legacy", generated_at: "2026-01-01", careers: { id: "career", name: "Software Engineer", description: "Historical reference", required_skills: ["Debugging"] } }])));
     const result = await runWithSupabaseClient(db, () => getCareerMatches(owner));
     expect(result[0].career.description).toBe("Historical reference");
+    expect(result[0].contextVersion).toBeNull();
     expect(result[0].career.requiredSkills).toEqual(["Debugging"]);
   });
   it("preserves migrated legacy fields even when old lists do not meet new generation minimums", async () => {

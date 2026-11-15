@@ -1,5 +1,13 @@
 # Staging migration audit
 
+## November 15 additive readiness migration
+
+The original hosted evidence below covers 35 migrations, not the current 36-file baseline. Added `20261115232537_production_readiness.sql` depends on entries 1 (core), 3 (drafts), 6 (country columns), 33 (ownership), 35 (intake). It adds pure nested validators, three NOT VALID checks, an active-plan unique index and an invoker-rights atomic replacement RPC. No historical file was changed. Source hashes are verified by `tests/staging-migrations.test.ts` on every run.
+
+Local baseline verification: PASS, 36 migrations and 66 SQL assertions. Readiness SQL: PASS, 64 assertions. Independent PostgreSQL connections: PASS, 6 concurrency assertions. The migration aborts without changes if duplicate active plans exist; it never auto-archives or deletes them. Existing malformed intake is retained for owner-led review, but subsequent writes are checked.
+
+Fresh disposable projects can use the deterministic 36-file compiler. Existing 35-file projects must apply only the approved forward migration; the old baseline intentionally rejects replay with a changed fingerprint. Do not overwrite the old ledger to manufacture a matching 36-file fingerprint. The full hosted verifier requires a reviewed forward-ledger reconciliation or a newly initialized disposable project. No hosted execution performed for this update. Preflight, constraint validation and rollback guidance: [PRODUCTION_READINESS_FIXES.md](PRODUCTION_READINESS_FIXES.md).
+
 November 4, 2026. Scope: working tree on codex/complete-overview-audiences, HEAD f67a26329c074d1ab0b5427f9a8d4f4bece73fbc. All historical SQL files remain unchanged. Hosted staging initialization was completed in the resumed pass (November 5 UTC); see the evidence below. Production was not queried or modified.
 
 ## Hosted execution checkpoint
