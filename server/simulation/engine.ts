@@ -1,3 +1,5 @@
+import { reviewWork, workSubmissionSchema, type WorkSubmission } from "../../shared/simulation-work";
+import { workGraphs } from "./work-graphs";
 import { buildBehavioralProfile } from "./behavioral";
 import { calculateCareerCompatibility } from "./compatibility";
 import type { AdaptiveResults, BehavioralEvent, BehavioralEvidence, DecisionRecord, PublicScenario, SimulationGraph, SimulationState } from "./contracts";
@@ -15,18 +17,24 @@ const dedicatedGraphsByCareerId: Record<string, SimulationGraph> = {
   "ai-machine-learning-engineer": aiMachineLearningEngineerV1Graph, "product-manager": productManagerV1Graph, "cybersecurity-analyst": cybersecurityAnalystV1Graph, "data-scientist": dataScientistV1Graph, "mechanical-engineer": mechanicalEngineerV1Graph,
   architect: architectV1Graph, "ux-product-designer": uxProductDesignerV1Graph, "financial-analyst": financialAnalystV1Graph, "environmental-scientist": environmentalScientistV1Graph, "research-scientist": researchScientistV1Graph,
 };
-export const simulationGraphCatalog: SimulationGraph[] = [...Object.values(dedicatedGraphsByCareerId), healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
+export const simulationGraphCatalog: SimulationGraph[] = [...workGraphs, ...Object.values(dedicatedGraphsByCareerId), healthV1Graph, designV1Graph, businessV1Graph, engineeringV1Graph, researchV1Graph, policyV1Graph, educationV1Graph, environmentV1Graph, communicationsV1Graph];
 export const getSimulationGraphById = (graphId: string | null | undefined): SimulationGraph | null => simulationGraphCatalog.find(graph => graph.id === graphId) ?? null;
 export const getSimulationGraph = (careerInput: string): SimulationGraph => {
   const career = resolveSupportedCareer(careerInput);
   if (!career) throw new Error("That career simulation is not currently available. Choose one from the supported simulation catalog.");
-  return dedicatedGraphsByCareerId[career.id]!;
+  return dedicatedGraphsByCareerId[career.id] ?? getWorkSimulationGraph(career.id);
+};
+export const getWorkSimulationGraph = (careerId: string): SimulationGraph => {
+  const graph = workGraphs.find(item => item.id === `${careerId}-work-v1`);
+  if (!graph) throw new Error("That career simulation is not currently available.");
+  return graph;
 };
 export const initialSimulationState = (graph: SimulationGraph): SimulationState => ({ currentNodeId: graph.startNodeId, previousNodeIds: [], decisionCount: 0, timePressure: 1, projectHealth: 5, teamTrust: 3, riskExposure: 1, discoveredInformation: [], unresolvedEvents: [] });
 export function getPublicScenario(graph: SimulationGraph, state: SimulationState): PublicScenario {
   const node = graph.nodes[state.currentNodeId];
   if (!node || node.terminal) throw new Error("The simulation has no active scenario.");
-  return { id: node.id, title: node.title, situation: node.situation, decisionNumber: state.decisionCount + 1, expectedDecisionRange: "about 8–10 decisions", decisions: node.decisions.map(decision => ({ id: decision.id, label: decision.label })) };
+  const previousOutcome = state.discoveredInformation.includes("work-1:review") ? "Your first artifact had open checks. Use the new evidence to revise your approach; earlier work remains in your debrief." : state.decisionCount > 0 ? "Your first artifact met the initial checks. Now test it against the changed constraint." : undefined;
+  return { work: node.work ? { ...node.work, stage: state.decisionCount + 1, totalStages: 3, previousOutcome } : undefined, id: node.id, title: node.title, situation: node.situation, decisionNumber: state.decisionCount + 1, expectedDecisionRange: graph.nextStep ? "3 work stages" : "about 8–10 decisions", decisions: node.decisions.map(decision => ({ id: decision.id, label: decision.label })) };
 }
 function applyPatch(state: SimulationState, patch: Record<string, unknown> | undefined) {
   if (!patch) return state;
@@ -35,9 +43,16 @@ function applyPatch(state: SimulationState, patch: Record<string, unknown> | und
   for (const key of ["discoveredInformation", "unresolvedEvents"] as const) if (Array.isArray(patch[key])) next[key] = Array.from(new Set([...next[key], ...patch[key].filter((value): value is string => typeof value === "string")]));
   return next;
 }
-export function chooseSimulationDecision(graph: SimulationGraph, state: SimulationState, decisionId: string, existingEvidence: BehavioralEvidence[], existingHistory: DecisionRecord[], existingEvents: BehavioralEvent[] = []) {
+export function chooseSimulationDecision(graph: SimulationGraph, state: SimulationState, decisionId: string, existingEvidence: BehavioralEvidence[], existingHistory: DecisionRecord[], existingEvents: BehavioralEvent[] = [], work?: WorkSubmission) {
   const node = graph.nodes[state.currentNodeId];
   if (!node || node.terminal) throw new Error("The simulation is not waiting for a decision.");
+  let receipt;
+  if (node.work) {
+    const parsed = workSubmissionSchema.safeParse(work);
+    if (!parsed.success || parsed.data.nodeId !== node.id || decisionId !== "submit-work") throw new Error("Work incomplete: submit the current assignment.");
+    receipt = reviewWork(node.work, parsed.data);
+    decisionId = `${node.id}-${receipt.checks.every(check => check.passed) ? "verified" : "review"}`;
+  } else if (work) throw new Error("Work incomplete: this stage takes a decision, not an artifact.");
   const decision = node.decisions.find(item => item.id === decisionId);
   if (!decision) throw new Error("That decision is not available for the current scenario.");
   const patched = applyPatch(state, decision.statePatch);
@@ -45,11 +60,18 @@ export function chooseSimulationDecision(graph: SimulationGraph, state: Simulati
   const nextNode = graph.nodes[nextNodeId];
   if (!nextNode) throw new Error("The simulation graph contains an invalid transition.");
   const nextState: SimulationState = { ...patched, currentNodeId: nextNodeId, previousNodeIds: [...state.previousNodeIds, node.id], decisionCount: state.decisionCount + 1 };
-  const record: DecisionRecord = { nodeId: node.id, decisionId: decision.id, contexts: node.contexts, difficulty: node.difficulty, selectedAt: new Date().toISOString() };
+  const record: DecisionRecord = { nodeId: node.id, decisionId: decision.id, contexts: node.contexts, difficulty: node.difficulty, selectedAt: new Date().toISOString(), ...(receipt ? { work: receipt } : {}) };
   const evidence = [...existingEvidence, ...decision.signals.map(signal => ({ ...signal, nodeId: node.id, decisionId: decision.id, difficulty: node.difficulty }))];
+  if (receipt) {
+    // Low-weight observations only; never infer a stable trait from a single task.
+    if (receipt.tests > 0 && receipt.checks.every(check => check.passed)) evidence.push({ trait: "attention_to_detail", direction: 1, weight: 1, context: "technical", nodeId: node.id, decisionId, difficulty: node.difficulty });
+    if (receipt.checks.every(check => check.passed)) evidence.push({ trait: "problem_solving", direction: 1, weight: 1, context: "technical", nodeId: node.id, decisionId, difficulty: node.difficulty });
+    if (receipt.revised) evidence.push({ trait: "adaptability", direction: 1, weight: 1, context: "uncertainty", nodeId: node.id, decisionId, difficulty: node.difficulty });
+  }
   const history = [...existingHistory, record];
   const occurredAt = record.selectedAt;
   const events = [...existingEvents, ...(decision.consequences ?? [{ id: "decision-recorded", message: "Your decision changed the team’s next situation and added another learning signal.", kind: "learning" as const }]).map(item => ({ id: `${node.id}:${decision.id}:${item.id}:${existingEvents.length}`, nodeId: node.id, decisionId: decision.id, message: item.message, kind: item.kind, contexts: node.contexts, occurredAt }))];
+  if (receipt) events.splice(existingEvents.length, 0, ...receipt.inspected.map((title, index) => ({ id: `${node.id}:evidence:${index}`, nodeId: node.id, decisionId, message: `Opened resource: ${title}`, kind: "learning" as const, contexts: node.contexts, occurredAt })));
   return { state: nextState, evidence, history, events, consequence: events.at(-1) ?? null, completed: Boolean(nextNode.terminal) };
 }
 export function buildAdaptiveResults(evidence: BehavioralEvidence[], discoveryMatches: Array<{ name: string; matchScore: number }> = []): AdaptiveResults {

@@ -1,12 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
+import { readIntake, type DiscoveryIntake } from "../shared/discovery-intake";
 import { currentSupabaseClient, getSupabaseConfig, getSupabaseServiceRoleKey } from "./supabase";
 import { buildAdaptiveResults, chooseSimulationDecision, getPublicScenario, getSimulationGraph, getSimulationGraphById, initialSimulationState } from "./simulation/engine";
-import { getSimulationCareer, resolveSupportedCareer } from "./simulation/catalog";
+import { getSimulationCareer } from "./simulation/catalog";
+import { resolveDiscoveryReference as resolveSupportedCareer } from "./discovery-catalog";
 import type { BehavioralEvidence, DecisionRecord, SimulationState } from "./simulation/contracts";
 import { fetchNasaSpaceAppsRecord } from "./opportunities/nasa-space-apps-source";
 import { fetchBnlHighSchoolResearchRecord } from "./opportunities/bnl-high-school-research-source";
 import { fetchCuratedOpportunityDrafts, type OpportunityCategory } from "./opportunities/curated-catalog-source";
 import { explainOpportunityRelevance, opportunityRelevanceMethod } from "./opportunities/relevance";
+import { careerDomainsFor, opportunityAlignment } from "./opportunities/career-alignment";
 import { buildBehaviorEvolution } from "./simulation/evolution";
 import { hasTimePressurePresentation } from "./simulation/time-pressure-presentation";
 import { buildDashboardNextAction } from "./dashboard/intelligence";
@@ -15,6 +18,7 @@ import { buildPlanningReview } from "./planning-review";
 import { buildCrossProductEvidenceSummary } from "./cross-product-evidence-policy";
 import { createPlanningReportShareToken, hashPlanningReportShareToken, isPlanningReportShareToken, planningReportShareExpiresAt, toSharedPlanningReport } from "./report-share";
 import type { MentorContextNeeds } from "./mentor-context";
+import { privateCareerDetails, storedCareerDetailsSchema } from "./private-career-details";
 
 export type ResourceLink = { label: string; url: string };
 export type CareerRecommendation = { name: string; description: string; salaryRange: string; educationRequirements: string; requiredSkills: string[]; dailyResponsibilities: string[]; relatedCareers: string[]; matchScore: number; reasoning: string; strengths: string[]; missingSkills: string[]; realityCheck: string; nextSteps: string[] };
@@ -29,7 +33,7 @@ const check = (error: { message: string } | null) => { if (error) throw new Erro
 const date = (value: string | null | undefined) => value ? new Date(value) : null;
 const iso = (value?: Date) => value?.toISOString() ?? null;
 const slug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-export async function recordPlanningActivity(userId: string, eventType: PlanningActivityType, subjectType: PlanningActivitySubject, subjectId: string, metadata: Record<string, unknown>) { try { const { error } = await client().from("behavioral_activity_events").insert({ user_id: userId, event_type: eventType, subject_type: subjectType, subject_id: subjectId, metadata }); if (error) console.warn("[PathPilot] planning activity was not recorded", error.message); } catch (error) { console.warn("[PathPilot] planning activity was not recorded", error); } }
+export async function recordPlanningActivity(userId: string, eventType: PlanningActivityType, subjectType: PlanningActivitySubject, subjectId: string, metadata: Record<string, unknown>) { try { const { error } = await client().from("behavioral_activity_events").insert({ user_id: userId, event_type: eventType, subject_type: subjectType, subject_id: subjectId, metadata }); if (error) console.warn("[PathPilot] planning activity was not recorded"); } catch (error) { console.warn("[PathPilot] planning activity was not recorded"); } }
 export async function listPlanningActivity(userId: string) { const { data, error } = await client().from("behavioral_activity_events").select("id, event_type, subject_type, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(12); check(error); return list(data as any[]).map(row => presentPlanningActivity({ id: row.id, eventType: row.event_type as PlanningActivityType, subjectType: row.subject_type as PlanningActivitySubject, createdAt: new Date(row.created_at) })); }
 export async function exportPlanningActivity(userId: string) { const { data, error } = await client().from("behavioral_activity_events").select("event_type, subject_type, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(100); check(error); return list(data as any[]).map(row => { const item = presentPlanningActivity({ id: "export", eventType: row.event_type as PlanningActivityType, subjectType: row.subject_type as PlanningActivitySubject, createdAt: new Date(row.created_at) }); return { activity: item.title, subject: item.subjectType, recordedAt: item.createdAt }; }); }
 export async function clearPlanningActivity(userId: string) { const { error } = await client().from("behavioral_activity_events").delete().eq("user_id", userId); check(error); return { cleared: true }; }
@@ -44,6 +48,7 @@ export function validateCareerCatalogWrite(userId: string, recommendations: Care
   if (recommendations.length !== 5) throw new Error("Career discovery must contain exactly five matches.");
   const names = new Set<string>();
   for (const recommendation of recommendations) {
+    privateCareerDetails(recommendation);
     const normalizedName = resolveSupportedCareer(recommendation.name)?.id;
     if (!normalizedName || names.has(normalizedName) || !Number.isInteger(recommendation.matchScore) || recommendation.matchScore < 1 || recommendation.matchScore > 100) throw new Error("Career recommendations must use five distinct supported PathPilot careers.");
     if (recommendation.requiredSkills.length < 3 || recommendation.requiredSkills.length > 8 || recommendation.dailyResponsibilities.length < 2 || recommendation.dailyResponsibilities.length > 6 || recommendation.relatedCareers.length < 2 || recommendation.relatedCareers.length > 6 || recommendation.strengths.length < 1 || recommendation.strengths.length > 6 || recommendation.missingSkills.length < 1 || recommendation.missingSkills.length > 6 || recommendation.nextSteps.length < 2 || recommendation.nextSteps.length > 5) throw new Error("Career recommendations failed validation.");
@@ -54,12 +59,15 @@ async function syncSharedCareerCatalog(recommendations: CareerRecommendation[]) 
   const admin = serviceClient();
   const stored: { careerId: string; recommendation: CareerRecommendation }[] = [];
   for (const recommendation of recommendations) {
-    const { data, error } = await admin.from("careers").upsert({ slug: slug(recommendation.name), name: recommendation.name, description: recommendation.description, salary_range: recommendation.salaryRange, education_requirements: recommendation.educationRequirements, required_skills: recommendation.requiredSkills, daily_responsibilities: recommendation.dailyResponsibilities, related_careers: recommendation.relatedCareers }, { onConflict: "slug" }).select("id").single();
+    const authored = resolveSupportedCareer(recommendation.name)!;
+    // Only repository-authored reference text reaches the shared public table.
+    // Private generated details are saved below with the authenticated client.
+    const { data, error } = await admin.from("careers").upsert({ slug: slug(authored.name), name: authored.name, description: authored.description, salary_range: null, education_requirements: null, required_skills: [], daily_responsibilities: [], related_careers: [] }, { onConflict: "slug" }).select("id").single();
     check(error); stored.push({ careerId: (data as any).id, recommendation });
   }
   return stored;
 }
-export function profile(row: any) { return row ? { id: row.id, userId: row.user_id, grade: row.grade, location: row.location, countryCode: row.country_code ?? null, educationSystem: row.education_system ?? null, interests: strings(row.interests), skills: strings(row.skills), activities: strings(row.activities), careerPreferences: strings(row.career_preferences), onboardingCompletedAt: date(row.onboarding_completed_at), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) } : null; }
+export function profile(row: any) { return row ? { id: row.id, userId: row.user_id, grade: row.grade, location: row.location, countryCode: row.country_code ?? null, educationSystem: row.education_system ?? null, interests: strings(row.interests), skills: strings(row.skills), activities: strings(row.activities), careerPreferences: strings(row.career_preferences), discoveryIntake: readIntake(row.discovery_intake), onboardingCompletedAt: date(row.onboarding_completed_at), createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) } : null; }
 export function onboardingDraft(row: any) { return row ? { currentStep: row.current_step, payload: row.payload as Record<string, unknown> } : null; }
 function goal(row: any) { return { id: row.id, userId: row.user_id, title: row.title, description: row.description, category: row.category, deadline: date(row.deadline), priority: row.priority, estimatedHours: row.estimated_hours, resources: resources(row.resources), progress: row.progress, status: row.status as GoalStatus, createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at) }; }
 function milestone(row: any) { return { id: row.id, roadmapId: row.roadmap_id, year: row.year, title: row.title, description: row.description, category: row.category, deadline: date(row.deadline), priority: row.priority, estimatedHours: row.estimated_hours, resources: resources(row.resources), progress: row.progress, status: row.status as GoalStatus, sortOrder: row.sort_order }; }
@@ -69,15 +77,25 @@ function opportunity(row: any) { const source = row.source_name ? { name: row.so
 export async function getStudentProfile(userId: string) { const { data, error } = await client().from("student_profiles").select("*").eq("user_id", userId).maybeSingle(); check(error); return profile(data); }
 export async function getOnboardingDraft(userId: string) { const { data, error } = await client().from("onboarding_drafts").select("*").eq("user_id", userId).maybeSingle(); check(error); return onboardingDraft(data); }
 export async function saveOnboardingDraft(userId: string, currentStep: number, payload: Record<string, unknown>) { const { data, error } = await client().from("onboarding_drafts").upsert({ user_id: userId, current_step: currentStep, payload, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single(); check(error); return data; }
-export async function saveStudentProfile(userId: string, value: { grade: string; location: string; countryCode?: string | null; educationSystem?: string | null; interests: string[]; skills: string[]; activities: string[]; careerPreferences: string[] }) { const db = client(); const { data, error } = await db.from("student_profiles").upsert({ user_id: userId, grade: value.grade, location: value.location, country_code: value.countryCode ?? null, education_system: value.educationSystem ?? null, interests: value.interests, skills: value.skills, activities: value.activities, career_preferences: value.careerPreferences, onboarding_completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single(); check(error); const draft = await db.from("onboarding_drafts").delete().eq("user_id", userId); check(draft.error); return profile(data); }
+export async function saveStudentProfile(userId: string, value: { grade: string; location: string; countryCode?: string | null; educationSystem?: string | null; interests: string[]; skills: string[]; activities: string[]; careerPreferences: string[]; discoveryIntake?: DiscoveryIntake }) { const db = client(); const { data, error } = await db.from("student_profiles").upsert({ user_id: userId, grade: value.grade, location: value.location, country_code: value.countryCode ?? null, education_system: value.educationSystem ?? null, interests: value.interests, skills: value.skills, activities: value.activities, career_preferences: value.careerPreferences, ...(value.discoveryIntake === undefined ? {} : { discovery_intake: value.discoveryIntake }), onboarding_completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: "user_id" }).select().single(); check(error); const draft = await db.from("onboarding_drafts").delete().eq("user_id", userId); check(draft.error); return profile(data); }
 export async function updateStudentCountryContext(userId: string, countryCode: string, educationSystem: string) { const { data, error } = await client().from("student_profiles").update({ country_code: countryCode, education_system: educationSystem, updated_at: new Date().toISOString() }).eq("user_id", userId).select().maybeSingle(); check(error); if (!data) throw new Error("Student profile not found."); return profile(data); }
-export async function deleteStudentAccount(userId: string) { const admin = serviceClient(); const { error } = await admin.auth.admin.deleteUser(userId); if (error) { console.error("[PathPilot] account deletion failed", error); throw new Error("We could not delete your account. Please try again or contact support."); } return { deleted: true }; }
-function careerDomainsFor(name: string) { const value = name.toLowerCase(); const tags = new Set<string>(); if (/software|data|cyber|computer|developer|it/.test(value)) tags.add("technology"); if (/engineer|architect|mechanic/.test(value)) tags.add("engineering"); if (/doctor|nurs|biolog|scient|environment|research|chemist|physic/.test(value)) tags.add("science"); if (/designer|artist|media|writer/.test(value)) tags.add("design"); if (/business|market|finance|entrepreneur/.test(value)) tags.add("business"); if (/teacher|psych|social|policy|law/.test(value)) tags.add("social-impact"); return Array.from(tags); }
+export async function deleteStudentAccount(userId: string) {
+  if (!uuidPattern.test(userId)) throw new Error("A valid authenticated account is required.");
+  const admin = serviceClient();
+  try {
+    // Auth deletion and the declared FK cascades execute in the database.
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error && error.status !== 404 && error.code !== "user_not_found") throw error;
+  } catch {
+    console.error("[PathPilot] account deletion failed");
+    throw new Error("We could not delete your account. Please try again or contact support.");
+  }
+  return { deleted: true };
+}
 export type OpportunityDiscoveryFilters = { category?: OpportunityCategory; alignedOnly?: boolean; search?: string; countryCode?: string; grade?: string; deadlineOnly?: boolean; page?: number; pageSize?: number };
 export async function searchVerifiedOpportunities(userId: string, filters: OpportunityDiscoveryFilters = {}) {
   const [profile, matches] = await Promise.all([getStudentProfile(userId), getCareerMatches(userId)]);
-  const careerDirections = matches.map(match => match.career.name);
-  const targetDomains = Array.from(new Set(matches.flatMap(match => careerDomainsFor(match.career.name))));
+  const { careerDirections, domains: targetDomains } = opportunityAlignment(profile, matches.map(match => match.career.name));
   const page = Math.max(1, Math.floor(filters.page ?? 1));
   const pageSize = Math.max(1, Math.min(48, Math.floor(filters.pageSize ?? 12)));
   const search = filters.search?.trim() || null;
@@ -98,8 +116,8 @@ export async function searchVerifiedOpportunities(userId: string, filters: Oppor
   });
   check(error);
   const rows = list(data as any[]);
-  const relevanceContext = { careerDirections, careerDomains: targetDomains, countryCode: profile?.countryCode ?? null, grade: profile?.grade ?? null };
-  const items = rows.map(opportunity).map(item => ({ ...item, alignedCareers: matches.filter(match => careerDomainsFor(match.career.name).some(domain => item.careerDomains.includes(domain))).map(match => match.career.name), relevanceReasons: explainOpportunityRelevance(item, relevanceContext) }));
+  const relevanceContext = { careerDirections, careerDomains: targetDomains, countryCode: profile?.countryCode ?? null, grade: profile?.grade ?? null, includesInterests: true };
+  const items = rows.map(opportunity).map(item => ({ ...item, alignedCareers: careerDirections.filter(name => careerDomainsFor(name).some(domain => item.careerDomains.includes(domain))), relevanceReasons: explainOpportunityRelevance(item, relevanceContext) }));
   const totalCount = rows.length ? Number((rows[0] as any).total_count) : 0;
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 0;
   return { items, totalCount, page, pageSize, totalPages, hasNextPage: page < totalPages, relevanceMethod: opportunityRelevanceMethod };
@@ -162,15 +180,23 @@ export async function refreshCuratedOpportunityCatalog() {
 
 export async function getCareerMatches(userId: string) {
   const { data, error } = await client().from("career_matches").select("*, careers(*)").eq("user_id", userId).order("rank"); check(error);
-  return list(data as any[]).map(row => ({ id: row.id, rank: row.rank, matchScore: row.match_score, reasoning: row.reasoning, strengths: strings(row.strengths), missingSkills: strings(row.missing_skills), realityCheck: row.reality_check, nextSteps: strings(row.next_steps), generatedAt: new Date(row.generated_at), career: { id: row.careers.id, name: row.careers.name, description: row.careers.description, salaryRange: row.careers.salary_range ?? "Location-dependent", educationRequirements: row.careers.education_requirements ?? "Varies by pathway", requiredSkills: strings(row.careers.required_skills), dailyResponsibilities: strings(row.careers.daily_responsibilities), relatedCareers: strings(row.careers.related_careers) } }));
+  return list(data as any[]).map(row => {
+    const details = storedCareerDetailsSchema.safeParse(row.career_details);
+    return { id: row.id, rank: row.rank, matchScore: row.match_score, reasoning: row.reasoning, strengths: strings(row.strengths), missingSkills: strings(row.missing_skills), realityCheck: row.reality_check, nextSteps: strings(row.next_steps), generatedAt: new Date(row.generated_at), career: { id: row.careers.id, name: row.careers.name, description: row.careers.description, salaryRange: row.careers.salary_range ?? "Location-dependent", educationRequirements: row.careers.education_requirements ?? "Varies by pathway", requiredSkills: strings(row.careers.required_skills), dailyResponsibilities: strings(row.careers.daily_responsibilities), relatedCareers: strings(row.careers.related_careers), ...(details.success ? details.data : {}) } };
+  });
 }
 export async function replaceCareerMatches(userId: string, recommendations: CareerRecommendation[]) {
   validateCareerCatalogWrite(userId, recommendations);
   const canonicalRecommendations = recommendations.map(recommendation => ({ ...recommendation, name: resolveSupportedCareer(recommendation.name)!.name }));
-  const stored = await syncSharedCareerCatalog(canonicalRecommendations);
+  // Validate and serialize private fields BEFORE any catalog or match mutation.
+  const details = canonicalRecommendations.map(privateCareerDetails);
   const db = client();
-  const remove = await db.from("career_matches").delete().eq("user_id", userId); check(remove.error);
-  const insert = await db.from("career_matches").insert(stored.map(({ careerId, recommendation }, index) => ({ user_id: userId, career_id: careerId, rank: index + 1, match_score: Math.round(recommendation.matchScore), reasoning: recommendation.reasoning, strengths: recommendation.strengths, missing_skills: recommendation.missingSkills, reality_check: recommendation.realityCheck, next_steps: recommendation.nextSteps }))); check(insert.error);
+  // Do not sanitize shared records on an unmigrated database: legacy matches
+  // must have been copied privately by the expand migration first.
+  const ready = await db.from("career_matches").select("career_details").eq("user_id", userId).limit(1);
+  check(ready.error);
+  const stored = await syncSharedCareerCatalog(canonicalRecommendations);
+  const insert = await db.rpc("replace_private_career_matches", { p_matches: stored.map(({ careerId, recommendation }, index) => ({ career_id: careerId, match_score: Math.round(recommendation.matchScore), reasoning: recommendation.reasoning, strengths: recommendation.strengths, missing_skills: recommendation.missingSkills, reality_check: recommendation.realityCheck, next_steps: recommendation.nextSteps, career_details: details[index] })) }); check(insert.error);
   return getCareerMatches(userId);
 }
 
@@ -180,7 +206,7 @@ export async function getMentorContextData(userId: string, needs: MentorContextN
   const skippedList = Promise.resolve({ data: [] as any[], error: null });
   const skippedRow = Promise.resolve({ data: null as any, error: null });
   const [profileResult, roadmapResult, goalsResult, projectsResult, simulationResult] = await Promise.all([
-    db.from("student_profiles").select(needs.careerProfile ? "grade, country_code, career_preferences" : "grade, country_code").eq("user_id", userId).maybeSingle(),
+    db.from("student_profiles").select(needs.careerProfile ? "grade, country_code, career_preferences, interests, skills, activities, discovery_intake" : "grade, country_code").eq("user_id", userId).maybeSingle(),
     db.from("roadmaps").select("id, target_career, completion_percentage").eq("user_id", userId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("goals").select("id, title, status, priority, progress, deadline").eq("user_id", userId).neq("status", "completed").order("deadline", { nullsFirst: false }).limit(6),
     needs.projects ? db.from("projects").select("name, status, progress").eq("user_id", userId).neq("status", "archived").order("updated_at", { ascending: false }).limit(4) : skippedList,
@@ -197,7 +223,7 @@ export async function getMentorContextData(userId: string, needs: MentorContextN
   const simulationRow = simulationResult.data as any;
   const compatibility = list(simulationRow?.compatibility_results as any[]).flatMap(item => typeof item?.careerName === "string" && typeof item?.score === "number" ? [{ careerName: item.careerName, score: item.score }] : []);
   return {
-    profile: profileResult.data ? { grade: String((profileResult.data as any).grade ?? ""), countryCode: (profileResult.data as any).country_code ?? null, careerPreferences: strings((profileResult.data as any).career_preferences) } : null,
+    profile: profileResult.data ? { grade: String((profileResult.data as any).grade ?? ""), countryCode: (profileResult.data as any).country_code ?? null, careerPreferences: strings((profileResult.data as any).career_preferences), ...(needs.careerProfile ? { interests: strings((profileResult.data as any).interests), skills: strings((profileResult.data as any).skills), activities: strings((profileResult.data as any).activities), discoveryIntake: readIntake((profileResult.data as any).discovery_intake) } : {}) } : null,
     roadmap: roadmapRow ? { targetCareer: String(roadmapRow.target_career ?? ""), completionPercentage: Number(roadmapRow.completion_percentage ?? 0), milestones } : null,
     goals: list(goalsResult.data as any[]).map(row => ({ id: String(row.id), title: String(row.title ?? ""), status: String(row.status ?? "not_started"), priority: String(row.priority ?? "medium"), progress: Number(row.progress ?? 0), deadline: typeof row.deadline === "string" ? row.deadline : null })),
     projects: list(projectsResult.data as any[]).map(row => ({ name: String(row.name ?? ""), status: String(row.status ?? "idea"), progress: Number(row.progress ?? 0) })),
@@ -221,9 +247,12 @@ export async function createSimulation(userId: string, value: { career: string; 
 export async function getSimulation(userId: string, simulationId: string) { const { data, error } = await client().from("simulations").select("*").eq("id", simulationId).eq("user_id", userId).maybeSingle(); check(error); return simulation(data); }
 export async function completeSimulation(userId: string, simulationId: string, value: { userChoices: { scenarioId: string; choiceId: string }[]; technicalScore: number; leadershipScore: number; careerCompatibilityScore: number; score: number; feedback: string }) { const { error } = await client().from("simulations").update({ user_choices: value.userChoices, technical_score: value.technicalScore, leadership_score: value.leadershipScore, career_compatibility_score: value.careerCompatibilityScore, score: value.score, feedback: value.feedback, status: "completed", completed_at: new Date().toISOString() }).eq("id", simulationId).eq("user_id", userId); check(error); return getSimulation(userId, simulationId); }
 
+import { getWorkSimulationGraph } from "./simulation/engine";
+import type { WorkSubmission } from "../shared/simulation-work";
+
 export async function createAdaptiveSimulation(userId: string, careerId: string, responseTimingOptIn = false) {
   const career = getSimulationCareer(careerId); if (!career) throw new Error("That career simulation is not currently available.");
-  const graph = getSimulationGraph(career.id); const state = initialSimulationState(graph);
+  const graph = getWorkSimulationGraph(career.id); const state = initialSimulationState(graph);
   const { data, error } = await client().from("simulations").insert({ user_id: userId, career: career.name, title: graph.title, scenarios: [], user_choices: [], engine_version: "adaptive-v2", scenario_graph_id: graph.id, current_node_id: state.currentNodeId, node_history: [], decision_history: [], simulation_state: state, behavioral_evidence: [], behavioral_events: [], response_timing_opt_in: responseTimingOptIn, response_timing_events: [] }).select().single();
   check(error); const saved = simulation(data); if (!saved) throw new Error("Simulation could not be created."); return saved;
 }
@@ -249,18 +278,18 @@ export async function getBehaviorEvolution(userId: string) {
   return buildBehaviorEvolution(list(data as any[]).map(simulation).filter(Boolean) as any[]);
 }
 export function getAdaptivePublicScenario(value: NonNullable<Awaited<ReturnType<typeof getAdaptiveSimulation>>>) { if (!value.simulationState || !value.scenarioGraphId) throw new Error("Adaptive simulation state is unavailable."); const state = value.simulationState as SimulationState; const graph = getSimulationGraphById(value.scenarioGraphId) ?? getSimulationGraph(value.career); return { ...getPublicScenario(graph, state), hasTimePressure: hasTimePressurePresentation(state) }; }
-export async function chooseAdaptiveSimulationDecision(userId: string, simulationId: string, decisionId: string, responseTimeMs?: number) {
+export async function chooseAdaptiveSimulationDecision(userId: string, simulationId: string, decisionId: string, responseTimeMs?: number, work?: WorkSubmission) {
   const current = await getAdaptiveSimulation(userId, simulationId); if (!current) throw new Error("Simulation not found."); if (current.status !== "in_progress") throw new Error("Simulation is already complete."); if (!current.simulationState) throw new Error("Adaptive simulation state is unavailable.");
   const graph = getSimulationGraphById(current.scenarioGraphId) ?? getSimulationGraph(current.career);
-  const transition = chooseSimulationDecision(graph, current.simulationState as SimulationState, decisionId, current.behavioralEvidence as BehavioralEvidence[], current.decisionHistory as DecisionRecord[], current.behavioralEvents as any[]);
+  const transition = chooseSimulationDecision(graph, current.simulationState as SimulationState, decisionId, current.behavioralEvidence as BehavioralEvidence[], current.decisionHistory as DecisionRecord[], current.behavioralEvents as any[], work);
   const patch: Record<string, unknown> = { current_node_id: transition.state.currentNodeId, node_history: transition.state.previousNodeIds, decision_history: transition.history, simulation_state: transition.state, behavioral_evidence: transition.evidence, behavioral_events: transition.events, user_choices: transition.history.map(item => ({ scenarioId: item.nodeId, choiceId: item.decisionId })), updated_at: new Date().toISOString() };
   if (transition.completed) {
     const matches = await getCareerMatches(userId); const results = buildAdaptiveResults(transition.evidence, matches.map(match => ({ name: match.career.name, matchScore: match.matchScore })));
     const trait = (name: string) => results.behavioralProfile.traits.find(item => item.trait === name)?.score ?? 50;
     patch.status = "completed"; patch.completed_at = new Date().toISOString(); patch.behavioral_profile = results.behavioralProfile; patch.compatibility_results = results.compatibility; patch.result_summary = results.summary; patch.feedback = results.summary; patch.technical_score = Math.round((trait("analytical_thinking") + trait("problem_solving") + trait("systems_thinking") + trait("attention_to_detail")) / 4); patch.leadership_score = Math.round((trait("collaboration") + trait("communication") + trait("ownership")) / 3); patch.career_compatibility_score = results.compatibility[0]?.score ?? 0; patch.score = Math.round(((patch.technical_score as number) + (patch.leadership_score as number) + (patch.career_compatibility_score as number)) / 3);
   }
-  const { data, error } = await client().from("simulations").update(patch).eq("id", simulationId).eq("user_id", userId).select().maybeSingle(); check(error); if (!data) throw new Error("Simulation not found."); const saved = simulation(data)!;
-  if (current.responseTimingOptIn && typeof responseTimeMs === "number") { const state = current.simulationState as SimulationState; void recordSimulationTimingEvent(userId, simulationId, { nodeId: current.currentNodeId, decisionId, responseMs: responseTimeMs, scenarioPressureLabel: hasTimePressurePresentation(state) ? "time_sensitive" : "standard" }).catch(error => console.warn("[PathPilot] optional response time was not recorded", error)); }
+  const { data, error } = await client().from("simulations").update(patch).eq("id", simulationId).eq("user_id", userId).eq("current_node_id", current.currentNodeId).eq("status", "in_progress").select().maybeSingle(); check(error); if (!data) throw new Error("Work incomplete: the simulation advanced in another window. Refresh to resume."); const saved = simulation(data)!;
+  if (current.responseTimingOptIn && typeof responseTimeMs === "number") { const state = current.simulationState as SimulationState; void recordSimulationTimingEvent(userId, simulationId, { nodeId: current.currentNodeId, decisionId, responseMs: responseTimeMs, scenarioPressureLabel: hasTimePressurePresentation(state) ? "time_sensitive" : "standard" }).catch(error => console.warn("[PathPilot] optional response time was not recorded")); }
   return saved;
 }
 

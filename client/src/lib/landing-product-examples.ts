@@ -12,7 +12,7 @@ export const landingCareerExamples: readonly SimulationCareerOption[] = [
       "Design, debug, and ship reliable software with a development team.",
     simulationIntro:
       "Respond to incidents, architecture tradeoffs, reviews, and delivery decisions in a software team.",
-    durationLabel: "About 10 decisions",
+    durationLabel: "About 3–7 minutes",
   },
   {
     id: "cybersecurity-analyst",
@@ -23,7 +23,7 @@ export const landingCareerExamples: readonly SimulationCareerOption[] = [
       "Protect systems and people by investigating and responding to security incidents.",
     simulationIntro:
       "Work through suspicious activity, containment, evidence, communication, and recovery decisions.",
-    durationLabel: "About 10 decisions",
+    durationLabel: "About 3–7 minutes",
   },
   {
     id: "data-scientist",
@@ -34,7 +34,7 @@ export const landingCareerExamples: readonly SimulationCareerOption[] = [
       "Investigate evidence and communicate careful conclusions from data.",
     simulationIntro:
       "Work through data quality, experimentation, uncertainty, stakeholder questions, and recommendations.",
-    durationLabel: "About 10 decisions",
+    durationLabel: "About 3–7 minutes",
   },
 ];
 

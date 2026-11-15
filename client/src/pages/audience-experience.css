@@ -22,26 +22,27 @@
 }
 /* Shared composition. Audience differences live in product context, not color. */
 .audience-hero {
-  padding: clamp(4rem, 8vw, 8rem) 0 3rem;
+  padding: clamp(2.5rem, 5vw, 4.5rem) 0 2.5rem;
 }
 .audience-hero h1 {
   margin-top: 1.6rem;
-  font-size: clamp(2.7rem, 5.8vw, 5.7rem);
-  line-height: 1.08;
-  letter-spacing: -0.055em;
-  font-weight: 600;
+  font-family: var(--pp-font-display);
+  font-size: var(--pp-type-display);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  font-weight: 500;
   text-wrap: balance;
 }
 .audience-hero-copy {
-  max-width: 47rem;
-  margin: 1.75rem auto 0;
+  max-width: 62ch;
+  margin: 1.25rem auto 0;
   color: var(--muted-foreground);
-  font-size: clamp(1rem, 1.5vw, 1.2rem);
-  line-height: 1.8;
+  font-size: clamp(1rem, 1.4vw, 1.125rem);
+  line-height: 1.7;
   text-wrap: pretty;
 }
 .audience-role-switcher {
-  margin: 2.8rem auto 0;
+  margin: 2rem auto 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,12 +86,8 @@
   position: relative;
 }
 .audience-feature:nth-of-type(even) {
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    color-mix(in srgb, var(--secondary) 35%, var(--background)) 35%,
-    transparent
-  );
+  background: var(--card);
+  border-block: 1px solid var(--border);
 }
 .audience-context-note {
   border-left: 2px solid var(--selection-foreground);
@@ -171,10 +168,11 @@
 }
 .audience-action-context h3 {
   margin-top: 1rem;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-family: var(--pp-font-display);
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
   line-height: 1.15;
   letter-spacing: -0.035em;
-  font-weight: 600;
+  font-weight: 500;
 }
 .audience-action-context > p:last-child {
   margin-top: 1.5rem;

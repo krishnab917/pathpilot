@@ -31,6 +31,21 @@ describe("Mentor context server boundary", () => {
     mocks.updateGoal.mockResolvedValue({ title: "Finish a small project", priority: "medium" });
   });
 
+  it("supplies only the authenticated student's structured interests for cross-field exploration", async () => {
+    mocks.getMentorContextData.mockImplementation((userId: string) => Promise.resolve({
+      profile: { grade: "11", interests: [userId === userA ? "baking" : "aviation"], discoveryIntake: { version: "discovery-intake-v1", fields: [userId === userA ? "hospitality" : "transport"] } },
+      roadmap: null, goals: [], projects: [], simulation: null,
+    }));
+    mocks.invokeLLM.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ reply: "You can explore other fields.", suggestedGoal: null, priorityAdjustment: null }) } }] });
+    await appRouter.createCaller(context).pathpilot.mentor.send({ content: "Could I explore nursing instead?", userId: userB } as any);
+    expect(mocks.getMentorContextData).toHaveBeenCalledWith(userA, expect.objectContaining({ careerProfile: true }));
+    const prompt = mocks.invokeLLM.mock.calls[0][0].messages[1].content;
+    expect(prompt).toContain('"declared_interests":["baking"]');
+    expect(prompt).not.toContain('"declared_interests":["aviation"]');
+    expect(prompt).toContain("Support exploration outside these fields");
+    expect(prompt).toContain("Could I explore nursing instead?");
+  });
+
   it("derives context only from the authenticated student, removes internal IDs, and resolves goal references server-side", async () => {
     const result = await appRouter.createCaller(context).pathpilot.mentor.send({ content: "Please reprioritize my goal." });
     const prompt = mocks.invokeLLM.mock.calls[0][0].messages[1].content as string;

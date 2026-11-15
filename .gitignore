@@ -119,6 +119,8 @@ client/public/__manus__/version.json
 .manus-logs/
 *.pem
 *.key
+*.p12
+*.pfx
 supabase/.temp/
 supabase/.branches/
 .vercel

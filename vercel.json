@@ -1,9 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "npx --yes pnpm@10.4.1 install --frozen-lockfile",
-  "buildCommand": "npx --yes pnpm@10.4.1 build:vercel",
+  "installCommand": "npx --yes pnpm@10.34.9 install --frozen-lockfile",
+  "buildCommand": "npx --yes pnpm@10.34.9 build:vercel",
   "outputDirectory": "dist/public",
+  "headers": [{
+    "source": "/(.*)",
+    "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "X-Frame-Options", "value": "DENY" },
+      { "key": "Referrer-Policy", "value": "no-referrer" },
+      { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+      { "key": "Content-Security-Policy", "value": "base-uri 'self'; object-src 'none'; frame-ancestors 'none'" }
+    ]
+  }],
   "functions": {
     "api/*.js": {
       "maxDuration": 60
@@ -19,8 +29,20 @@
       "destination": "/api/manus-storage/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(students|parents|counselors|schools|privacy|terms|support|accessibility|resources|career-simulations)(/)?",
+      "destination": "/$1/index.html"
+    },
+    {
+      "source": "/resources/explore-careers-in-high-school(/)?",
+      "destination": "/resources/explore-careers-in-high-school/index.html"
+    },
+    {
+      "source": "/(auth(?:/update-password)?|contact|delete-account|onboarding|app(?:/[^/]+)?|share/[^/]+|portfolio/[^/]+)(/)?",
+      "destination": "/app-shell.html"
     }
   ]
 }

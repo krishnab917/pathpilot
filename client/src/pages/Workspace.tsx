@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ProductPrimitives";
+import { safeHttpUrl } from "@shared/safe-url";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { CurrentPlanFocus, DashboardJourneyPanel } from "@/components/DashboardJourneyPanel";
@@ -404,6 +405,8 @@ export default function Workspace() {
       </Suspense>
     ) : section === "mentor" ? (
       <CompactMentor />
+    ) : section === "settings" ? (
+      <SettingsView />
     ) : dashboard.data ? (
       {
         overview: (
@@ -419,7 +422,7 @@ export default function Workspace() {
             />
           </>
         ),
-        discover: <ReliableProfileAnalysis matches={dashboard.data.matches} />,
+        discover: <ReliableProfileAnalysis matches={dashboard.data.matches} profile={dashboard.data.profile} />,
         roadmap: (
           <Suspense fallback={<WorkspaceSectionSkeleton section="roadmap" />}>
             <RoadmapExperience
@@ -434,7 +437,6 @@ export default function Workspace() {
           </Suspense>
         ),
         goals: <CompactGoals goals={dashboard.data.goals} />,
-        settings: <SettingsView />,
       }[section]
     ) : null;
   const sidebar = (
@@ -797,9 +799,10 @@ function SettingsView() {
   const [error, setError] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const deleteAccount = trpc.pathpilot.account.delete.useMutation({
-    onSuccess: () => {
-      notify.success("Your account and all associated data have been deleted.");
-      signOutAndNavigate(logout, () => (window.location.href = "/"));
+    onSuccess: async () => {
+      notify.success("Your account and associated PathPilot records have been deleted.");
+      try { await signOutAndNavigate(logout, () => (window.location.href = "/")); }
+      catch { setError("Your account was deleted, but browser sign-out could not finish. Close this tab and sign out before using another account."); }
     },
     onError: err => {
       setError(err.message);
@@ -852,7 +855,7 @@ function SettingsView() {
             <h2 className="text-lg font-semibold">Danger Zone</h2>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Permanently delete your account and all associated PathPilot data.
+            Permanently delete your account and associated PathPilot records.
             This action is irreversible.
           </p>
 
@@ -867,7 +870,8 @@ function SettingsView() {
                   <AlertDialogDescription>
                     This will permanently delete your profile, career matches,
                     simulations, roadmaps, goals, projects, and mentor history.
-                    This action cannot be undone.
+                    This action cannot be undone. Backups, logs, and information
+                    held by service providers follow their own retention schedules.
                     <div className="mt-4">
                       <p className="mb-2 text-sm font-medium text-foreground">
                         Type <span className="font-bold">DELETE</span> to
@@ -1649,7 +1653,7 @@ function Roadmap({
                     </div>
                     {milestone.resources.length > 0 && (
                       <a
-                        href={milestone.resources[0].url}
+                        href={safeHttpUrl(milestone.resources[0].url)}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex text-[11px] font-semibold text-primary hover:underline"

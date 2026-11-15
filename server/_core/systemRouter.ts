@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+import { admitOwnerNotification } from "../endpoint-quotas";
 
 export const systemRouter = router({
   health: publicProcedure
@@ -20,7 +21,8 @@ export const systemRouter = router({
         content: z.string().min(1, "content is required"),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await admitOwnerNotification(ctx.res);
       const delivered = await notifyOwner(input);
       return {
         success: delivered,

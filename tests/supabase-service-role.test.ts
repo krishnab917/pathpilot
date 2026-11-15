@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { assertDisposableSupabase } from "./disposable-supabase";
+assertDisposableSupabase();
 
 describe("configured Supabase server credential", () => {
   it("can access the authenticated admin endpoint without exposing the key", async () => {

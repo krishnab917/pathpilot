@@ -1,4 +1,6 @@
 import { timeAiStage } from "./request-timing";
+import { protectProviderAttempt } from "../operation-limits";
+import { RateLimitExceededError, RateLimiterUnavailableError } from "../rate-limit";
 
 export class ProviderRequestError extends Error {
   constructor(
@@ -17,6 +19,30 @@ const backoffDelay = (attempt: number) => {
   const cap = 500 * 2 ** attempt;
   return cap / 2 + Math.random() * cap / 2;
 };
+
+async function boundedProviderJson(response: Response): Promise<unknown> {
+  const maximum = 2 * 1024 * 1024;
+  const declared = Number(response.headers?.get("content-length"));
+  if (declared > maximum) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new ProviderRequestError("invalid_response");
+  }
+  // Supports existing injected transports without a native ReadableStream.
+  if (!response.body) return response.json();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0, text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maximum) throw new ProviderRequestError("invalid_response");
+      text += decoder.decode(value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode());
+  } finally { await reader.cancel().catch(() => undefined); }
+}
 
 export async function requestProviderJson(
   url: string,
@@ -44,6 +70,9 @@ export async function requestProviderJson(
       for (let attempt = 0; attempt <= 4; attempt++) {
         if (controller.signal.aborted) throw new ProviderRequestError("timeout");
         let response: Response;
+        // Outside the network retry catch: quota failures must never be retried.
+        await protectProviderAttempt();
+        if (controller.signal.aborted) throw new ProviderRequestError("timeout");
         try {
           response = await timeAiStage("provider_headers", () => fetch(url, { ...init, signal: controller.signal }));
         } catch {
@@ -55,7 +84,7 @@ export async function requestProviderJson(
         }
         console.info("[AI provider] response", { status: response.status, retryCount, elapsedMs: Date.now() - started });
         if (response.ok) {
-          try { return await timeAiStage("provider_body", () => response.json()); }
+          try { return await timeAiStage("provider_body", () => boundedProviderJson(response)); }
           catch { throw new ProviderRequestError(controller.signal.aborted ? "timeout" : "invalid_response"); }
         }
         // Never read/log an error body: it may echo private prompts or credentials.
@@ -74,6 +103,7 @@ export async function requestProviderJson(
       throw new ProviderRequestError("network");
     })()]);
   } catch (error) {
+    if (error instanceof RateLimitExceededError || error instanceof RateLimiterUnavailableError) throw error;
     const safe = error instanceof ProviderRequestError ? error : new ProviderRequestError("network");
     console.warn("[AI provider] failed", { category: safe.category, status: safe.status, elapsedMs: Date.now() - started, retryCount });
     throw safe;

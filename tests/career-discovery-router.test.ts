@@ -62,7 +62,7 @@ describe("pathpilot.discovery.analyze", () => {
   });
 
   it("rejects an otherwise complete discovery response that includes an unsupported career", async () => {
-    mocks.invokeLLM.mockResolvedValue(response({ matches: [...matches.slice(0, 4), { ...matches[4], name: "Registered Nurse" }] }));
+    mocks.invokeLLM.mockResolvedValue(response({ matches: [...matches.slice(0, 4), { ...matches[4], name: "Unlisted Nurse" }] }));
     await expect(appRouter.createCaller(context).pathpilot.discovery.analyze()).rejects.toMatchObject({ code: "BAD_GATEWAY" });
     expect(mocks.invokeLLM).toHaveBeenCalledTimes(2);
     expect(mocks.replaceCareerMatches).not.toHaveBeenCalled();
@@ -87,10 +87,16 @@ describe("pathpilot.discovery.analyze", () => {
     expect(mocks.getStudentProfile).toHaveBeenCalledTimes(simulationCareerCatalog.length);
   });
 
+  it("accepts a new discovery career for planning but not as a full simulation", async () => {
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Chef" })).resolves.toEqual({ profileReady: true });
+    await expect(appRouter.createCaller(context).pathpilot.simulations.start({ career: "Chef" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mocks.invokeLLM).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported careers at the legacy roadmap and simulation server boundaries", async () => {
-    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Registered Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(appRouter.createCaller(context).pathpilot.roadmap.generate({ targetCareer: "Registered Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(appRouter.createCaller(context).pathpilot.simulations.start({ career: "Registered Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST", message: "That career simulation is not currently available. Choose one from the supported simulation catalog." });
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.preflight({ targetCareer: "Unlisted Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(appRouter.createCaller(context).pathpilot.roadmap.generate({ targetCareer: "Unlisted Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(appRouter.createCaller(context).pathpilot.simulations.start({ career: "Unlisted Nurse" })).rejects.toMatchObject({ code: "BAD_REQUEST", message: "That career simulation is not currently available. Choose one from the supported simulation catalog." });
     await expect(appRouter.createCaller(context).pathpilot.simulations.start({ career: "Software Engineer" })).rejects.toMatchObject({ code: "BAD_REQUEST", message: "This legacy simulation endpoint is retired. Start the dedicated simulation from the supported career catalog." });
     expect(mocks.getStudentProfile).not.toHaveBeenCalled();
     expect(mocks.invokeLLM).not.toHaveBeenCalled();

@@ -347,13 +347,15 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
+  const body = JSON.stringify(payload);
+  if (Buffer.byteLength(body, "utf8") > 512 * 1024) throw new Error("The AI request exceeds its supported size.");
   const result = await timeAiStage("provider", () => requestProviderJson(resolveChatCompletionsUrl(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${ENV.llmApiKey}`,
     },
-    body: JSON.stringify(payload),
+    body,
   }, params.timeoutMs));
 
   if (!result || typeof result !== "object" || !("choices" in result) ||

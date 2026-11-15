@@ -8,13 +8,13 @@ Important paths: `client/src/pages`, `client/src/lib`, `server/routers/pathpilot
 
 ## Commands
 
-Use Node 22.16+ within the Node 22 line and `npx --yes pnpm@10.4.1` (lockfile and Wouter patch must be preserved).
+Use Node 22.16+ within the Node 22 line and `npx --yes pnpm@10.34.9` (lockfile and Wouter patch must be preserved).
 
-- Install: `npx --yes pnpm@10.4.1 install --frozen-lockfile`
-- Dev: `npx --yes pnpm@10.4.1 dev`
-- Build/start: `npx --yes pnpm@10.4.1 build` / `npx --yes pnpm@10.4.1 start`
-- Type check: `npx --yes pnpm@10.4.1 check`
-- Tests: `npx --yes pnpm@10.4.1 test` (includes live integration tests; use disposable Supabase)
+- Install: `npx --yes pnpm@10.34.9 install --frozen-lockfile`
+- Dev: `npx --yes pnpm@10.34.9 dev`
+- Build/start: `npx --yes pnpm@10.34.9 build` / `npx --yes pnpm@10.34.9 start`
+- Type check: `npx --yes pnpm@10.34.9 check`
+- Tests: `npx --yes pnpm@10.34.9 test` (offline by default; live Supabase tests require explicit disposable-environment opt-in)
 - Lint: no lint script/config exists. Prettier check is formatting only; `format` rewrites the entire repository.
 - Database: no verified Supabase replay command yet. Do not use `db:push` for Supabase; it is disabled because the preserved legacy command generates and migrates MySQL. Use `db:verify:supabase` only for read-only continuity checks after existing project credentials are configured privately.
 

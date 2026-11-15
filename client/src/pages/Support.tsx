@@ -1,4 +1,5 @@
 import { LegalLayout } from "@/components/LegalLayout";
+import { Link } from "wouter";
 
 export default function Support() {
   return (
@@ -23,6 +24,7 @@ export default function Support() {
       <p>Do not email passwords, API keys, authentication tokens, sign-in or reset links, or other secrets. Share only the information needed to explain the issue. For privacy or accessibility requests, you can also use the contacts below.</p>
 
       <h2>Contact</h2>
+      <p>To remove an account, follow the <Link href="/delete-account">account deletion instructions</Link>. You can also contact us if you cannot access Settings.</p>
       <p>Email <a href="mailto:krishna@k12worx.org">krishna@k12worx.org</a> or <a href="mailto:vedanth@k12worx.org">vedanth@k12worx.org</a>. Please describe the issue in the message so we can route it appropriately. We will review requests as we are able; there is no guaranteed response time.</p>
     </LegalLayout>
   );

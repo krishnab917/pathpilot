@@ -1,4 +1,5 @@
 import { OpportunityRecord } from "@/components/OpportunityRecord";
+import { safeHttpUrl } from "@shared/safe-url";
 import { PageHeader, FeedbackState } from "@/components/ProductPrimitives";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ function OpportunityCard({ opportunity, onSetGoal, onSetState, isUpdating }: { o
     <div className="flex flex-col justify-between gap-4 lg:flex-row">
       <OpportunityRecord opportunity={opportunity} />
       <div className="flex shrink-0 flex-wrap items-start gap-2">
-        <Button size="sm" variant="outline" asChild><a href={opportunity.applicationUrl} target="_blank" rel="noreferrer">Source page <ExternalLink className="size-3.5" /></a></Button>
+        <Button size="sm" variant="outline" asChild><a href={safeHttpUrl(opportunity.applicationUrl)} target="_blank" rel="noreferrer">Source page <ExternalLink className="size-3.5" /></a></Button>
         <Button size="sm" variant="outline" onClick={() => setShowGoalConfirmation(current => !current)}><Target className="size-3.5" />Set as goal</Button>
         <Button size="sm" variant={opportunity.savedStatus === "saved" ? "outline" : "default"} disabled={isUpdating} onClick={() => onSetState(opportunity.id, opportunity.savedStatus === "saved" ? "dismissed" : "saved")}>{isUpdating ? <Loader2 className="size-3.5" /> : opportunity.savedStatus === "saved" ? "Remove" : "Save"}</Button>
       </div>
@@ -68,7 +69,7 @@ export default function Opportunities() {
   const profile = trpc.pathpilot.profile.get.useQuery();
   const countryOptions = trpc.pathpilot.profile.countryOptions.useQuery(undefined, staticMetadataQueryOptions);
   const [category, setCategory] = useState<Category | undefined>();
-  const [alignedOnly, setAlignedOnly] = useState(true);
+  const [alignedOnly, setAlignedOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [countryCode, setCountryCode] = useState<string | undefined>();
   const [grade, setGrade] = useState<string | undefined>();
@@ -83,10 +84,10 @@ export default function Opportunities() {
   const refreshCatalog = trpc.pathpilot.opportunities.refreshCuratedCatalog.useMutation({ onSuccess: result => { utils.pathpilot.opportunities.list.invalidate(); notify.success(`${result.imported} popular opportunities refreshed from their source directories.`); } });
   const result = opportunities.data;
   const items = (result?.items ?? []) as Opportunity[];
-  const hasFilters = Boolean(category || search || countryCode || grade || deadlineOnly || !alignedOnly);
+  const hasFilters = Boolean(category || search || countryCode || grade || deadlineOnly || alignedOnly);
   const noResultDetail = deadlineOnly ? "No listing in this view has an organizer-published application deadline. Clear that filter to include listings whose deadline is not verified." : countryCode || grade ? "No listing in this view has matching organizer-published country or grade eligibility. Clear that filter to include listings with unknown eligibility." : "Try another search or category. PathPilot does not create substitute listings when a source has no matching records.";
   const resetPageAnd = (operation: () => void) => { operation(); setPage(1); };
-  const resetFilters = () => { setCategory(undefined); setAlignedOnly(true); setSearch(""); setCountryCode(undefined); setGrade(undefined); setDeadlineOnly(false); setPage(1); };
+  const resetFilters = () => { setCategory(undefined); setAlignedOnly(false); setSearch(""); setCountryCode(undefined); setGrade(undefined); setDeadlineOnly(false); setPage(1); };
 
   return <>
     <PageHeader eyebrow="Opportunity discovery" title="Find something worth pursuing" description="Search by interest, narrow the experience, and check the organizer’s details before taking your next step." action={user?.role === "admin" && <Button size="sm" variant="outline" disabled={refreshCatalog.isPending} onClick={() => refreshCatalog.mutate()}>{refreshCatalog.isPending ? <Loader2 className="size-3.5" /> : "Refresh popular catalog"}</Button>} />

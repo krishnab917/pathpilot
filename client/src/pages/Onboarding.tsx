@@ -1,4 +1,3 @@
-import { ProgressIndicator } from "@/components/ProductPrimitives";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
@@ -7,80 +6,72 @@ import { startLogin } from "@/const";
 import { staticMetadataQueryOptions } from "@/lib/query-policies";
 import { invalidateProfileDependentViews } from "@/lib/planning-cache-invalidation";
 import { trpc } from "@/lib/trpc";
-import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Check, Loader2, MapPin, Search, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { careerFields, dimensions, fieldDetails, pathways } from "@shared/career-taxonomy";
+import { completedProfileSchema, draftProfileSchema, emptyIntake, motivationOptions, readIntake, type IntakeProfile, type DiscoveryIntake } from "@shared/discovery-intake";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 
-const steps = ["Your context", "What draws you in", "Your strengths", "How you show up", "Your direction"];
-const interests = ["Technology", "Science", "Business", "Medicine", "Engineering", "Arts", "Law", "Environment"];
-const skills = ["Programming", "Leadership", "Communication", "Research", "Writing", "Math", "Design", "Problem solving"];
-const activities = ["Clubs", "Sports", "Research", "Volunteer work", "Part-time work", "Music & arts", "Independent projects", "Community leadership"];
-const preferences = ["Creating things", "Helping people", "Discovering knowledge", "Leading teams", "Solving technical problems"];
-
-function ChoiceGrid({ values, selected, onToggle }: { values: string[]; selected: string[]; onToggle: (value: string) => void }) {
-  return <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">{values.map(value => {
-    const active = selected.includes(value);
-    return <button key={value} type="button" onClick={() => onToggle(value)} className={cn("group relative rounded-2xl border px-4 py-3.5 text-left text-sm font-medium", active ? "border-primary bg-primary text-primary-foreground shadow-[0_8px_24px_rgba(39,74,169,0.20)]" : "border-border bg-card text-foreground hover:border-foreground/25 hover:shadow-sm")}><span>{value}</span>{active && <Check className="absolute right-3 top-3 size-4" />}</button>;
-  })}</div>;
+const steps = ["Your context", "Your interests", "Ways to work", "Experience", "Review"];
+const control = "mt-2 min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const list = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+const split = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
+const preferenceLabels = { investigation: "Investigating questions", practical: "Hands-on work", abstract: "Exploring ideas and theories", creative: "Trying creative approaches", collaboration: "Working with others", independent: "Working independently", constraints: "Balancing limits and trade-offs", planning: "Organizing steps ahead", adaptation: "Adapting when plans change", service: "Helping people directly", communication: "Explaining and discussing ideas" };
+export function initialIntakeProfile(source?: Record<string, unknown> | null): IntakeProfile {
+  return { grade: typeof source?.grade === "string" ? source.grade : "", location: typeof source?.location === "string" ? source.location : "", countryCode: typeof source?.countryCode === "string" ? source.countryCode : null, educationSystem: typeof source?.educationSystem === "string" ? source.educationSystem : null, interests: list(source?.interests), skills: list(source?.skills), activities: list(source?.activities), careerPreferences: list(source?.careerPreferences), discoveryIntake: readIntake(source?.discoveryIntake) ?? emptyIntake() };
 }
-
-export default function Onboarding() {
-  const { isAuthenticated, loading } = useAuth();
-  const [, setLocation] = useLocation();
-  const [step, setStep] = useState(0);
-  const [grade, setGrade] = useState("");
-  const [location, setStudentLocation] = useState("");
-  const [countryCode, setCountryCode] = useState("");
+function Choices<T extends string>({ label, values, selected, change, labels }: { label: string; values: readonly T[]; selected: T[]; change: (values: T[]) => void; labels?: Partial<Record<T, string>> }) {
+  return <fieldset className="min-w-0"><legend className="mb-3 text-sm font-medium">{label}</legend><div className="grid gap-2 sm:grid-cols-2">{values.map(value => <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => change(selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value])} className="min-h-11 rounded-md border border-input p-3 text-left text-sm hover:bg-muted aria-pressed:border-primary aria-pressed:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">{selected.includes(value) ? "✓ " : ""}{labels?.[value] ?? value}</button>)}</div></fieldset>;
+}
+type Country = { code: string; label: string; region: string; educationSystem: string };
+export function ProgressiveIntake({ initial, initialStep = 0, countries, onSave, onComplete }: { initial: IntakeProfile; initialStep?: number; countries: Country[]; onSave: (step: number, profile: IntakeProfile) => Promise<unknown>; onComplete: (profile: IntakeProfile) => Promise<unknown> }) {
+  const [value, setValue] = useState(initial);
+  const [step, setStep] = useState(Math.min(4, Math.max(0, initialStep)));
   const [countryQuery, setCountryQuery] = useState("");
-  const [educationSystem, setEducationSystem] = useState("");
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
-  const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState("Changes save when you continue or choose Save progress.");
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, [step]);
+  const intake = value.discoveryIntake ?? emptyIntake();
+  const update = (patch: Partial<IntakeProfile>) => { setValue(previous => ({ ...previous, ...patch })); setStatus("Unsaved changes. Continue or save before leaving."); };
+  const updateIntake = (patch: Partial<DiscoveryIntake>) => update({ discoveryIntake: { ...intake, ...patch } });
+  const valid = completedProfileSchema.safeParse(value);
+  const save = async (next: number, finish = false) => {
+    if (lock.current) return;
+    if (!draftProfileSchema.safeParse(value).success) { setError("Use at most 12 entries per list, with each entry under 80 characters. Your answers have not been shortened or discarded."); return; }
+    if ((step === 0 && next > 0 || finish) && !valid.success) { setError("Choose a grade and country, and enter a city or region (at least two characters). Check that each entry is under 80 characters and lists have at most 12 items."); return; }
+    lock.current = true; setPending(true); setError("");
+    try { if (finish) await onComplete(value); else { await onSave(next, value); setStep(next); setStatus("Progress saved to your private account."); } }
+    catch { setError("We couldn’t save your answers. They are still on this screen. Try again before leaving."); }
+    finally { lock.current = false; setPending(false); }
+  };
+  const groupedCountries = countries.filter(country => !countryQuery || (country.label + " " + country.region).toLowerCase().includes(countryQuery.toLowerCase())).reduce<Record<string, Country[]>>((groups, country) => { (groups[country.region] ??= []).push(country); return groups; }, {});
+  return <main className="min-h-screen bg-background px-3 py-6 sm:px-6"><div className="mx-auto max-w-3xl"><Brand /><header className="my-8"><p className="eyebrow">Your starting point</p><h1 className="mt-3 text-3xl">Explore now. Change your mind later.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">A little context helps us suggest fields to investigate. Optional answers can wait. No answer closes off a career or training route.</p></header>
+    <nav aria-label="Intake stages" className="mb-5 flex flex-wrap gap-2">{steps.map((label, index) => <span key={label} aria-current={index === step ? "step" : undefined} className={index === step ? "text-sm font-semibold text-foreground" : "text-sm text-muted-foreground"}>{index + 1}. {label}{index < 4 ? " /" : ""}</span>)}</nav>
+    <section className="surface-panel min-w-0 p-4 sm:p-7" aria-busy={pending}><h2 ref={heading} tabIndex={-1} className="mb-5 text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">{steps[step]} <span className="text-sm text-muted-foreground">{step + 1} of 5</span></h2>
+    <fieldset key={step} disabled={pending} className="min-w-0 space-y-6">
+    {step === 0 ? <><p className="text-sm leading-6 text-muted-foreground">Your grade and planning country give future roadmap suggestions context. A broad region is enough; don’t enter a home address.</p><label className="block text-sm">Your grade<select className={control} value={value.grade} onChange={event => update({ grade: event.target.value })}><option value="">Choose grade</option>{[8,9,10,11,12].map(n => <option key={n}>Grade {n}</option>)}{value.grade && !/^Grade (8|9|10|11|12)$/.test(value.grade) ? <option>{value.grade}</option> : null}</select></label><label className="block text-sm">City or region<Input className="mt-2" maxLength={160} value={value.location} onChange={event => update({ location: event.target.value })} /></label><label className="block text-sm">Search planning country<Input className="mt-2" value={countryQuery} onChange={event => setCountryQuery(event.target.value)} /></label><label className="block text-sm">Primary planning country<select className={control} value={value.countryCode ?? ""} onChange={event => { const country = countries.find(item => item.code === event.target.value); update({ countryCode: country?.code ?? null, educationSystem: country?.educationSystem ?? null }); }}><option value="">Choose country</option>{Object.entries(groupedCountries).map(([region, items]) => <optgroup key={region} label={region}>{items.map(country => <option key={country.code} value={country.code}>{country.label}</option>)}</optgroup>)}</select></label><p className="text-xs leading-5 text-muted-foreground">This is your one primary roadmap country. Editing it does not replace an existing roadmap.</p></> : null}
+    {step === 1 ? <><Choices label="Which fields are you curious about? Choose any, or leave open." values={careerFields} labels={Object.fromEntries(careerFields.map(field => [field, fieldDetails[field].label]))} selected={intake.fields} change={fields => updateIntake({ fields })} /><label className="block text-sm">Other interests, separated by commas<Input className="mt-2" defaultValue={value.interests.join(", ")} maxLength={960} onBlur={event => update({ interests: split(event.target.value) })} /></label><label className="block text-sm">Do you already have a direction in mind?<select className={control} value={intake.direction} onChange={event => updateIntake({ direction: event.target.value as "open" | "ideas" })}><option value="open">I’m exploring broadly</option><option value="ideas">I have some ideas</option></select></label>{intake.direction === "ideas" ? <label className="block text-sm">Careers or specialties you would like to explore<Input className="mt-2" defaultValue={intake.careers.join(", ")} maxLength={960} onBlur={event => updateIntake({ careers: split(event.target.value) })} /><span className="text-xs text-muted-foreground">Use commas for multiple ideas. You can change these later.</span></label> : null}</> : null}
+    {step === 2 ? <><p className="text-sm leading-6 text-muted-foreground">Pick what you would like to try, not what you think you are good at. Independent and collaborative work can both appeal to you.</p><div className="grid gap-4 sm:grid-cols-2">{dimensions.map(dimension => <label key={dimension} className="min-w-0 text-sm">{preferenceLabels[dimension]}<select className={control} value={intake.preferences[dimension] ?? ""} onChange={event => { const preferences = { ...intake.preferences }; if (event.target.value === "") delete preferences[dimension]; else preferences[dimension] = Number(event.target.value) as 0 | 0.5 | 1; updateIntake({ preferences }); }}><option value="">Not sure / skip</option><option value="1">I’d like more of this</option><option value="0.5">Depends on the situation</option><option value="0">I’d prefer less of this</option></select></label>)}</div><Choices label="What matters to you? Optional, choose several." values={motivationOptions} selected={intake.motivations} change={motivations => updateIntake({ motivations })} /><p className="text-xs leading-5 text-muted-foreground">Motivations are saved for your reflection. We do not predict salary or work-life balance from a field.</p><Choices label="Training routes you want to consider (none means undecided)" values={pathways} labels={{ degree: "College / undergraduate degree", graduate: "Graduate or professional study", certificate: "Trade school / certificate", workplace: "Direct employment / workplace training", associate: "Associate degree", apprenticeship: "Apprenticeship", portfolio: "Portfolio-based route" }} selected={intake.pathways} change={routes => updateIntake({ pathways: routes })} /></> : null}
+    {step === 3 ? <><p className="text-sm leading-6 text-muted-foreground">Small experiences count. It’s fine to leave everything empty. Use short descriptions, not private details about yourself or others.</p>{([['Subjects you enjoy', intake.subjects, (items: string[]) => updateIntake({ subjects: items })], ['Skills you have tried', value.skills, (items: string[]) => update({ skills: items })], ['Activities, projects, volunteering or work', value.activities, (items: string[]) => update({ activities: items })], ['Goals or existing career preferences', value.careerPreferences, (items: string[]) => update({ careerPreferences: items })]] as const).map(([label, items, change]) => <label key={label} className="block text-sm">{label}<Input className="mt-2" defaultValue={items.join(", ")} maxLength={960} onBlur={event => change(split(event.target.value))} /><span className="text-xs text-muted-foreground">Separate entries with commas; up to 12 short entries.</span></label>)}</> : null}
+    {step === 4 ? <><p className="text-sm leading-6">Review before saving. Nothing here is an aptitude result. You can edit these answers again from Discovery.</p><dl className="space-y-4 text-sm leading-6"><div><dt className="font-semibold">Planning context</dt><dd>{value.grade} · {value.location} · {value.countryCode}</dd></div><div><dt className="font-semibold">Interests and directions</dt><dd>{[...intake.fields.map(field => fieldDetails[field].label), ...value.interests, ...(intake.direction === "ideas" ? intake.careers : [])].join("; ") || "Open to exploring"}</dd></div><div><dt className="font-semibold">Preferences</dt><dd>{Object.entries(intake.preferences).map(([key, answer]) => key + ": " + (answer === 1 ? "more" : answer === 0 ? "less" : "depends")).join("; ") || "Not specified"}</dd></div><div><dt className="font-semibold">Motivations and pathways</dt><dd>{[...intake.motivations, ...intake.pathways].join("; ") || "Undecided"}</dd></div><div><dt className="font-semibold">Experience and goals</dt><dd>{[...intake.subjects, ...value.skills, ...value.activities, ...value.careerPreferences].join("; ") || "No experience needed to start"}</dd></div></dl><div className="flex flex-wrap gap-2">{steps.slice(0,4).map((label, index) => <Button key={label} variant="outline" onClick={() => void save(index)}>Edit {label.toLowerCase()}</Button>)}</div></> : null}
+    </fieldset>
+    {error ? <p role="alert" className="mt-5 text-sm text-destructive">{error}</p> : null}<p role="status" className="mt-5 text-xs text-muted-foreground">{pending ? "Saving…" : status}</p>
+    <div className="mt-5 flex flex-wrap gap-3 border-t border-border pt-5"><Button variant="ghost" disabled={pending || step === 0} onClick={() => void save(step - 1)}>Back</Button><Button variant="outline" disabled={pending} onClick={() => void save(step)}>Save progress</Button>{step > 0 && step < 4 ? <Button variant="ghost" disabled={pending} onClick={() => void save(step + 1)}>Skip remaining questions</Button> : null}<Button disabled={pending} onClick={() => void save(Math.min(4, step + 1), step === 4)}>{step === 4 ? "Save and explore fields" : "Continue"}</Button></div></section><a href="/app/discover" className="mt-6 inline-flex min-h-11 items-center text-sm underline">Back to Discovery</a></div></main>;
+}
+export default function Onboarding() {
+  const { isAuthenticated, loading, user } = useAuth();
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const savedProfile = trpc.pathpilot.profile.get.useQuery(undefined, { enabled: isAuthenticated });
   const draft = trpc.pathpilot.profile.getDraft.useQuery(undefined, { enabled: isAuthenticated });
   const countries = trpc.pathpilot.profile.countryOptions.useQuery(undefined, { ...staticMetadataQueryOptions, enabled: isAuthenticated });
   const saveDraft = trpc.pathpilot.profile.saveDraft.useMutation();
-  const complete = trpc.pathpilot.profile.completeOnboarding.useMutation({ onSuccess: async () => { await invalidateProfileDependentViews(utils); await utils.pathpilot.profile.getDraft.invalidate(); setLocation("/app"); } });
-
-  useEffect(() => { if (savedProfile.data?.onboardingCompletedAt) setLocation("/app"); }, [savedProfile.data, setLocation]);
-  useEffect(() => {
-    const payload = draft.data?.payload;
-    if (!payload) return;
-    setStep(draft.data?.currentStep ?? 0);
-    setGrade(typeof payload.grade === "string" ? payload.grade : "");
-    setStudentLocation(typeof payload.location === "string" ? payload.location : "");
-    setCountryCode(typeof payload.countryCode === "string" ? payload.countryCode : "");
-    setEducationSystem(typeof payload.educationSystem === "string" ? payload.educationSystem : "");
-    setSelectedInterests(Array.isArray(payload.interests) ? payload.interests as string[] : []);
-    setSelectedSkills(Array.isArray(payload.skills) ? payload.skills as string[] : []);
-    setSelectedActivities(Array.isArray(payload.activities) ? payload.activities as string[] : []);
-    setSelectedPreferences(Array.isArray(payload.careerPreferences) ? payload.careerPreferences as string[] : []);
-  }, [draft.data]);
-
-  const groupedCountries = useMemo(() => {
-    const query = countryQuery.trim().toLowerCase();
-    const matches = (countries.data ?? []).filter(country => !query || `${country.label} ${country.region}`.toLowerCase().includes(query));
-    return matches.reduce<Record<string, typeof matches>>((groups, country) => {
-      (groups[country.region] ??= []).push(country);
-      return groups;
-    }, {});
-  }, [countries.data, countryQuery]);
-  const currentSelection = [selectedInterests, selectedSkills, selectedActivities, selectedPreferences][step - 1];
-  const canAdvance = useMemo(() => step === 0 ? Boolean(grade && location.trim() && countryCode && educationSystem) : currentSelection?.length > 0, [countryCode, currentSelection, educationSystem, grade, location, step]);
-  const toggle = (value: string, values: string[], setValues: (values: string[]) => void) => setValues(values.includes(value) ? values.filter(item => item !== value) : [...values, value]);
-  const payload = { grade, location, countryCode, educationSystem, interests: selectedInterests, skills: selectedSkills, activities: selectedActivities, careerPreferences: selectedPreferences };
-  const advance = async () => { if (!canAdvance) return; if (step < 4) { await saveDraft.mutateAsync({ currentStep: step + 1, profile: payload }); setStep(step + 1); } else complete.mutate(payload); };
-  const selectCountry = (code: string) => { const selected = countries.data?.find(country => country.code === code); setCountryCode(code); setEducationSystem(selected?.educationSystem ?? "General education planning context"); };
-
-  if (loading) return <div className="grid min-h-screen place-items-center"><Loader2 className="size-5 text-muted-foreground" /></div>;
-  if (!isAuthenticated) return <main className="grid min-h-screen place-items-center bg-background px-5"><div className="surface-panel w-full max-w-md p-8 text-center"><Brand /><h1 className="mt-10 text-3xl font-semibold tracking-[-0.05em]">Start with your account</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in first so PathPilot can keep your roadmap and guidance private.</p><Button className="mt-8 w-full" size="lg" onClick={() => startLogin()}>Sign in to PathPilot</Button></div></main>;
-
-  const contextStep = <div><div className="icon-tile"><MapPin className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">Where are you right now?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Your grade, region, and one primary study country help PathPilot frame recommendations without locking you into a pathway.</p><div className="mt-7 grid gap-4 sm:grid-cols-2"><label className="field-label">Your grade<select value={grade} onChange={event => setGrade(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"><option value="">Select grade</option>{[8, 9, 10, 11, 12].map(value => <option key={value} value={`Grade ${value}`}>Grade {value}</option>)}</select></label><label className="field-label">Your city or region<Input className="mt-2 h-11 rounded-xl" value={location} onChange={event => setStudentLocation(event.target.value)} placeholder="e.g., Austin, Texas" /></label></div><div className="mt-4"><label className="field-label" htmlFor="country-search">Search planning country</label><div className="relative mt-2"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input id="country-search" className="h-11 rounded-xl pl-9" value={countryQuery} onChange={event => setCountryQuery(event.target.value)} placeholder="Search by country or region" /></div></div><label className="field-label mt-4 block">Which country are you currently studying in?<select value={countryCode} onChange={event => selectCountry(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" disabled={countries.isLoading}><option value="">Select primary country</option>{Object.entries(groupedCountries).map(([region, items]) => <optgroup key={region} label={region}>{items.map(country => <option key={country.code} value={country.code}>{country.label}</option>)}</optgroup>)}</select><span className="mt-2 block text-xs font-normal leading-5 text-muted-foreground">This is your one primary roadmap country. You can change it later without replacing an existing roadmap; future country-specific recommendations can be refreshed explicitly.</span></label></div>;
-  const choiceStep = (title: string, description: string, values: string[], selected: string[], update: (value: string) => void) => <div><div className="icon-tile"><Sparkles className="size-5" /></div><h2 className="mt-5 text-2xl font-semibold tracking-[-0.045em]">{title}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p><div className="mt-7"><ChoiceGrid values={values} selected={selected} onToggle={update} /></div></div>;
-  const body = step === 0 ? contextStep : step === 1 ? choiceStep("What pulls you in?", "Choose the subjects and fields that make you curious. More than one is welcome.", interests, selectedInterests, value => toggle(value, selectedInterests, setSelectedInterests)) : step === 2 ? choiceStep("Where do you feel capable?", "Include things you have started learning—not just things you have mastered.", skills, selectedSkills, value => toggle(value, selectedSkills, setSelectedSkills)) : step === 3 ? choiceStep("How do you show up?", "Your activities reveal the environments where you learn and contribute best.", activities, selectedActivities, value => toggle(value, selectedActivities, setSelectedActivities)) : choiceStep("What kind of work matters?", "This is a starting signal, not a permanent label. Your career workspace will grow with you.", preferences, selectedPreferences, value => toggle(value, selectedPreferences, setSelectedPreferences));
-
-  return <main className="min-h-screen bg-background px-4 py-5 sm:px-6 sm:py-8"><div className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-5xl flex-col"><header className="flex items-center justify-between"><Brand /><span className="text-xs font-medium text-muted-foreground">Onboarding · {step + 1} / 5</span></header><div className="my-10 grid flex-1 items-center lg:grid-cols-[0.85fr_1.15fr] lg:gap-20"><div className="mb-10 lg:mb-0"><div className="eyebrow">Build your starting point</div><h1 className="mt-4 max-w-md text-4xl font-semibold tracking-[-0.06em] text-balance sm:text-5xl">A direction that feels <span className="text-primary">like yours.</span></h1><p className="mt-5 max-w-sm text-base leading-7 text-muted-foreground">A few thoughtful inputs help your career workspace stay relevant as your goals evolve.</p><div className="mt-10 space-y-4">{steps.map((label, index) => <div key={label} className={cn("flex items-center gap-3 text-sm", index === step ? "text-foreground" : index < step ? "text-primary" : "text-muted-foreground/60")}><span className={cn("grid size-6 place-items-center rounded-full text-[11px] font-semibold", index < step ? "bg-primary text-primary-foreground" : index === step ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>{index < step ? <Check className="size-3.5" /> : index + 1}</span>{label}</div>)}</div></div><section className="surface-panel overflow-hidden p-1"><div className="rounded-[22px] bg-card p-6 sm:p-9"><ProgressIndicator className="mb-8" value={(step + 1) * 20} label={`Step ${step + 1} of 5`} />{body}<div className="mt-9 flex items-center justify-between border-t pt-6"><Button variant="ghost" className="gap-2" disabled={step === 0 || complete.isPending || saveDraft.isPending} onClick={() => setStep(step - 1)}><ArrowLeft className="size-4" />Back</Button><Button className="gap-2" disabled={!canAdvance || complete.isPending || saveDraft.isPending} onClick={() => void advance()}>{complete.isPending || saveDraft.isPending ? <Loader2 className="size-4" /> : step === 4 ? "Build my workspace" : <>Continue <ArrowRight className="size-4" /></>}</Button></div>{(complete.error || saveDraft.error) && <p className="mt-4 text-sm text-destructive">{complete.error?.message ?? saveDraft.error?.message}</p>}</div></section></div></div></main>;
+  const complete = trpc.pathpilot.profile.completeOnboarding.useMutation();
+  if (loading) return <p role="status">Loading your account…</p>;
+  if (!isAuthenticated) return <main className="mx-auto max-w-md p-6"><Brand /><h1 className="my-6 text-3xl">Start with your account</h1><p className="mb-5">Sign in to keep your answers private.</p><Button onClick={() => startLogin()}>Sign in to PathPilot</Button></main>;
+  if (savedProfile.isLoading || draft.isLoading || countries.isLoading) return <p role="status" className="p-6">Loading your saved progress…</p>;
+  if (savedProfile.error || draft.error || countries.error) return <main className="p-6"><p role="alert">Your saved progress could not be loaded. We won’t replace it with an empty form.</p><Button onClick={() => { void savedProfile.refetch(); void draft.refetch(); void countries.refetch(); }}>Try again</Button></main>;
+  return <ProgressiveIntake key={user?.id} initial={initialIntakeProfile({ ...savedProfile.data, ...draft.data?.payload })} initialStep={draft.data?.currentStep} countries={countries.data ?? []} onSave={(currentStep, profile) => saveDraft.mutateAsync({ currentStep, profile })} onComplete={async profile => { await complete.mutateAsync(profile as Parameters<typeof complete.mutateAsync>[0]); await invalidateProfileDependentViews(utils); await utils.pathpilot.profile.getDraft.invalidate(); setLocation("/app/discover"); }} />;
 }

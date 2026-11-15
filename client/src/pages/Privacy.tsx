@@ -3,7 +3,7 @@ import { LegalLayout } from "@/components/LegalLayout";
 export default function Privacy() {
   return (
     <LegalLayout title="Privacy Policy">
-      <p>Last updated: September 30, 2026</p>
+      <p>Last updated: October 26, 2026</p>
 
       <h2>About this policy</h2>
       <p>PathPilot helps students explore careers, try work scenarios, and plan next steps. This policy explains the information involved when you visit the site or use an account, how it is used, and the choices available to you.</p>
@@ -28,7 +28,7 @@ export default function Privacy() {
       <p>When you request career analysis, a roadmap, Mentor help, or Project Guidance, PathPilot's server sends the information needed for that request to a configured AI provider through an OpenAI-compatible API. This can include profile answers, selected simulation insights, relevant goals or projects, and the text you submit. The provider processes that information to produce a response. AI output is checked before it is saved or shown, but it can still be inaccurate or incomplete. Provider retention and use of submitted information depend on the provider and its terms; we do not promise that submissions are excluded from provider training.</p>
 
       <h2>Services and sharing</h2>
-      <p>Supabase provides account authentication and application data storage. The configured AI provider processes requests to AI features. Our hosting provider serves the site and API. A configured analytics service may process site usage if enabled. Google Fonts may receive a browser request when its font files load. Opportunity listings can link to outside organizers; their sites have their own practices. We do not make your private workspace public through those links. Information you intentionally publish through a portfolio or report link is visible according to that feature's sharing controls.</p>
+      <p>Supabase provides account authentication and application data storage. The configured AI provider processes requests to AI features. Our hosting provider serves the site and API. A configured analytics service may process site usage if enabled. Fonts are served with the website. Opportunity listings can link to outside organizers; their sites have their own practices. We do not make your private workspace public through those links. Information you intentionally publish through a portfolio or report link is visible according to that feature's sharing controls.</p>
 
       <h2>Retention and deletion</h2>
       <p>Saved account information generally remains while your account is active and until you edit, unpublish, revoke, or delete it, depending on the feature. Some short-lived features, such as project-guidance cache entries and report links, have expiry controls. Retention periods can differ for account records, infrastructure logs, backups, and information processed by service providers; we do not currently publish one period that applies to all of them. In Workspace Settings, you can request account deletion; the application deletes the Supabase auth user and uses database relationships to remove associated PathPilot records. Copies held in backups, logs, or by providers may follow separate retention schedules.</p>

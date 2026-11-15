@@ -49,6 +49,13 @@ export function createRequestSupabase(accessToken: string) {
   });
 }
 
+export function createPublicSupabase() {
+  const { url, key } = getSupabaseConfig();
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+  });
+}
+
 export function runWithSupabaseClient<T>(
   client: SupabaseClient,
   callback: () => T

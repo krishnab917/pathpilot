@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { currentSupabaseClient, getSupabaseConfig, getOptionalSupabaseServiceRoleKey } from "./supabase";
+import { operationLimiter } from "./operation-limits";
 
 export const DERIVED_ANALYSIS_TYPE = "simulation_evolution" as const;
 export type DerivedAnalysisStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
@@ -65,6 +66,16 @@ export async function processNextDerivedAnalysis(workerToken: unknown) {
   const serviceRoleKey = getOptionalSupabaseServiceRoleKey();
   if (!serviceRoleKey) throw new Error("The background worker is not configured.");
   const workerRpcClient = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
+  // Authenticate before charging shared scheduler capacity. A well-formed but
+  // invalid token must not be able to exhaust the legitimate worker's budget.
+  // This existing service-only table is never exposed to clients or logs.
+  const credential = await workerRpcClient.from("background_worker_credentials").select("token_hash").eq("worker_name", "derived_analysis").abortSignal(AbortSignal.timeout(5000)).maybeSingle();
+  if (credential.error) throw new Error("Could not verify background worker authorization.");
+  const expected = credential.data?.token_hash;
+  if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected) || !timingSafeEqual(Buffer.from(expected, "hex"), createHash("sha256").update(workerToken).digest())) return { authorized: false as const };
+  await operationLimiter.consume("worker:derived-analysis", "worker:burst");
+  // Existing RPC still verifies the token immediately before claiming a job,
+  // including if its verifier changed between preflight and processing.
   const { data, error } = await workerRpcClient.rpc("process_next_derived_analysis", { worker_token: workerToken });
   if (error || !data) throw new Error("Could not process queued analysis.");
   return data as { authorized: boolean; processed?: boolean; reason?: string; jobId?: string; status?: "completed" | "failed" };

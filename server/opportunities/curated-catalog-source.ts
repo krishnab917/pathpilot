@@ -1,4 +1,7 @@
 import { load } from "cheerio";
+import { safeHttpUrl } from "../../shared/safe-url";
+import { fetchSourceHtml } from "./fetch-source";
+import { careerDomainsFor } from "./career-alignment";
 
 export type OpportunityCategory = "internship" | "competition" | "research";
 export type CuratedOpportunityDraft = {
@@ -19,17 +22,16 @@ export const HACK_CLUB_DIRECTORY_URL = "https://hackathons.hackclub.com/";
 export const PATHWAYS_SUMMER_RESEARCH_URL = "https://www.pathwaystoscience.org/programs.aspx?u=&r=&s=&sa=either&p=either&c=either&f=&dd=SummerResearch_Summer%20Research%20Opportunity&ft=&submit=y&dhub=SummerResearch_Summer%20Research%20Opportunity";
 
 const whitespace = (value: string) => value.replace(/\s+/g, " ").trim();
-const absolute = (href: string, base: string) => new URL(href, base).toString();
+const absolute = (href: string, base: string) => {
+  try { return safeHttpUrl(new URL(href, base).toString()); } catch { return undefined; }
+};
 const compactId = (value: string) => value.replace(/^https?:\/\//, "").replace(/[^a-z0-9]+/gi, "-").replace(/(^-|-$)/g, "").slice(0, 180);
 
 export function inferCareerDomains(...values: string[]) {
-  const text = values.join(" ").toLowerCase();
-  const domains = new Set<string>(["technology", "engineering", "design", "business"]);
-  if (/bio|medical|health|fish|ecolog|climate|earth|space|physics|chem|research|science/.test(text)) domains.add("science");
-  if (/cyber|software|code|data|ai|computer|game/.test(text)) domains.add("technology");
-  if (/art|design|media|creative|music/.test(text)) domains.add("design");
-  if (/policy|psych|social|community|education|public/.test(text)) domains.add("social-impact");
-  if (/business|entrepreneur|market|finance/.test(text)) domains.add("business");
+  const text = values.join(" ");
+  const domains = new Set(careerDomainsFor(text));
+  // Retain the legacy science subject without assigning it to every career field.
+  if (/\b(science|research|physics|chemistry|biology)\b/i.test(text)) domains.add("science");
   return Array.from(domains);
 }
 
@@ -44,6 +46,7 @@ export function parseHackClubDirectory(html: string, limit = 70): CuratedOpportu
     if (!title || !href || href.startsWith("/") || /hackclub\.com\/?$/.test(href)) return;
     const details = whitespace(anchor.text()).replace(title, "").trim();
     const applicationUrl = absolute(href, HACK_CLUB_DIRECTORY_URL);
+    if (!applicationUrl) return;
     const externalId = compactId(applicationUrl);
     records.set(externalId, {
       sourceSlug: "hack-club", externalId, title,
@@ -65,6 +68,7 @@ export function parsePathwaysSummerResearch(html: string, limit = 70): CuratedOp
     const href = anchor.attr("href");
     if (!title || !href || /read more/i.test(title)) return;
     const applicationUrl = absolute(href, PATHWAYS_SUMMER_RESEARCH_URL);
+    if (!applicationUrl) return;
     const parentText = whitespace(anchor.parent().text()).replace(title, "").replace(/\.\.\.read more/gi, "").trim();
     const externalId = compactId(applicationUrl);
     const category: OpportunityCategory = /internship/i.test(title) ? "internship" : "research";
@@ -79,8 +83,6 @@ export function parsePathwaysSummerResearch(html: string, limit = 70): CuratedOp
 }
 
 export async function fetchCuratedOpportunityDrafts(fetcher: typeof fetch = fetch) {
-  const [hackClub, pathways] = await Promise.all([fetcher(HACK_CLUB_DIRECTORY_URL), fetcher(PATHWAYS_SUMMER_RESEARCH_URL)]);
-  if (!hackClub.ok || !pathways.ok) throw new Error("A curated opportunity directory could not be reached.");
-  const [hackClubHtml, pathwaysHtml] = await Promise.all([hackClub.text(), pathways.text()]);
+  const [hackClubHtml, pathwaysHtml] = await Promise.all([fetchSourceHtml(HACK_CLUB_DIRECTORY_URL, fetcher), fetchSourceHtml(PATHWAYS_SUMMER_RESEARCH_URL, fetcher)]);
   return [...parseHackClubDirectory(hackClubHtml), ...parsePathwaysSummerResearch(pathwaysHtml)];
 }

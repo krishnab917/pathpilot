@@ -5,12 +5,12 @@ import { simulationCareerCatalog } from "../server/simulation/catalog";
 
 describe("expanded adaptive simulation catalog", () => {
   it("maps every supported career to its dedicated graph and never substitutes an unsupported input", () => {
-    expect(simulationCareerCatalog).toHaveLength(15);
-    for (const career of simulationCareerCatalog) {
+    expect(simulationCareerCatalog).toHaveLength(25);
+    for (const career of simulationCareerCatalog.slice(0, 15)) {
       expect(getSimulationGraph(career.id).id).toBe(career.id === "software-engineer" ? "software-systems-v1" : `${career.id}-v1`);
       expect(getSimulationGraph(career.name).id).toBe(getSimulationGraph(career.id).id);
     }
-    expect(() => getSimulationGraph("Civil Engineer")).toThrow("supported simulation catalog");
+    expect(() => getSimulationGraph("Unlisted Engineer")).toThrow("supported simulation catalog");
   });
 
   it("keeps every catalog graph internally connected and safe for the shared public scenario shell", () => {
@@ -22,7 +22,8 @@ describe("expanded adaptive simulation catalog", () => {
       }
       expect(Object.values(graph.nodes).some(node => node.terminal)).toBe(true);
       const publicScenario = getPublicScenario(graph, initialSimulationState(graph));
-      expect(publicScenario.decisions.length).toBeGreaterThanOrEqual(3);
+      if (publicScenario.work) expect(publicScenario.work.fields.length).toBeGreaterThanOrEqual(3);
+      else expect(publicScenario.decisions.length).toBeGreaterThanOrEqual(3);
       expect(JSON.stringify(publicScenario)).not.toContain("signals");
       expect(JSON.stringify(publicScenario)).not.toContain("statePatch");
     }

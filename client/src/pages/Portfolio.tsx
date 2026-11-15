@@ -8,6 +8,7 @@ import { invalidateProjectDependentViews } from "@/lib/planning-cache-invalidati
 import { trpc } from "@/lib/trpc";
 import { Bot, Check, ChevronRight, ExternalLink, FilePenLine, FolderKanban, Globe2, Loader2, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { safeHttpUrl } from "@shared/safe-url";
 
 type ProjectStatus = "idea" | "in_progress" | "completed" | "archived";
 type MilestoneStatus = "not_started" | "in_progress" | "completed";

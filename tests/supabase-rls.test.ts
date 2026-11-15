@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { assertDisposableSupabase } from "./disposable-supabase";
+assertDisposableSupabase();
 
 const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;

@@ -30,7 +30,7 @@ describe("adaptive simulation engine", () => {
     expect(getSimulationGraph("UX / Product Designer").id).toBe("ux-product-designer-v1");
     expect(getSimulationGraph("Entrepreneur / Startup Founder").id).toBe("entrepreneur-startup-founder-v1");
     expect(getSimulationGraph("Software Engineer").id).toBe("software-systems-v1");
-    expect(() => getSimulationGraph("Registered Nurse")).toThrow("supported simulation catalog");
+    expect(() => getSimulationGraph("Unlisted Nurse")).toThrow("supported simulation catalog");
     expect(() => getSimulationGraph("UX Designer")).toThrow("supported simulation catalog");
   });
 

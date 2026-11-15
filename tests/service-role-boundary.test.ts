@@ -52,7 +52,7 @@ describe("service-role career catalog boundary", () => {
     expect(() =>
       validateCareerCatalogWrite(userId, [
         ...matches.slice(0, 4),
-        validRecommendation("Registered Nurse"),
+        validRecommendation("Unlisted Nurse"),
       ])
     ).toThrow("supported PathPilot careers");
   });
